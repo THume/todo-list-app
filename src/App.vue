@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import Task from './components/Task.vue';
 import AddTaskForm from './components/AddTaskForm.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
@@ -50,6 +50,32 @@ const buildDueDate = (date, time) => {
 
   return timestamp.toISOString();
 };
+
+const isToday = (date) => {
+  if (!(date instanceof Date)) {
+    return false;
+  }
+
+  const today = new Date();
+  return date.getFullYear() === today.getFullYear()
+    && date.getMonth() === today.getMonth()
+    && date.getDate() === today.getDate();
+};
+
+const tasksDueToday = computed(() => {
+  if (!Array.isArray(tasks.value)) {
+    return [];
+  }
+
+  return tasks.value.filter((task) => {
+    if (!task || task.completed || !task.due) {
+      return false;
+    }
+
+    const dueDate = new Date(task.due);
+    return !Number.isNaN(dueDate.getTime()) && isToday(dueDate);
+  });
+});
 
 const handleAddTask = ({ title, description, dueDate, dueTime }) => {
   if (!title) {
@@ -143,6 +169,20 @@ onUnmounted(() => {
     @dismiss="dismissNotification"
   />
   <main class="app">
+    <section class="task-list task-list--today">
+      <header class="task-list__header">
+        <h2>Due Today</h2>
+        <span class="task-list__count">{{ tasksDueToday.length }} due</span>
+      </header>
+      <p v-if="tasksDueToday.length === 0" class="task-list__empty">
+        No tasks are due today.
+      </p>
+      <ul v-else class="task-list__items">
+        <li v-for="task in tasksDueToday" :key="`today-${task.id}`" class="task-list__item">
+          <Task :task="task" @toggle="toggleTask" @remove="requestDeleteTask" />
+        </li>
+      </ul>
+    </section>
     <section class="task-list">
       <header class="task-list__header">
         <h2>Tasks</h2>
@@ -198,6 +238,18 @@ $muted-text: #94a3b8;
 .task-list {
   display: grid;
   gap: 1rem;
+
+  &--today {
+    border: 1px solid rgba(39, 52, 73, 0.45);
+    border-radius: 1rem;
+    padding: 1.25rem;
+    background: rgba(15, 23, 42, 0.4);
+    box-shadow: 0 18px 28px -26px rgba(15, 23, 42, 0.8);
+
+    @media (max-width: 640px) {
+      padding: 1rem;
+    }
+  }
 
   &__header {
     display: flex;
