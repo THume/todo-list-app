@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue';
 
 const props = defineProps({
   open: {
@@ -26,46 +26,46 @@ const props = defineProps({
     type: String,
     default: '',
   },
-})
+});
 
-const emit = defineEmits(['update:open', 'confirm', 'cancel'])
+const emit = defineEmits(['update:open', 'confirm', 'cancel']);
 
-const panel = ref(null)
-const uniqueId = Math.random().toString(36).slice(2)
-const titleId = `confirm-dialog-title-${uniqueId}`
-const descriptionId = `confirm-dialog-description-${uniqueId}`
+const panel = ref(null);
+const uniqueId = Math.random().toString(36).slice(2);
+const titleId = `confirm-dialog-title-${uniqueId}`;
+const descriptionId = `confirm-dialog-description-${uniqueId}`;
 
 const resolvedMessage = computed(() => {
   if (props.message.trim().length > 0) {
-    return props.message
+    return props.message;
   }
 
-  const label = props.itemLabel.trim().length > 0 ? `"${props.itemLabel.trim()}"` : 'this item'
-  return `This will permanently remove ${label} from your list.`
-})
+  const label = props.itemLabel.trim().length > 0 ? `"${props.itemLabel.trim()}"` : 'this item';
+  return `This will permanently remove ${label} from your list.`;
+});
 
 const close = () => {
-  emit('update:open', false)
-}
+  emit('update:open', false);
+};
 
 const handleCancel = () => {
-  close()
-  emit('cancel')
-}
+  close();
+  emit('cancel');
+};
 
 const handleConfirm = () => {
-  close()
-  emit('confirm')
-}
+  close();
+  emit('confirm');
+};
 
 watch(
   () => props.open,
   (isOpen) => {
     if (isOpen) {
-      nextTick(() => panel.value?.focus())
+      nextTick(() => panel.value?.focus());
     }
   }
-)
+);
 </script>
 
 <template>

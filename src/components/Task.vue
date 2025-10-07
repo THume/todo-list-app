@@ -1,75 +1,75 @@
 <script setup>
-import { computed } from 'vue'
+import { computed } from 'vue';
 
-const emit = defineEmits(['toggle', 'remove'])
+const emit = defineEmits(['toggle', 'remove']);
 
 const props = defineProps({
   task: {
     type: Object,
     required: true,
     validator(value) {
-      const hasTitle = typeof value.title === 'string' && value.title.trim().length > 0
-      const hasCompletedFlag = typeof value.completed === 'boolean'
-      return hasTitle && hasCompletedFlag
+      const hasTitle = typeof value.title === 'string' && value.title.trim().length > 0;
+      const hasCompletedFlag = typeof value.completed === 'boolean';
+      return hasTitle && hasCompletedFlag;
     },
   },
-})
+});
 
 const dueDate = computed(() => {
   if (!props.task.due) {
-    return null
+    return null;
   }
 
-  const date = new Date(props.task.due)
-  return Number.isNaN(date.getTime()) ? null : date
-})
+  const date = new Date(props.task.due);
+  return Number.isNaN(date.getTime()) ? null : date;
+});
 
 const formattedDueDate = computed(() => {
   if (!dueDate.value) {
-    return ''
+    return '';
   }
 
   return new Intl.DateTimeFormat(undefined, {
     month: 'short',
     day: 'numeric',
     year: dueDate.value.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
-  }).format(dueDate.value)
-})
+  }).format(dueDate.value);
+});
 
 const formattedDueTime = computed(() => {
   if (!dueDate.value) {
-    return ''
+    return '';
   }
 
   return new Intl.DateTimeFormat(undefined, {
     hour: 'numeric',
     minute: '2-digit',
-  }).format(dueDate.value)
-})
+  }).format(dueDate.value);
+});
 
-const dueDateIso = computed(() => (dueDate.value ? dueDate.value.toISOString() : ''))
+const dueDateIso = computed(() => (dueDate.value ? dueDate.value.toISOString() : ''));
 
-const statusLabel = computed(() => (props.task.completed ? 'Completed' : 'Pending'))
+const statusLabel = computed(() => (props.task.completed ? 'Completed' : 'Pending'));
 
 const formattedDueLabel = computed(() => {
   if (!formattedDueDate.value) {
-    return ''
+    return '';
   }
 
   if (!formattedDueTime.value) {
-    return formattedDueDate.value
+    return formattedDueDate.value;
   }
 
-  return `${formattedDueDate.value} at ${formattedDueTime.value}`
-})
+  return `${formattedDueDate.value} at ${formattedDueTime.value}`;
+});
 
 const handleToggle = () => {
-  emit('toggle', props.task)
-}
+  emit('toggle', props.task);
+};
 
 const handleRemove = () => {
-  emit('remove', props.task)
-}
+  emit('remove', props.task);
+};
 </script>
 
 <template>

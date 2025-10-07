@@ -1,39 +1,39 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue';
 
 const props = defineProps({
   visible: {
     type: Boolean,
     default: true,
   },
-})
+});
 
-const emit = defineEmits(['submit', 'update:visible'])
+const emit = defineEmits(['submit', 'update:visible']);
 
-const title = ref('')
-const description = ref('')
-const dueDate = ref('')
-const dueTime = ref('')
-const titleField = ref(null)
+const title = ref('');
+const description = ref('');
+const dueDate = ref('');
+const dueTime = ref('');
+const titleField = ref(null);
 
-const canSubmit = computed(() => title.value.trim().length > 0)
+const canSubmit = computed(() => title.value.trim().length > 0);
 
 const toggleVisibility = () => {
-  emit('update:visible', !props.visible)
-}
+  emit('update:visible', !props.visible);
+};
 
 const resetForm = () => {
-  title.value = ''
-  description.value = ''
-  dueDate.value = ''
-  dueTime.value = ''
-}
+  title.value = '';
+  description.value = '';
+  dueDate.value = '';
+  dueTime.value = '';
+};
 
 const handleSubmit = () => {
-  const trimmedTitle = title.value.trim()
+  const trimmedTitle = title.value.trim();
 
   if (!trimmedTitle) {
-    return
+    return;
   }
 
   emit('submit', {
@@ -41,30 +41,30 @@ const handleSubmit = () => {
     description: description.value.trim(),
     dueDate: dueDate.value || null,
     dueTime: dueTime.value || null,
-  })
+  });
 
-  resetForm()
+  resetForm();
 
   nextTick(() => {
-    titleField.value?.focus()
-  })
-}
+    titleField.value?.focus();
+  });
+};
 
 watch(
   () => props.visible,
   (visible) => {
     if (visible) {
-      nextTick(() => titleField.value?.focus())
+      nextTick(() => titleField.value?.focus());
     }
   },
   { immediate: true }
-)
+);
 
 watch(dueDate, (value) => {
   if (!value) {
-    dueTime.value = ''
+    dueTime.value = '';
   }
-})
+});
 </script>
 
 <template>

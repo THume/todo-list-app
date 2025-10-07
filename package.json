@@ -6,14 +6,27 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx,.vue",
+    "stylelint": "stylelint src/**/*.{css,scss,vue}",
+    "lint:style": "npm run stylelint",
+    "lint:fix": "npm run lint -- --fix"
   },
   "dependencies": {
     "vue": "^3.5.22"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
+    "eslint": "^9.37.0",
+    "eslint-plugin-vue": "^10.5.0",
+    "postcss-html": "^1.8.0",
+    "postcss-scss": "^4.0.9",
     "sass-embedded": "^1.93.2",
+    "stylelint": "^16.25.0",
+    "stylelint-config-recommended-vue": "^1.6.1",
+    "stylelint-config-standard-scss": "^16.0.0",
+    "stylelint-order": "^7.0.0",
+    "stylelint-scss": "^6.12.1",
     "vite": "^7.1.7"
   }
 }
