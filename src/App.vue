@@ -7,10 +7,12 @@ import TaskNotifications from './components/TaskNotifications.vue';
 import { useTaskNotifications } from './composables/useTaskNotifications';
 
 const STORAGE_KEY = 'todo-list-app/tasks';
+const COMPLETED_STORAGE_KEY = 'todo-list-app/completed-tasks';
 
 let initialId = 1;
 
 const tasks = ref([]);
+const completedTasks = ref([]);
 const showForm = ref(true);
 const showDeleteDialog = ref(false);
 const taskPendingDelete = ref(null);
@@ -28,6 +30,14 @@ const persistTasks = (value) => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
   } catch (error) {
     console.error('Failed to persist tasks to localStorage', error);
+  }
+};
+
+const persistCompletedTasks = (value) => {
+  try {
+    window.localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(value));
+  } catch (error) {
+    console.error('Failed to persist completed tasks', error);
   }
 };
 
@@ -49,6 +59,47 @@ const buildDueDate = (date, time) => {
   }
 
   return timestamp.toISOString();
+};
+
+const formatTimestamp = (value) => {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+};
+
+const recordCompletion = (task) => {
+  if (!task) {
+    return;
+  }
+
+  const entry = {
+    taskId: task.id,
+    title: task.title,
+    description: task.description ?? '',
+    due: task.due ?? null,
+    completedAt: new Date().toISOString(),
+  };
+
+  const existingIndex = completedTasks.value.findIndex((item) => item.taskId === task.id);
+
+  if (existingIndex >= 0) {
+    const updated = [...completedTasks.value];
+    updated[existingIndex] = entry;
+    completedTasks.value = updated;
+  } else {
+    completedTasks.value = [...completedTasks.value, entry];
+  }
 };
 
 const isToday = (date) => {
@@ -77,6 +128,19 @@ const tasksDueToday = computed(() => {
   });
 });
 
+const sortedCompletedTasks = computed(() => {
+  return [...completedTasks.value].sort((a, b) => {
+    const aTime = Date.parse(a.completedAt ?? '');
+    const bTime = Date.parse(b.completedAt ?? '');
+
+    if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
+      return 0;
+    }
+
+    return bTime - aTime;
+  });
+});
+
 const handleAddTask = ({ title, description, dueDate, dueTime }) => {
   if (!title) {
     return;
@@ -95,6 +159,9 @@ const toggleTask = (task) => {
   const target = tasks.value.find((item) => item.id === task.id);
   if (target) {
     target.completed = !target.completed;
+    if (target.completed) {
+      recordCompletion(target);
+    }
   }
 };
 
@@ -124,8 +191,17 @@ const confirmDeleteTask = () => {
 
 watch(
   tasks,
-  (value) => {
-    persistTasks(value);
+  () => {
+    persistTasks(tasks.value);
+    checkDueTasks();
+  },
+  { deep: true }
+);
+
+watch(
+  completedTasks,
+  () => {
+    persistCompletedTasks(completedTasks.value);
   },
   { deep: true }
 );
@@ -151,9 +227,37 @@ onMounted(() => {
     tasks.value = [];
   }
 
+  try {
+    const completedRaw = window.localStorage.getItem(COMPLETED_STORAGE_KEY);
+    if (completedRaw) {
+      const parsedCompleted = JSON.parse(completedRaw);
+
+      if (Array.isArray(parsedCompleted)) {
+        completedTasks.value = parsedCompleted.map((entry) => ({
+          taskId: entry.taskId,
+          title: entry.title ?? 'Untitled task',
+          description: entry.description ?? '',
+          due: entry.due ?? null,
+          completedAt: entry.completedAt ?? new Date().toISOString(),
+        }));
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load completed tasks', error);
+    completedTasks.value = [];
+  }
+
   syncInitialId();
   showForm.value = tasks.value.length === 0;
   persistTasks(tasks.value);
+  persistCompletedTasks(completedTasks.value);
+
+  tasks.value.forEach((task) => {
+    if (task.completed && !completedTasks.value.some((entry) => entry.taskId === task.id)) {
+      recordCompletion(task);
+    }
+  });
+
   checkDueTasks();
   startDueWatcher();
 });
@@ -199,6 +303,40 @@ onUnmounted(() => {
     </section>
 
     <AddTaskForm v-model:visible="showForm" @submit="handleAddTask" />
+
+    <section class="history">
+      <header class="history__header">
+        <h2>Completed Tasks</h2>
+        <span class="history__count">{{ sortedCompletedTasks.length }} saved</span>
+      </header>
+      <p v-if="sortedCompletedTasks.length === 0" class="history__empty">
+        No completed tasks yet. Finish a task to see it here.
+      </p>
+      <ul v-else class="history__list">
+        <li
+          v-for="entry in sortedCompletedTasks"
+          :key="`completed-${entry.taskId}`"
+          class="history__item"
+        >
+          <div class="history__item-header">
+            <span class="history__title">{{ entry.title }}</span>
+            <time class="history__timestamp" :datetime="entry.completedAt">
+              Completed {{ formatTimestamp(entry.completedAt) }}
+            </time>
+          </div>
+          <p v-if="entry.description" class="history__description">
+            {{ entry.description }}
+          </p>
+          <time
+            v-if="entry.due"
+            class="history__due"
+            :datetime="entry.due"
+          >
+            Original due: {{ formatTimestamp(entry.due) }}
+          </time>
+        </li>
+      </ul>
+    </section>
   </main>
   <ConfirmDialog
     v-model:open="showDeleteDialog"
@@ -290,6 +428,84 @@ $muted-text: #94a3b8;
 
   &__item {
     list-style: none;
+  }
+}
+
+.history {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(39, 52, 73, 0.45);
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.35);
+  box-shadow: 0 18px 32px -28px rgba(15, 23, 42, 0.9);
+
+  @media (max-width: 640px) {
+    padding: 1rem;
+  }
+
+  &__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  &__count {
+    color: $muted-text;
+    font-size: 0.95rem;
+  }
+
+  &__empty {
+    margin: 0;
+    padding: 1rem 0;
+    color: $muted-text;
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1rem;
+  }
+
+  &__item {
+    border: 1px solid rgba(39, 52, 73, 0.45);
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+    background: rgba(15, 23, 42, 0.65);
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  &__item-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  &__title {
+    font-weight: 600;
+    color: $input-text;
+  }
+
+  &__timestamp {
+    color: $muted-text;
+    font-size: 0.85rem;
+  }
+
+  &__description {
+    margin: 0;
+    color: $input-text;
+    opacity: 0.85;
+  }
+
+  &__due {
+    color: #38bdf8;
+    font-size: 0.85rem;
   }
 }
 </style>
