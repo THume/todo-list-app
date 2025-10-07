@@ -36,9 +36,32 @@ const formattedDueDate = computed(() => {
   }).format(dueDate.value)
 })
 
+const formattedDueTime = computed(() => {
+  if (!dueDate.value) {
+    return ''
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(dueDate.value)
+})
+
 const dueDateIso = computed(() => (dueDate.value ? dueDate.value.toISOString() : ''))
 
 const statusLabel = computed(() => (props.task.completed ? 'Completed' : 'Pending'))
+
+const formattedDueLabel = computed(() => {
+  if (!formattedDueDate.value) {
+    return ''
+  }
+
+  if (!formattedDueTime.value) {
+    return formattedDueDate.value
+  }
+
+  return `${formattedDueDate.value} at ${formattedDueTime.value}`
+})
 
 const handleToggle = () => {
   emit('toggle', props.task)
@@ -77,8 +100,8 @@ const handleRemove = () => {
 
     <footer class="task__meta">
       <span class="task__status">{{ statusLabel }}</span>
-      <time v-if="formattedDueDate" class="task__due" :datetime="dueDateIso">
-        Due {{ formattedDueDate }}
+      <time v-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">
+        Due {{ formattedDueLabel }}
       </time>
     </footer>
   </article>

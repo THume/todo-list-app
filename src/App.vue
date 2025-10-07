@@ -1,51 +1,49 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import Task from './components/Task.vue'
-import AddTaskForm from './components/AddTaskForm.vue'
-import ConfirmDialog from './components/ConfirmDialog.vue'
+import { ref, onMounted, watch } from 'vue';
+import Task from './components/Task.vue';
+import AddTaskForm from './components/AddTaskForm.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 
-const STORAGE_KEY = 'todo-list-app/tasks'
+const STORAGE_KEY = 'todo-list-app/tasks';
 
-const defaultTasks = [
-  {
-    id: 1,
-    title: 'Finish Vue task component',
-    description: 'Hook the new Task component into the list.',
-    completed: false,
-    due: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
-  },
-  {
-    id: 2,
-    title: "Plan tomorrow's priorities",
-    description: '',
-    completed: true,
-    due: null,
-  },
-]
+let initialId = 1;
 
-let initialId = defaultTasks.length + 1
-
-const tasks = ref([...defaultTasks])
-const showForm = ref(tasks.value.length === 0)
-const showDeleteDialog = ref(false)
-const taskPendingDelete = ref(null)
+const tasks = ref([]);
+const showForm = ref(true);
+const showDeleteDialog = ref(false);
+const taskPendingDelete = ref(null);
 
 const persistTasks = (value) => {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
   } catch (error) {
-    console.error('Failed to persist tasks to localStorage', error)
+    console.error('Failed to persist tasks to localStorage', error);
   }
-}
+};
 
 const syncInitialId = () => {
-  const maxId = tasks.value.reduce((acc, task) => Math.max(acc, Number(task.id) || 0), 0)
-  initialId = maxId + 1
-}
+  const maxId = tasks.value.reduce((acc, task) => Math.max(acc, Number(task.id) || 0), 0);
+  initialId = maxId + 1;
+};
 
-const handleAddTask = ({ title, description, due }) => {
+const buildDueDate = (date, time) => {
+  if (!date) {
+    return null;
+  }
+
+  const normalizedTime = time && time.trim().length > 0 ? time : '00:00';
+  const timestamp = new Date(`${date}T${normalizedTime}`);
+
+  if (Number.isNaN(timestamp.valueOf())) {
+    return null;
+  }
+
+  return timestamp.toISOString();
+};
+
+const handleAddTask = ({ title, description, dueDate, dueTime }) => {
   if (!title) {
-    return
+    return;
   }
 
   tasks.value.push({
@@ -53,46 +51,46 @@ const handleAddTask = ({ title, description, due }) => {
     title,
     description,
     completed: false,
-    due: due || null,
-  })
-}
+    due: buildDueDate(dueDate, dueTime),
+  });
+};
 
 const toggleTask = (task) => {
-  const target = tasks.value.find((item) => item.id === task.id)
+  const target = tasks.value.find((item) => item.id === task.id);
   if (target) {
-    target.completed = !target.completed
+    target.completed = !target.completed;
   }
-}
+};
 
 const requestDeleteTask = (task) => {
-  taskPendingDelete.value = task
-  showDeleteDialog.value = true
-}
+  taskPendingDelete.value = task;
+  showDeleteDialog.value = true;
+};
 
 const closeDeleteDialog = () => {
-  showDeleteDialog.value = false
-  taskPendingDelete.value = null
-}
+  showDeleteDialog.value = false;
+  taskPendingDelete.value = null;
+};
 
 const confirmDeleteTask = () => {
   if (!taskPendingDelete.value) {
-    return
+    return;
   }
 
-  const idToRemove = taskPendingDelete.value.id
-  tasks.value = tasks.value.filter((item) => item.id !== idToRemove)
-  closeDeleteDialog()
+  const idToRemove = taskPendingDelete.value.id;
+  tasks.value = tasks.value.filter((item) => item.id !== idToRemove);
+  closeDeleteDialog();
 
   if (tasks.value.length === 0) {
-    showForm.value = true
+    showForm.value = true;
   }
-}
+};
 
 onMounted(() => {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
+    const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw)
+      const parsed = JSON.parse(raw);
 
       if (Array.isArray(parsed)) {
         tasks.value = parsed.map((task, index) => ({
@@ -101,27 +99,27 @@ onMounted(() => {
           description: typeof task.description === 'string' ? task.description : '',
           completed: Boolean(task.completed),
           due: task.due ?? null,
-        }))
+        }));
       }
     }
   } catch (error) {
-    console.error('Failed to load tasks from localStorage', error)
-    tasks.value = [...defaultTasks]
+    console.error('Failed to load tasks from localStorage', error);
+    tasks.value = [...defaultTasks];
   }
 
-  syncInitialId()
-  showForm.value = tasks.value.length === 0
+  syncInitialId();
+  showForm.value = tasks.value.length === 0;
 
   watch(
     tasks,
     (value) => {
-      persistTasks(value)
+      persistTasks(value);
     },
     { deep: true }
-  )
+  );
 
-  persistTasks(tasks.value)
-})
+  persistTasks(tasks.value);
+});
 </script>
 
 <template>
@@ -136,19 +134,12 @@ onMounted(() => {
       </p>
       <ul v-else class="task-list__items">
         <li v-for="task in tasks" :key="task.id" class="task-list__item">
-          <Task
-            :task="task"
-            @toggle="toggleTask"
-            @remove="requestDeleteTask"
-          />
+          <Task :task="task" @toggle="toggleTask" @remove="requestDeleteTask" />
         </li>
       </ul>
     </section>
 
-    <AddTaskForm
-      v-model:visible="showForm"
-      @submit="handleAddTask"
-    />
+    <AddTaskForm v-model:visible="showForm" @submit="handleAddTask" />
   </main>
   <ConfirmDialog
     v-model:open="showDeleteDialog"

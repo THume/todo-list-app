@@ -12,7 +12,8 @@ const emit = defineEmits(['submit', 'update:visible'])
 
 const title = ref('')
 const description = ref('')
-const due = ref('')
+const dueDate = ref('')
+const dueTime = ref('')
 const titleField = ref(null)
 
 const canSubmit = computed(() => title.value.trim().length > 0)
@@ -24,7 +25,8 @@ const toggleVisibility = () => {
 const resetForm = () => {
   title.value = ''
   description.value = ''
-  due.value = ''
+  dueDate.value = ''
+  dueTime.value = ''
 }
 
 const handleSubmit = () => {
@@ -37,7 +39,8 @@ const handleSubmit = () => {
   emit('submit', {
     title: trimmedTitle,
     description: description.value.trim(),
-    due: due.value || null,
+    dueDate: dueDate.value || null,
+    dueTime: dueTime.value || null,
   })
 
   resetForm()
@@ -56,6 +59,12 @@ watch(
   },
   { immediate: true }
 )
+
+watch(dueDate, (value) => {
+  if (!value) {
+    dueTime.value = ''
+  }
+})
 </script>
 
 <template>
@@ -95,16 +104,29 @@ watch(
           aria-label="Task description"
           rows="2"
         />
-        <label class="add-task__due-label">
-          <span>Due date</span>
-          <input
-            v-model="due"
-            type="date"
-            name="due"
-            class="add-task__due-input"
-            aria-label="Due date"
-          />
-        </label>
+        <div class="add-task__due-row">
+          <label class="add-task__due-label">
+            <span>Due date</span>
+            <input
+              v-model="dueDate"
+              type="date"
+              name="dueDate"
+              class="add-task__due-input"
+              aria-label="Due date"
+            />
+          </label>
+          <label class="add-task__due-label">
+            <span>Due time</span>
+            <input
+              v-model="dueTime"
+              type="time"
+              name="dueTime"
+              class="add-task__due-input"
+              aria-label="Due time"
+              :disabled="!dueDate"
+            />
+          </label>
+        </div>
       </div>
       <button
         type="submit"
@@ -168,6 +190,15 @@ $button-bg-hover: linear-gradient(135deg, #33e0f8, #22b7f0);
   &__fields {
     display: grid;
     gap: 0.75rem;
+  }
+
+  &__due-row {
+    display: grid;
+    gap: 0.75rem;
+
+    @media (min-width: 540px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   &__input,
