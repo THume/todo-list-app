@@ -1,8 +1,10 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import Task from './components/Task.vue';
 import AddTaskForm from './components/AddTaskForm.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
+import TaskNotifications from './components/TaskNotifications.vue';
+import { useTaskNotifications } from './composables/useTaskNotifications';
 
 const STORAGE_KEY = 'todo-list-app/tasks';
 
@@ -12,6 +14,14 @@ const tasks = ref([]);
 const showForm = ref(true);
 const showDeleteDialog = ref(false);
 const taskPendingDelete = ref(null);
+
+const {
+  notifications,
+  dismissNotification,
+  startDueWatcher,
+  stopDueWatcher,
+  checkDueTasks,
+} = useTaskNotifications(tasks);
 
 const persistTasks = (value) => {
   try {
@@ -86,6 +96,14 @@ const confirmDeleteTask = () => {
   }
 };
 
+watch(
+  tasks,
+  (value) => {
+    persistTasks(value);
+  },
+  { deep: true }
+);
+
 onMounted(() => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -109,20 +127,21 @@ onMounted(() => {
 
   syncInitialId();
   showForm.value = tasks.value.length === 0;
-
-  watch(
-    tasks,
-    (value) => {
-      persistTasks(value);
-    },
-    { deep: true }
-  );
-
   persistTasks(tasks.value);
+  checkDueTasks();
+  startDueWatcher();
+});
+
+onUnmounted(() => {
+  stopDueWatcher();
 });
 </script>
 
 <template>
+  <TaskNotifications
+    :notifications="notifications"
+    @dismiss="dismissNotification"
+  />
   <main class="app">
     <section class="task-list">
       <header class="task-list__header">
