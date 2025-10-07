@@ -1,10 +1,12 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import Task from './components/Task.vue'
+import AddTaskForm from './components/AddTaskForm.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
 
-let initialId = 3
+const STORAGE_KEY = 'todo-list-app/tasks'
 
-const tasks = ref([
+const defaultTasks = [
   {
     id: 1,
     title: 'Finish Vue task component',
@@ -19,15 +21,29 @@ const tasks = ref([
     completed: true,
     due: null,
   },
-])
+]
 
-const newTaskTitle = ref('')
-const newTaskDescription = ref('')
-const newTaskDue = ref('')
+let initialId = defaultTasks.length + 1
+
+const tasks = ref([...defaultTasks])
 const showForm = ref(tasks.value.length === 0)
+const showDeleteDialog = ref(false)
+const taskPendingDelete = ref(null)
 
-const addTask = () => {
-  const title = newTaskTitle.value.trim()
+const persistTasks = (value) => {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
+  } catch (error) {
+    console.error('Failed to persist tasks to localStorage', error)
+  }
+}
+
+const syncInitialId = () => {
+  const maxId = tasks.value.reduce((acc, task) => Math.max(acc, Number(task.id) || 0), 0)
+  initialId = maxId + 1
+}
+
+const handleAddTask = ({ title, description, due }) => {
   if (!title) {
     return
   }
@@ -35,14 +51,10 @@ const addTask = () => {
   tasks.value.push({
     id: initialId++,
     title,
-    description: newTaskDescription.value.trim(),
+    description,
     completed: false,
-    due: newTaskDue.value || null,
+    due: due || null,
   })
-
-  newTaskTitle.value = ''
-  newTaskDescription.value = ''
-  newTaskDue.value = ''
 }
 
 const toggleTask = (task) => {
@@ -52,9 +64,64 @@ const toggleTask = (task) => {
   }
 }
 
-const removeTask = (task) => {
-  tasks.value = tasks.value.filter((item) => item.id !== task.id)
+const requestDeleteTask = (task) => {
+  taskPendingDelete.value = task
+  showDeleteDialog.value = true
 }
+
+const closeDeleteDialog = () => {
+  showDeleteDialog.value = false
+  taskPendingDelete.value = null
+}
+
+const confirmDeleteTask = () => {
+  if (!taskPendingDelete.value) {
+    return
+  }
+
+  const idToRemove = taskPendingDelete.value.id
+  tasks.value = tasks.value.filter((item) => item.id !== idToRemove)
+  closeDeleteDialog()
+
+  if (tasks.value.length === 0) {
+    showForm.value = true
+  }
+}
+
+onMounted(() => {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+
+      if (Array.isArray(parsed)) {
+        tasks.value = parsed.map((task, index) => ({
+          id: task.id ?? index + 1,
+          title: typeof task.title === 'string' ? task.title : 'Untitled task',
+          description: typeof task.description === 'string' ? task.description : '',
+          completed: Boolean(task.completed),
+          due: task.due ?? null,
+        }))
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load tasks from localStorage', error)
+    tasks.value = [...defaultTasks]
+  }
+
+  syncInitialId()
+  showForm.value = tasks.value.length === 0
+
+  watch(
+    tasks,
+    (value) => {
+      persistTasks(value)
+    },
+    { deep: true }
+  )
+
+  persistTasks(tasks.value)
+})
 </script>
 
 <template>
@@ -72,83 +139,34 @@ const removeTask = (task) => {
           <Task
             :task="task"
             @toggle="toggleTask"
-            @remove="removeTask"
+            @remove="requestDeleteTask"
           />
         </li>
       </ul>
     </section>
 
-    <section class="new-task">
-      <header class="new-task__header">
-        <h1 class="app__title">Add a Task</h1>
-        <button
-          type="button"
-          class="new-task__toggle"
-          :aria-expanded="showForm"
-          @click="showForm = !showForm"
-        >
-          {{ showForm ? 'Hide form' : 'Show form' }}
-        </button>
-      </header>
-      <form
-        v-show="showForm"
-        class="new-task__form"
-        @submit.prevent="addTask"
-      >
-        <div class="new-task__fields">
-          <input
-            v-model="newTaskTitle"
-            type="text"
-            class="new-task__input"
-            name="title"
-            placeholder="Task title"
-            aria-label="Task title"
-            required
-          />
-          <textarea
-            v-model="newTaskDescription"
-            class="new-task__textarea"
-            name="description"
-            placeholder="Description (optional)"
-            aria-label="Task description"
-            rows="2"
-          />
-          <label class="new-task__due-label">
-            <span>Due date</span>
-            <input
-              v-model="newTaskDue"
-              type="date"
-              name="due"
-              class="new-task__due-input"
-              aria-label="Due date"
-            />
-          </label>
-        </div>
-        <button
-          type="submit"
-          class="new-task__submit"
-          :disabled="newTaskTitle.trim().length === 0"
-        >
-          Add Task
-        </button>
-      </form>
-    </section>
+    <AddTaskForm
+      v-model:visible="showForm"
+      @submit="handleAddTask"
+    />
   </main>
+  <ConfirmDialog
+    v-model:open="showDeleteDialog"
+    title="Delete task?"
+    confirm-label="Delete"
+    cancel-label="Cancel"
+    :item-label="taskPendingDelete?.title || ''"
+    @confirm="confirmDeleteTask"
+    @cancel="closeDeleteDialog"
+  />
 </template>
 
 <style scoped lang="scss">
 $app-bg: linear-gradient(180deg, #0f172a 0%, #020617 60%);
 $app-text: #e2e8f0;
-$panel-bg: #111827;
-$panel-border: #1f2937;
 $input-border: #273449;
-$input-bg: #0f172a;
-$input-bg-focus: #111c32;
-$focus-outline: #22d3ee;
 $input-text: #f8fafc;
 $muted-text: #94a3b8;
-$disabled-bg: #1f2937;
-$disabled-text: #64748b;
 
 .app {
   max-width: 48rem;
@@ -164,134 +182,6 @@ $disabled-text: #64748b;
   @media (max-width: 640px) {
     padding: 1.5rem 1rem 2.5rem;
     gap: 2rem;
-  }
-}
-
-.app__title {
-  margin: 0 0 1rem;
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: $input-text;
-}
-
-.new-task {
-  background: $panel-bg;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  box-shadow: 0 20px 25px -20px rgba(2, 6, 23, 0.55);
-  border: 1px solid $panel-border;
-
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1rem;
-
-    @media (max-width: 640px) {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-  }
-
-  &__form {
-    display: grid;
-    gap: 1.25rem;
-  }
-
-  &__fields {
-    display: grid;
-    gap: 0.75rem;
-  }
-
-  &__input,
-  &__textarea,
-  &__due-input {
-    width: 100%;
-    border: 1px solid $input-border;
-    border-radius: 0.75rem;
-    padding: 0.75rem 0.9rem;
-    font-size: 1rem;
-    font-family: inherit;
-    background: $input-bg;
-    color: $input-text;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-    box-sizing: border-box;
-
-    &:focus {
-      outline: none;
-      border-color: #34d399;
-      box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.25);
-      background: $input-bg-focus;
-    }
-  }
-
-  &__textarea {
-    resize: vertical;
-    min-height: 3.5rem;
-  }
-
-  &__due-label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    font-size: 0.9rem;
-    color: $muted-text;
-  }
-
-  &__toggle {
-    border: 1px solid $panel-border;
-    background: $input-bg;
-    color: $app-text;
-    font-size: 0.95rem;
-    font-weight: 600;
-    padding: 0.55rem 1rem;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
-
-    &:hover {
-      background: $input-bg-focus;
-      border-color: $input-border;
-      transform: translateY(-1px);
-    }
-
-    &:focus-visible {
-      outline: 2px solid $focus-outline;
-      outline-offset: 2px;
-    }
-  }
-
-  &__submit {
-    align-self: start;
-    border: none;
-    background: linear-gradient(135deg, #22d3ee, #0ea5e9);
-    color: #0f172a;
-    font-size: 1rem;
-    font-weight: 600;
-    padding: 0.75rem 1.5rem;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 12px 20px -12px rgba(14, 165, 233, 0.7);
-
-    &:disabled {
-      cursor: not-allowed;
-      background: $disabled-bg;
-      box-shadow: none;
-      color: $disabled-text;
-    }
-
-    &:not(:disabled):hover {
-      transform: translateY(-1px);
-      box-shadow: 0 16px 30px -18px rgba(34, 211, 238, 0.9);
-    }
-
-    @media (max-width: 640px) {
-      width: 100%;
-      justify-self: stretch;
-      text-align: center;
-    }
   }
 }
 
