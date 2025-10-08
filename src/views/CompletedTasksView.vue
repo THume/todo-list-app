@@ -4,7 +4,83 @@ import { useTaskStore } from '../stores/useTaskStore';
 
 const { sortedCompletedTasks } = useTaskStore();
 
-const displayEntries = computed(() => sortedCompletedTasks.value);
+const totalCompleted = computed(() => sortedCompletedTasks.value.length);
+
+const parseCompletedDate = (value) => {
+  const timestamp = Date.parse(value ?? '');
+  if (Number.isNaN(timestamp)) {
+    return null;
+  }
+  const date = new Date(timestamp);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const isSameDay = (a, b) => {
+  if (!a || !b) {
+    return false;
+  }
+  return (
+    a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate()
+  );
+};
+
+const formatGroupHeading = (date) => {
+  if (!date) {
+    return 'Unknown date';
+  }
+
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(todayStart.getDate() - 1);
+
+  if (isSameDay(date, todayStart)) {
+    return 'Today';
+  }
+
+  if (isSameDay(date, yesterdayStart)) {
+    return 'Yesterday';
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+};
+
+const groupedEntries = computed(() => {
+  const groups = [];
+  const groupMap = new Map();
+
+  sortedCompletedTasks.value.forEach((entry) => {
+    const day = parseCompletedDate(entry.completedAt);
+    const key = day
+      ? `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+      : 'unknown';
+
+    let group = groupMap.get(key);
+
+    if (!group) {
+      group = {
+        key,
+        label: formatGroupHeading(day),
+        date: day,
+        items: [],
+      };
+
+      groupMap.set(key, group);
+      groups.push(group);
+    }
+
+    group.items.push(entry);
+  });
+
+  return groups;
+});
 
 const formatTimestamp = (value) => {
   if (!value) {
@@ -27,29 +103,34 @@ const formatTimestamp = (value) => {
   <section class="history">
     <header class="history__header">
       <h2>Completed Tasks</h2>
-      <span class="history__count">{{ displayEntries.length }} saved</span>
+      <span class="history__count">{{ totalCompleted }} saved</span>
     </header>
-    <p v-if="displayEntries.length === 0" class="history__empty">
+    <p v-if="totalCompleted === 0" class="history__empty">
       No completed tasks yet. Finish a task to see it here.
     </p>
-    <ul v-else class="history__list">
-      <li v-for="entry in displayEntries" :key="entry.taskId" class="history__item">
-        <div class="history__item-header">
-          <span class="history__title">{{ entry.title }}</span>
-          <time class="history__timestamp" :datetime="entry.completedAt">
-            Completed {{ formatTimestamp(entry.completedAt) }}
-          </time>
-        </div>
-        <p v-if="entry.description" class="history__description">
-          {{ entry.description }}
-        </p>
-        <time
-          v-if="entry.due"
-          class="history__due"
-          :datetime="entry.due"
-        >
-          Original due: {{ formatTimestamp(entry.due) }}
-        </time>
+    <ul v-else class="history__groups">
+      <li v-for="group in groupedEntries" :key="group.key" class="history__group">
+        <h3 class="history__group-title">{{ group.label }}</h3>
+        <ul class="history__list">
+          <li v-for="entry in group.items" :key="entry.taskId" class="history__item">
+            <div class="history__item-header">
+              <span class="history__title">{{ entry.title }}</span>
+              <time class="history__timestamp" :datetime="entry.completedAt">
+                Completed {{ formatTimestamp(entry.completedAt) }}
+              </time>
+            </div>
+            <p v-if="entry.description" class="history__description">
+              {{ entry.description }}
+            </p>
+            <time
+              v-if="entry.due"
+              class="history__due"
+              :datetime="entry.due"
+            >
+              Original due: {{ formatTimestamp(entry.due) }}
+            </time>
+          </li>
+        </ul>
       </li>
     </ul>
   </section>
@@ -94,6 +175,25 @@ const formatTimestamp = (value) => {
   padding: 0;
   display: grid;
   gap: 1rem;
+}
+
+.history__groups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.history__group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.history__group-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
 }
 
 .history__item {
