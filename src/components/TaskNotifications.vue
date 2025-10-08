@@ -32,12 +32,17 @@ const handleDismiss = (id) => {
 
 <style scoped lang="scss">
 .notifications {
-  max-width: 64rem;
-  margin: 1.5rem clamp(1.5rem, 5vw, 3rem) 0;
-  padding: 0;
-  display: grid;
-  gap: 0.75rem;
+  position: fixed;
+  top: 1.25rem;
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0 clamp(1.25rem, 5vw, 3rem);
+  display: flex;
+  justify-content: center;
   box-sizing: border-box;
+  pointer-events: none;
+  z-index: 1000;
 }
 
 .notifications__list {
@@ -46,6 +51,8 @@ const handleDismiss = (id) => {
   padding: 0;
   display: grid;
   gap: 0.75rem;
+  width: min(64rem, 100%);
+  pointer-events: auto;
 }
 
 .notifications__item {

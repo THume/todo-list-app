@@ -71,20 +71,11 @@ watch(dueDate, (value) => {
   <section class="add-task">
     <header class="add-task__header">
       <h1 class="add-task__title">Add a Task</h1>
-      <button
-        type="button"
-        class="add-task__toggle"
-        :aria-expanded="visible"
-        @click="toggleVisibility"
-      >
+      <button type="button" class="add-task__toggle" :aria-expanded="visible" @click="toggleVisibility">
         {{ visible ? 'Hide form' : 'Show form' }}
       </button>
     </header>
-    <form
-      v-show="visible"
-      class="add-task__form"
-      @submit.prevent="handleSubmit"
-    >
+    <form v-show="visible" class="add-task__form" @submit.prevent="handleSubmit">
       <div class="add-task__fields">
         <input
           ref="titleField"
@@ -107,13 +98,7 @@ watch(dueDate, (value) => {
         <div class="add-task__due-row">
           <label class="add-task__due-label">
             <span>Due date</span>
-            <input
-              v-model="dueDate"
-              type="date"
-              name="dueDate"
-              class="add-task__due-input"
-              aria-label="Due date"
-            />
+            <input v-model="dueDate" type="date" name="dueDate" class="add-task__due-input" aria-label="Due date" />
           </label>
           <label class="add-task__due-label">
             <span>Due time</span>
@@ -128,13 +113,7 @@ watch(dueDate, (value) => {
           </label>
         </div>
       </div>
-      <button
-        type="submit"
-        class="add-task__submit"
-        :disabled="!canSubmit"
-      >
-        Add Task
-      </button>
+      <button type="submit" class="add-task__submit" :disabled="!canSubmit">Add Task</button>
     </form>
   </section>
 </template>
@@ -177,7 +156,7 @@ $button-bg-hover: #f87171;
 
   &__title {
     margin: 0;
-    font-size: 1.75rem;
+    font-size: 1rem;
     font-weight: 700;
     color: $input-text;
   }
@@ -195,10 +174,7 @@ $button-bg-hover: #f87171;
   &__due-row {
     display: grid;
     gap: 0.75rem;
-
-    @media (min-width: 540px) {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+    grid-template-columns: minmax(0, 1fr);
   }
 
   &__input,
@@ -240,9 +216,9 @@ $button-bg-hover: #f87171;
     border: 1px solid $panel-border;
     background: $input-bg;
     color: $input-text;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     font-weight: 600;
-    padding: 0.55rem 1rem;
+    padding: 0.45rem 0.85rem;
     border-radius: 999px;
     cursor: pointer;
     transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;

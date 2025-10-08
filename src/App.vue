@@ -8,6 +8,7 @@ import { useTaskStore } from './stores/useTaskStore';
 const { notifications, dismissNotification, teardown, tasks, addTask } = useTaskStore();
 
 const showForm = ref(false);
+let hasInitializedVisibility = false;
 
 const handleAddTask = (payload) => {
   addTask(payload);
@@ -16,6 +17,10 @@ const handleAddTask = (payload) => {
 watch(
   tasks,
   (value) => {
+    if (!hasInitializedVisibility) {
+      hasInitializedVisibility = true;
+      return;
+    }
     if (Array.isArray(value) && value.length === 0) {
       showForm.value = true;
     }
@@ -63,6 +68,8 @@ $app-accent: #ef4444;
   color: $app-text;
   background: $app-bg;
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   box-sizing: border-box;
 }
 
@@ -72,9 +79,11 @@ $app-accent: #ef4444;
   padding: 2.5rem 2rem;
   display: flex;
   flex-direction: column;
-  //justify-content: space-between;
+  justify-content: space-between;
   gap: 2.5rem;
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 .layout__sidebar-top {
@@ -122,13 +131,17 @@ $app-accent: #ef4444;
   background: $app-main-bg;
   padding: 3rem clamp(1.5rem, 5vw, 3.5rem);
   display: block;
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 @media (max-width: 960px) {
   .layout {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
   }
 
   .layout__sidebar {
@@ -139,6 +152,7 @@ $app-accent: #ef4444;
     border-bottom: 1px solid $app-border;
     padding: 1.5rem 1.5rem 1.75rem;
     gap: 1.5rem;
+    height: auto;
     min-height: auto;
   }
 
@@ -157,6 +171,12 @@ $app-accent: #ef4444;
 
   .layout__sidebar-form {
     margin-top: 1rem;
+  }
+
+  .layout__content {
+    height: auto;
+    min-height: 0;
+    overflow-y: visible;
   }
 }
 </style>
