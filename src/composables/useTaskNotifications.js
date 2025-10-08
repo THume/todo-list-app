@@ -8,15 +8,75 @@ const createNotificationId = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
-const maybeShowSystemNotification = (taskTitle) => {
+let audioContext = null;
+
+const ensureAudioContext = () => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioCtx) {
+    return null;
+  }
+
+  if (!audioContext) {
+    try {
+      audioContext = new AudioCtx();
+    } catch (error) {
+      console.warn('Unable to create audio context', error);
+      return null;
+    }
+  }
+
+  if (audioContext.state === 'suspended') {
+    audioContext.resume().catch((error) => {
+      console.warn('Failed to resume audio context', error);
+    });
+  }
+
+  return audioContext;
+};
+
+const playDueTone = () => {
+  const ctx = ensureAudioContext();
+
+  if (!ctx) {
+    return;
+  }
+
+  try {
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.4);
+  } catch (error) {
+    console.warn('Unable to play due tone', error);
+  }
+};
+
+const maybeShowSystemNotification = ({ title, body, tag } = {}) => {
   if (typeof window === 'undefined' || !('Notification' in window)) {
     return;
   }
 
   const notify = () => {
     try {
-      return new Notification('Task due', {
-        body: `Task "${taskTitle}" is due now.`,
+      return new Notification(title ?? 'Task notification', {
+        body: body ?? '',
+        tag,
       });
     } catch (error) {
       console.warn('Unable to display system notification', error);
@@ -48,7 +108,7 @@ export const useTaskNotifications = (tasksRef) => {
     notifications.value = notifications.value.filter((notification) => notification.id !== id);
   };
 
-  const pushNotification = (message) => {
+  const pushNotification = (message, options = {}) => {
     const id = createNotificationId();
     const notification = {
       id,
@@ -62,6 +122,18 @@ export const useTaskNotifications = (tasksRef) => {
       window.setTimeout(() => {
         dismissNotification(id);
       }, 8000);
+    }
+
+    if (options.desktop) {
+      maybeShowSystemNotification({
+        title: options.desktopTitle ?? 'Task notification',
+        body: options.desktopBody ?? message,
+        tag: options.desktopTag,
+      });
+    }
+
+    if (options.playTone) {
+      playDueTone();
     }
 
     return id;
@@ -84,8 +156,14 @@ export const useTaskNotifications = (tasksRef) => {
 
       if (dueTime <= now) {
         notifiedTaskIds.add(task.id);
-        pushNotification(`Task "${task.title}" is due now.`);
-        maybeShowSystemNotification(task.title);
+        const message = `Task "${task.title}" is due now.`;
+        pushNotification(message, {
+          desktop: true,
+          desktopTitle: 'Task due',
+          desktopBody: message,
+          desktopTag: `task-due-${task.id}`,
+          playTone: true,
+        });
       }
     });
   };
