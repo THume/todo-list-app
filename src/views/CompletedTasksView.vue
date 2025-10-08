@@ -60,10 +60,10 @@ const formatTimestamp = (value) => {
   display: grid;
   gap: 1rem;
   padding: 1.25rem;
-  border: 1px solid rgba(39, 52, 73, 0.45);
+  border: 1px solid #262626;
   border-radius: 1rem;
-  background: rgba(15, 23, 42, 0.35);
-  box-shadow: 0 18px 32px -28px rgba(15, 23, 42, 0.9);
+  background: rgba(23, 23, 24, 0.6);
+  box-shadow: 0 18px 32px -28px rgba(0, 0, 0, 0.85);
 
   @media (max-width: 640px) {
     padding: 1rem;
@@ -78,14 +78,14 @@ const formatTimestamp = (value) => {
 }
 
 .history__count {
-  color: #94a3b8;
+  color: #a1a1aa;
   font-size: 0.95rem;
 }
 
 .history__empty {
   margin: 0;
   padding: 1rem 0;
-  color: #94a3b8;
+  color: #a1a1aa;
 }
 
 .history__list {
@@ -97,10 +97,10 @@ const formatTimestamp = (value) => {
 }
 
 .history__item {
-  border: 1px solid rgba(39, 52, 73, 0.45);
+  border: 1px solid #2f2f2f;
   border-radius: 0.75rem;
   padding: 0.85rem 1rem;
-  background: rgba(15, 23, 42, 0.65);
+  background: rgba(23, 23, 24, 0.55);
   display: grid;
   gap: 0.5rem;
 }
@@ -118,18 +118,18 @@ const formatTimestamp = (value) => {
 }
 
 .history__timestamp {
-  color: #94a3b8;
+  color: #a1a1aa;
   font-size: 0.85rem;
 }
 
 .history__description {
   margin: 0;
-  color: #e2e8f0;
+  color: #d4d4d8;
   opacity: 0.85;
 }
 
 .history__due {
-  color: #38bdf8;
+  color: #ef4444;
   font-size: 0.85rem;
 }
 </style>

@@ -32,9 +32,9 @@ const handleDismiss = (id) => {
 
 <style scoped lang="scss">
 .notifications {
-  max-width: 48rem;
-  margin: 1.5rem auto 0;
-  padding: 0 1.5rem;
+  max-width: 64rem;
+  margin: 1.5rem clamp(1.5rem, 5vw, 3rem) 0;
+  padding: 0;
   display: grid;
   gap: 0.75rem;
   box-sizing: border-box;
@@ -53,12 +53,12 @@ const handleDismiss = (id) => {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid #273449;
+  background: rgba(23, 23, 24, 0.92);
+  border: 1px solid #272727;
   border-radius: 0.75rem;
   padding: 0.85rem 1rem;
-  color: #f8fafc;
-  box-shadow: 0 12px 18px -18px rgba(15, 23, 42, 0.8);
+  color: #f5f5f5;
+  box-shadow: 0 12px 18px -20px rgba(0, 0, 0, 0.7);
 }
 
 .notifications__message {
@@ -68,20 +68,20 @@ const handleDismiss = (id) => {
 
 .notifications__dismiss {
   border: none;
-  background: #0ea5e9;
-  color: #0f172a;
+  background: #ef4444;
+  color: #0b0b0c;
   font-weight: 600;
   font-size: 0.9rem;
   padding: 0.35rem 0.9rem;
   border-radius: 999px;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  box-shadow: 0 10px 18px -16px rgba(14, 165, 233, 0.8);
+  box-shadow: 0 10px 18px -18px rgba(239, 68, 68, 0.75);
 }
 
 .notifications__dismiss:hover {
   transform: translateY(-1px);
-  background: #38bdf8;
+  background: #f87171;
 }
 
 .notification-enter-active,

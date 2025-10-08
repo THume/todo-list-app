@@ -108,17 +108,17 @@ const handleRemove = () => {
 </template>
 
 <style scoped lang="scss">
-$task-border: #273449;
-$task-bg: #1f2937;
-$task-text: #e2e8f0;
+$task-border: #262626;
+$task-bg: #141414;
+$task-text: #f4f4f5;
 $task-heading: #f8fafc;
-$task-muted: #94a3b8;
-$task-description: #cbd5f5;
-$task-completed: #64748b;
-$task-due: #38bdf8;
-$remove-hover: #f87171;
-$checkbox-accent: #22d3ee;
-$checkbox-bg: #0f172a;
+$task-muted: #a1a1aa;
+$task-description: #d4d4d8;
+$task-completed: #71717a;
+$task-due: #ef4444;
+$remove-hover: #ef4444;
+$checkbox-accent: #ef4444;
+$checkbox-bg: #101010;
 
 .task {
   display: grid;
@@ -127,7 +127,7 @@ $checkbox-bg: #0f172a;
   border: 1px solid $task-border;
   border-radius: 0.75rem;
   background: $task-bg;
-  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.5);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   color: $task-text;
 
   &__header {
@@ -150,6 +150,7 @@ $checkbox-bg: #0f172a;
     height: 1.1rem;
     accent-color: $checkbox-accent;
     background: $checkbox-bg;
+    border: 1px solid $task-border;
   }
 
   &__title {

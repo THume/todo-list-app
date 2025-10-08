@@ -118,15 +118,15 @@ watch(
 </template>
 
 <style scoped lang="scss">
-$dialog-backdrop: rgba(2, 6, 23, 0.75);
-$dialog-panel-bg: #0f172a;
-$dialog-border: #273449;
-$input-text: #f8fafc;
-$muted-text: #94a3b8;
-$focus-outline: #22d3ee;
-$danger-bg: #f87171;
-$danger-bg-hover: #ef4444;
-$danger-text: #0f172a;
+$dialog-backdrop: rgba(8, 8, 9, 0.82);
+$dialog-panel-bg: #181818;
+$dialog-border: #262626;
+$input-text: #f5f5f5;
+$muted-text: #a1a1aa;
+$focus-outline: #ef4444;
+$danger-bg: #ef4444;
+$danger-bg-hover: #f87171;
+$danger-text: #0b0b0c;
 
 .dialog-fade-enter-active,
 .dialog-fade-leave-active {
@@ -154,7 +154,7 @@ $danger-text: #0f172a;
     border-radius: 1rem;
     border: 1px solid $dialog-border;
     padding: 1.75rem;
-    box-shadow: 0 24px 40px -24px rgba(14, 23, 42, 0.6);
+    box-shadow: 0 24px 40px -28px rgba(0, 0, 0, 0.7);
     display: grid;
     gap: 1.25rem;
     outline: none;
@@ -207,18 +207,18 @@ $danger-text: #0f172a;
       border: 1px solid $dialog-border;
 
       &:hover {
-        background: rgba(15, 27, 42, 0.6);
+        background: rgba(255, 255, 255, 0.06);
       }
     }
 
     &--danger {
       background: $danger-bg;
       color: $danger-text;
-      box-shadow: 0 12px 24px -16px rgba(248, 113, 113, 0.8);
+      box-shadow: 0 12px 24px -16px rgba(239, 68, 68, 0.75);
 
       &:hover {
         background: $danger-bg-hover;
-        box-shadow: 0 16px 28px -18px rgba(248, 113, 113, 0.9);
+        box-shadow: 0 16px 28px -18px rgba(248, 113, 113, 0.85);
       }
     }
   }

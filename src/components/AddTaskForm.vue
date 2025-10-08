@@ -140,18 +140,18 @@ watch(dueDate, (value) => {
 </template>
 
 <style scoped lang="scss">
-$panel-bg: #111827;
-$panel-border: #1f2937;
-$input-border: #273449;
-$input-bg: #0f172a;
-$input-bg-focus: #111c32;
-$focus-outline: #22d3ee;
-$input-text: #f8fafc;
-$muted-text: #94a3b8;
-$disabled-bg: #1f2937;
-$disabled-text: #64748b;
-$button-bg: linear-gradient(135deg, #22d3ee, #0ea5e9);
-$button-bg-hover: linear-gradient(135deg, #33e0f8, #22b7f0);
+$panel-bg: #181818;
+$panel-border: #262626;
+$input-border: #2f2f2f;
+$input-bg: #111112;
+$input-bg-focus: #161617;
+$focus-outline: rgba(239, 68, 68, 0.35);
+$input-text: #f5f5f5;
+$muted-text: #a1a1aa;
+$disabled-bg: #222222;
+$disabled-text: #71717a;
+$button-bg: #ef4444;
+$button-bg-hover: #f87171;
 
 .add-task {
   background: $panel-bg;
@@ -217,8 +217,8 @@ $button-bg-hover: linear-gradient(135deg, #33e0f8, #22b7f0);
 
     &:focus {
       outline: none;
-      border-color: #34d399;
-      box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.25);
+      border-color: $button-bg;
+      box-shadow: 0 0 0 3px $focus-outline;
       background: $input-bg-focus;
     }
   }
@@ -263,14 +263,14 @@ $button-bg-hover: linear-gradient(135deg, #33e0f8, #22b7f0);
     align-self: start;
     border: none;
     background: $button-bg;
-    color: #0f172a;
+    color: #0b0b0c;
     font-size: 1rem;
     font-weight: 600;
     padding: 0.75rem 1.5rem;
     border-radius: 999px;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-    box-shadow: 0 12px 20px -12px rgba(14, 165, 233, 0.7);
+    box-shadow: 0 12px 20px -18px rgba(239, 68, 68, 0.7);
 
     &:disabled {
       cursor: not-allowed;
@@ -281,7 +281,7 @@ $button-bg-hover: linear-gradient(135deg, #33e0f8, #22b7f0);
 
     &:not(:disabled):hover {
       transform: translateY(-1px);
-      box-shadow: 0 16px 30px -18px rgba(34, 211, 238, 0.9);
+      box-shadow: 0 16px 30px -22px rgba(248, 113, 113, 0.9);
       background: $button-bg-hover;
     }
 

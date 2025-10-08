@@ -1,24 +1,17 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 import Task from '../components/Task.vue';
-import AddTaskForm from '../components/AddTaskForm.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
 const {
   tasks,
-  addTask,
   toggleTaskCompletion,
   removeTask,
 } = useTaskStore();
 
-const showForm = ref(tasks.value.length === 0);
 const showDeleteDialog = ref(false);
 const taskPendingDelete = ref(null);
-
-const handleAdd = (payload) => {
-  addTask(payload);
-};
 
 const handleToggle = (task) => {
   toggleTaskCompletion(task.id);
@@ -40,16 +33,6 @@ const confirmDelete = () => {
   }
   closeDialog();
 };
-
-watch(
-  tasks,
-  (value) => {
-    if (Array.isArray(value) && value.length === 0) {
-      showForm.value = true;
-    }
-  },
-  { immediate: true }
-);
 </script>
 
 <template>
@@ -59,7 +42,7 @@ watch(
       <span class="task-panel__count">{{ tasks.length }} total</span>
     </header>
     <p v-if="tasks.length === 0" class="task-panel__empty">
-      No tasks yet - add your first task below.
+      No tasks yet - use the sidebar to add your first task.
     </p>
     <ul v-else class="task-panel__list">
       <li v-for="task in tasks" :key="task.id" class="task-panel__item">
@@ -67,8 +50,6 @@ watch(
       </li>
     </ul>
   </section>
-
-  <AddTaskForm v-model:visible="showForm" @submit="handleAdd" />
 
   <ConfirmDialog
     v-model:open="showDeleteDialog"
@@ -83,11 +64,11 @@ watch(
 
 <style scoped lang="scss">
 .task-panel {
-  border: 1px solid rgba(39, 52, 73, 0.45);
+  border: 1px solid #262626;
   border-radius: 1rem;
   padding: 1.25rem;
-  background: rgba(15, 23, 42, 0.35);
-  box-shadow: 0 18px 32px -28px rgba(15, 23, 42, 0.9);
+  background: rgba(23, 23, 24, 0.6);
+  box-shadow: 0 18px 32px -28px rgba(0, 0, 0, 0.85);
   display: grid;
   gap: 1rem;
 
@@ -110,18 +91,18 @@ watch(
 }
 
 .task-panel__count {
-  color: #94a3b8;
+  color: #a1a1aa;
   font-size: 0.95rem;
 }
 
 .task-panel__empty {
   margin: 0;
   padding: 1.5rem;
-  border: 2px dashed rgba(39, 52, 73, 0.6);
+  border: 2px dashed #2f2f2f;
   border-radius: 1rem;
-  color: #94a3b8;
+  color: #a1a1aa;
   text-align: center;
-  background: rgba(15, 23, 42, 0.25);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .task-panel__list {
