@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 
-const emit = defineEmits(['toggle', 'remove']);
+const emit = defineEmits(['toggle', 'remove', 'edit']);
 
 const props = defineProps({
   task: {
@@ -67,6 +67,8 @@ const recurrenceLabel = computed(() => {
   switch (props.task.recurrence) {
     case 'daily':
       return 'Repeats daily';
+    case 'weekdays':
+      return 'Repeats on weekdays';
     case 'weekly':
       return 'Repeats weekly';
     case 'monthly':
@@ -83,6 +85,13 @@ const handleToggle = () => {
 const handleRemove = () => {
   emit('remove', props.task);
 };
+
+const handleEdit = () => {
+  if (props.task.completed) {
+    return;
+  }
+  emit('edit', props.task);
+};
 </script>
 
 <template>
@@ -97,14 +106,25 @@ const handleRemove = () => {
         />
         <span class="task__title">{{ task.title }}</span>
       </label>
-      <button
-        type="button"
-        class="task__remove"
-        aria-label="Remove task"
-        @click="handleRemove"
-      >
-        x
-      </button>
+      <div class="task__actions">
+        <button
+          v-if="!task.completed"
+          type="button"
+          class="task__edit"
+          aria-label="Edit task"
+          @click="handleEdit"
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          class="task__remove"
+          aria-label="Remove task"
+          @click="handleRemove"
+        >
+          x
+        </button>
+      </div>
     </header>
 
     <p v-if="task.description" class="task__description">
@@ -209,18 +229,46 @@ $checkbox-bg: #101010;
   }
 
   &__remove {
-    border: none;
+    border: 1px solid $task-border;
     background: transparent;
     color: $task-muted;
-    font-size: 1.35rem;
+    font-size: 1.1rem;
     line-height: 1;
-    padding: 0;
+    padding: 0.35rem 0.6rem;
     cursor: pointer;
-    transition: color 0.2s ease;
+    border-radius: 0.65rem;
+    transition: color 0.2s ease, transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 
     &:hover {
       color: $remove-hover;
+      border-color: $remove-hover;
+      transform: translateY(-1px);
     }
+  }
+
+  &__edit {
+    border: 1px solid $task-border;
+    background: rgba(255, 255, 255, 0.04);
+    color: $task-heading;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 0.65rem;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: $checkbox-accent;
+      color: $checkbox-accent;
+      transform: translateY(-1px);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   &--completed {

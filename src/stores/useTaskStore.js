@@ -174,6 +174,35 @@ const addTask = ({ title, description, dueDate, dueTime, recurrence }) => {
   tasks.value = [...tasks.value, newTask];
 };
 
+const updateTask = ({ id, title, description, dueDate, dueTime, recurrence }) => {
+  const targetIndex = tasks.value.findIndex((item) => item.id === id);
+  if (targetIndex < 0) {
+    return false;
+  }
+
+  const target = tasks.value[targetIndex];
+  if (target.completed) {
+    return false;
+  }
+
+  const nextTasks = [...tasks.value];
+  const updatedTask = {
+    ...target,
+    title: typeof title === 'string' && title.trim().length > 0 ? title : target.title,
+    description: typeof description === 'string' ? description : target.description,
+    due: buildDueDate(dueDate, dueTime),
+    recurrence: normalizeRecurrence(recurrence),
+  };
+
+  if (!dueDate) {
+    updatedTask.due = null;
+  }
+
+  nextTasks[targetIndex] = updatedTask;
+  tasks.value = nextTasks;
+  return true;
+};
+
 const toggleTaskCompletion = (taskId) => {
   const targetIndex = tasks.value.findIndex((item) => item.id === taskId);
   if (targetIndex < 0) {
@@ -342,6 +371,7 @@ export const useTaskStore = () => {
     notifications,
     dismissNotification,
     addTask,
+    updateTask,
     toggleTaskCompletion,
     removeTask,
     initialize,

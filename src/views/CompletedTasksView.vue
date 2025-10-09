@@ -86,6 +86,8 @@ const formatRecurrence = (value) => {
   switch (value) {
     case 'daily':
       return 'Repeats daily';
+    case 'weekdays':
+      return 'Repeats on weekdays';
     case 'weekly':
       return 'Repeats weekly';
     case 'monthly':

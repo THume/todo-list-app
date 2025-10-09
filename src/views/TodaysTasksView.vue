@@ -1,17 +1,21 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import Task from '../components/Task.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
+import TaskEditorDialog from '../components/TaskEditorDialog.vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
 const {
   tasksDueToday,
   toggleTaskCompletion,
   removeTask,
+  updateTask,
 } = useTaskStore();
 
 const showDeleteDialog = ref(false);
 const taskPendingDelete = ref(null);
+const showEditDialog = ref(false);
+const taskPendingEdit = ref(null);
 
 const handleToggle = (task) => {
   toggleTaskCompletion(task.id);
@@ -33,6 +37,26 @@ const confirmDelete = () => {
   }
   closeDialog();
 };
+
+const startEdit = (task) => {
+  taskPendingEdit.value = task;
+  showEditDialog.value = true;
+};
+
+const closeEdit = () => {
+  showEditDialog.value = false;
+};
+
+const handleEditSave = (payload) => {
+  updateTask(payload);
+  closeEdit();
+};
+
+watch(showEditDialog, (isOpen) => {
+  if (!isOpen) {
+    taskPendingEdit.value = null;
+  }
+});
 </script>
 
 <template>
@@ -46,7 +70,12 @@ const confirmDelete = () => {
     </p>
     <ul v-else class="task-panel__list">
       <li v-for="task in tasksDueToday" :key="task.id" class="task-panel__item">
-        <Task :task="task" @toggle="handleToggle" @remove="requestDelete" />
+        <Task
+          :task="task"
+          @toggle="handleToggle"
+          @remove="requestDelete"
+          @edit="startEdit"
+        />
       </li>
     </ul>
   </section>
@@ -58,6 +87,12 @@ const confirmDelete = () => {
     :item-label="taskPendingDelete?.title || ''"
     @confirm="confirmDelete"
     @cancel="closeDialog"
+  />
+  <TaskEditorDialog
+    v-model:open="showEditDialog"
+    :task="taskPendingEdit"
+    @save="handleEditSave"
+    @cancel="closeEdit"
   />
 </template>
 
