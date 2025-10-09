@@ -1,6 +1,6 @@
 <script setup>
-import { onUnmounted, ref, watch } from 'vue';
-import { RouterLink, RouterView } from 'vue-router';
+import { computed, onUnmounted, ref, watch } from 'vue';
+import { RouterLink, RouterView, useRoute } from 'vue-router';
 import AddTaskForm from './components/AddTaskForm.vue';
 import TaskNotifications from './components/TaskNotifications.vue';
 import { useTaskStore } from './stores/useTaskStore';
@@ -9,6 +9,18 @@ const { notifications, dismissNotification, teardown, tasks, addTask } = useTask
 
 const showForm = ref(false);
 let hasInitializedVisibility = false;
+const route = useRoute();
+
+const defaultDueDate = computed(() => {
+  if (route.path !== '/today') {
+    return null;
+  }
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+});
 
 const handleAddTask = (payload) => {
   addTask(payload);
@@ -45,7 +57,12 @@ onUnmounted(() => {
           <RouterLink to="/completed" class="layout__link" active-class="layout__link--active"> Completed </RouterLink>
         </nav>
       </div>
-      <AddTaskForm v-model:visible="showForm" class="layout__sidebar-form" @submit="handleAddTask" />
+      <AddTaskForm
+        v-model:visible="showForm"
+        class="layout__sidebar-form"
+        :default-due-date="defaultDueDate"
+        @submit="handleAddTask"
+      />
     </aside>
     <main class="layout__content">
       <RouterView />

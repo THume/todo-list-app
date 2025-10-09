@@ -7,6 +7,7 @@ const COMPLETED_STORAGE_KEY = 'todo-list-app/completed-tasks';
 const tasks = ref([]);
 const completedTasks = ref([]);
 
+const FALLBACK_DUE_TIME = '23:59';
 const {
   notifications,
   dismissNotification,
@@ -18,6 +19,17 @@ const {
 let initialId = 1;
 let isInitialized = false;
 let watchersReady = false;
+
+const VALID_RECURRENCE = new Set(['daily', 'weekdays', 'weekly', 'monthly']);
+
+const normalizeRecurrence = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return VALID_RECURRENCE.has(normalized) ? normalized : null;
+};
 
 const persistTasks = (value) => {
   try {
@@ -45,7 +57,7 @@ const buildDueDate = (date, time) => {
     return null;
   }
 
-  const normalizedTime = time && time.trim().length > 0 ? time : '00:00';
+  const normalizedTime = time && time.trim().length > 0 ? time : FALLBACK_DUE_TIME;
   const timestamp = new Date(`${date}T${normalizedTime}`);
 
   if (Number.isNaN(timestamp.valueOf())) {
@@ -53,6 +65,69 @@ const buildDueDate = (date, time) => {
   }
 
   return timestamp.toISOString();
+};
+
+const advanceDateByRecurrence = (date, recurrence) => {
+  switch (recurrence) {
+    case 'daily':
+      date.setDate(date.getDate() + 1);
+      break;
+    case 'weekdays': {
+      do {
+        date.setDate(date.getDate() + 1);
+      } while (date.getDay() === 0 || date.getDay() === 6);
+      break;
+    }
+    case 'weekly':
+      date.setDate(date.getDate() + 7);
+      break;
+    case 'monthly':
+      date.setMonth(date.getMonth() + 1);
+      break;
+    default:
+      break;
+  }
+};
+
+const computeNextDueDate = (currentDue, recurrence) => {
+  const normalized = normalizeRecurrence(recurrence);
+
+  if (!normalized || !currentDue) {
+    return null;
+  }
+
+  const base = new Date(currentDue);
+  if (Number.isNaN(base.valueOf())) {
+    return null;
+  }
+
+  const next = new Date(base);
+  const now = Date.now();
+  advanceDateByRecurrence(next, normalized);
+
+  while (next.valueOf() <= now) {
+    advanceDateByRecurrence(next, normalized);
+  }
+
+  return next.toISOString();
+};
+
+const createRecurringTask = (task) => {
+  const recurrence = normalizeRecurrence(task.recurrence);
+  if (!recurrence) {
+    return null;
+  }
+
+  const nextDue = computeNextDueDate(task.due, recurrence);
+
+  return {
+    id: initialId++,
+    title: task.title,
+    description: task.description ?? '',
+    completed: false,
+    due: nextDue ?? task.due ?? null,
+    recurrence,
+  };
 };
 
 const recordCompletion = (task) => {
@@ -66,6 +141,7 @@ const recordCompletion = (task) => {
     description: task.description ?? '',
     due: task.due ?? null,
     completedAt: new Date().toISOString(),
+    recurrence: normalizeRecurrence(task.recurrence),
   };
 
   const existingIndex = completedTasks.value.findIndex((item) => item.taskId === task.id);
@@ -83,32 +159,43 @@ const removeCompletion = (taskId) => {
   completedTasks.value = completedTasks.value.filter((entry) => entry.taskId !== taskId);
 };
 
-const addTask = ({ title, description, dueDate, dueTime }) => {
+const addTask = ({ title, description, dueDate, dueTime, recurrence }) => {
   const due = buildDueDate(dueDate, dueTime);
+  const recurrenceValue = normalizeRecurrence(recurrence);
   const newTask = {
     id: initialId++,
     title,
     description,
     completed: false,
     due,
+    recurrence: recurrenceValue,
   };
 
   tasks.value = [...tasks.value, newTask];
 };
 
 const toggleTaskCompletion = (taskId) => {
-  const target = tasks.value.find((item) => item.id === taskId);
-  if (!target) {
+  const targetIndex = tasks.value.findIndex((item) => item.id === taskId);
+  if (targetIndex < 0) {
     return;
   }
 
+  const target = tasks.value[targetIndex];
   target.completed = !target.completed;
-  tasks.value = [...tasks.value];
 
   if (target.completed) {
     recordCompletion(target);
+    const nextTask = createRecurringTask(target);
+    const updatedTasks = [...tasks.value];
+
+    if (nextTask) {
+      updatedTasks.push(nextTask);
+    }
+
+    tasks.value = updatedTasks;
   } else {
     removeCompletion(target.id);
+    tasks.value = [...tasks.value];
   }
 };
 
@@ -164,6 +251,7 @@ const loadFromStorage = () => {
           description: typeof task.description === 'string' ? task.description : '',
           completed: Boolean(task.completed),
           due: task.due ?? null,
+          recurrence: normalizeRecurrence(task.recurrence),
         }));
       }
     }
@@ -184,6 +272,7 @@ const loadFromStorage = () => {
           description: entry.description ?? '',
           due: entry.due ?? null,
           completedAt: entry.completedAt ?? new Date().toISOString(),
+          recurrence: normalizeRecurrence(entry.recurrence),
         }));
       }
     }

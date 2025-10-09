@@ -82,6 +82,19 @@ const groupedEntries = computed(() => {
   return groups;
 });
 
+const formatRecurrence = (value) => {
+  switch (value) {
+    case 'daily':
+      return 'Repeats daily';
+    case 'weekly':
+      return 'Repeats weekly';
+    case 'monthly':
+      return 'Repeats monthly';
+    default:
+      return '';
+  }
+};
+
 const formatTimestamp = (value) => {
   if (!value) {
     return '';
@@ -118,6 +131,9 @@ const formatTimestamp = (value) => {
               <time class="history__timestamp" :datetime="entry.completedAt">
                 Completed {{ formatTimestamp(entry.completedAt) }}
               </time>
+              <span v-if="entry.recurrence" class="history__recurrence">
+                {{ formatRecurrence(entry.recurrence) }}
+              </span>
             </div>
             <p v-if="entry.description" class="history__description">
               {{ entry.description }}
@@ -220,6 +236,19 @@ const formatTimestamp = (value) => {
 .history__timestamp {
   color: #a1a1aa;
   font-size: 0.85rem;
+}
+
+.history__recurrence {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.16);
+  color: #4ade80;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .history__description {

@@ -63,6 +63,19 @@ const formattedDueLabel = computed(() => {
   return `${formattedDueDate.value} at ${formattedDueTime.value}`;
 });
 
+const recurrenceLabel = computed(() => {
+  switch (props.task.recurrence) {
+    case 'daily':
+      return 'Repeats daily';
+    case 'weekly':
+      return 'Repeats weekly';
+    case 'monthly':
+      return 'Repeats monthly';
+    default:
+      return '';
+  }
+});
+
 const handleToggle = () => {
   emit('toggle', props.task);
 };
@@ -100,6 +113,7 @@ const handleRemove = () => {
 
     <footer class="task__meta">
       <span class="task__status">{{ statusLabel }}</span>
+      <span v-if="recurrenceLabel" class="task__recurrence">{{ recurrenceLabel }}</span>
       <time v-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">
         Due {{ formattedDueLabel }}
       </time>
@@ -174,6 +188,20 @@ $checkbox-bg: #101010;
   &__status {
     font-weight: 600;
     color: $task-heading;
+  }
+
+  &__recurrence {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.16);
+    color: #4ade80;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   &__due {

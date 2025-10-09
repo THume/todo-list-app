@@ -6,6 +6,10 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  defaultDueDate: {
+    type: String,
+    default: null,
+  },
 });
 
 const emit = defineEmits(['submit', 'update:visible']);
@@ -14,7 +18,18 @@ const title = ref('');
 const description = ref('');
 const dueDate = ref('');
 const dueTime = ref('');
+const recurrence = ref('none');
 const titleField = ref(null);
+const appliedDefaultDueDate = ref(null);
+let isApplyingDefaultDueDate = false;
+
+const recurrenceOptions = [
+  { value: 'none', label: 'Does not repeat' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekdays', label: 'Weekdays' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+];
 
 const canSubmit = computed(() => title.value.trim().length > 0);
 
@@ -25,8 +40,19 @@ const toggleVisibility = () => {
 const resetForm = () => {
   title.value = '';
   description.value = '';
-  dueDate.value = '';
   dueTime.value = '';
+  recurrence.value = 'none';
+  if (props.defaultDueDate) {
+    isApplyingDefaultDueDate = true;
+    dueDate.value = props.defaultDueDate;
+    appliedDefaultDueDate.value = props.defaultDueDate;
+    nextTick(() => {
+      isApplyingDefaultDueDate = false;
+    });
+  } else {
+    dueDate.value = '';
+    appliedDefaultDueDate.value = null;
+  }
 };
 
 const handleSubmit = () => {
@@ -41,6 +67,7 @@ const handleSubmit = () => {
     description: description.value.trim(),
     dueDate: dueDate.value || null,
     dueTime: dueTime.value || null,
+    recurrence: recurrence.value,
   });
 
   resetForm();
@@ -64,14 +91,51 @@ watch(dueDate, (value) => {
   if (!value) {
     dueTime.value = '';
   }
+
+  if (!isApplyingDefaultDueDate && appliedDefaultDueDate.value && value !== appliedDefaultDueDate.value) {
+    appliedDefaultDueDate.value = null;
+  }
 });
+
+watch(
+  () => props.defaultDueDate,
+  (newDefault, oldDefault) => {
+    if (!newDefault) {
+      if (oldDefault && dueDate.value === oldDefault) {
+        dueDate.value = '';
+      }
+      appliedDefaultDueDate.value = null;
+      return;
+    }
+
+    const previousApplied = appliedDefaultDueDate.value;
+    const becameActive = !oldDefault && !!newDefault;
+    const shouldApply = becameActive || !dueDate.value || dueDate.value === previousApplied;
+
+    appliedDefaultDueDate.value = newDefault;
+
+    if (shouldApply) {
+      isApplyingDefaultDueDate = true;
+      dueDate.value = newDefault;
+      nextTick(() => {
+        isApplyingDefaultDueDate = false;
+      });
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
   <section class="add-task">
     <header class="add-task__header">
       <h1 class="add-task__title">Add a Task</h1>
-      <button type="button" class="add-task__toggle" :aria-expanded="visible" @click="toggleVisibility">
+      <button
+        type="button"
+        class="add-task__toggle"
+        :aria-expanded="visible"
+        @click="toggleVisibility"
+      >
         {{ visible ? 'Hide form' : 'Show form' }}
       </button>
     </header>
@@ -98,7 +162,13 @@ watch(dueDate, (value) => {
         <div class="add-task__due-row">
           <label class="add-task__due-label">
             <span>Due date</span>
-            <input v-model="dueDate" type="date" name="dueDate" class="add-task__due-input" aria-label="Due date" />
+            <input
+              v-model="dueDate"
+              type="date"
+              name="dueDate"
+              class="add-task__due-input"
+              aria-label="Due date"
+            />
           </label>
           <label class="add-task__due-label">
             <span>Due time</span>
@@ -112,6 +182,23 @@ watch(dueDate, (value) => {
             />
           </label>
         </div>
+        <label class="add-task__due-label add-task__recurrence">
+          <span>Repeats</span>
+          <select
+            v-model="recurrence"
+            name="recurrence"
+            class="add-task__select"
+            aria-label="Recurrence"
+          >
+            <option
+              v-for="option in recurrenceOptions"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
       </div>
       <button type="submit" class="add-task__submit" :disabled="!canSubmit">Add Task</button>
     </form>
@@ -210,6 +297,31 @@ $button-bg-hover: #f87171;
     gap: 0.35rem;
     font-size: 0.9rem;
     color: $muted-text;
+  }
+
+  &__recurrence {
+    max-width: 16rem;
+  }
+
+  &__select {
+    width: 100%;
+    border: 1px solid $input-border;
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    font-size: 1rem;
+    font-family: inherit;
+    background: $input-bg;
+    color: $input-text;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    appearance: none;
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+      border-color: $button-bg;
+      box-shadow: 0 0 0 3px $focus-outline;
+      background: $input-bg-focus;
+    }
   }
 
   &__toggle {
