@@ -96,11 +96,11 @@ $app-accent: #ef4444;
   padding: 2.5rem 2rem;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   gap: 2.5rem;
   height: 100%;
   min-height: 0;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .layout__sidebar-top {
