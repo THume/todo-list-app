@@ -92,6 +92,7 @@ const handleEdit = () => {
   }
   emit('edit', props.task);
 };
+
 </script>
 
 <template>
@@ -205,6 +206,12 @@ $checkbox-bg: #101010;
     color: $task-muted;
   }
 
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
   &__status {
     font-weight: 600;
     color: $task-heading;
@@ -263,12 +270,6 @@ $checkbox-bg: #101010;
       color: $checkbox-accent;
       transform: translateY(-1px);
     }
-  }
-
-  &__actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
   }
 
   &--completed {

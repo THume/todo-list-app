@@ -203,6 +203,35 @@ const updateTask = ({ id, title, description, dueDate, dueTime, recurrence }) =>
   return true;
 };
 
+const reorderTask = ({ id, beforeId = null }) => {
+  const updated = [...tasks.value];
+  const currentIndex = updated.findIndex((item) => item.id === id);
+
+  if (currentIndex < 0) {
+    return false;
+  }
+
+  if (beforeId === id) {
+    return false;
+  }
+
+  const [task] = updated.splice(currentIndex, 1);
+
+  let targetIndex;
+  if (!beforeId) {
+    targetIndex = updated.length;
+  } else {
+    targetIndex = updated.findIndex((item) => item.id === beforeId);
+    if (targetIndex < 0) {
+      targetIndex = updated.length;
+    }
+  }
+
+  updated.splice(targetIndex, 0, task);
+  tasks.value = updated;
+  return true;
+};
+
 const toggleTaskCompletion = (taskId) => {
   const targetIndex = tasks.value.findIndex((item) => item.id === taskId);
   if (targetIndex < 0) {
@@ -372,6 +401,7 @@ export const useTaskStore = () => {
     dismissNotification,
     addTask,
     updateTask,
+    reorderTask,
     toggleTaskCompletion,
     removeTask,
     initialize,

@@ -6,16 +6,21 @@ import TaskEditorDialog from '../components/TaskEditorDialog.vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
 const {
+  tasks,
   tasksDueToday,
   toggleTaskCompletion,
   removeTask,
   updateTask,
+  reorderTask,
 } = useTaskStore();
 
 const showDeleteDialog = ref(false);
 const taskPendingDelete = ref(null);
 const showEditDialog = ref(false);
 const taskPendingEdit = ref(null);
+const draggedTaskId = ref(null);
+const dragOverTaskId = ref(null);
+const dropIndicatorIndex = ref(-1);
 
 const handleToggle = (task) => {
   toggleTaskCompletion(task.id);
@@ -52,6 +57,111 @@ const handleEditSave = (payload) => {
   closeEdit();
 };
 
+const handleDragStart = (task) => {
+  draggedTaskId.value = task.id;
+};
+
+const handleDragEnd = () => {
+  draggedTaskId.value = null;
+  dragOverTaskId.value = null;
+  dropIndicatorIndex.value = -1;
+};
+
+const handleDragEnter = (task) => {
+  if (!draggedTaskId.value || draggedTaskId.value === task.id) {
+    return;
+  }
+  const allTasks = tasks.value ?? [];
+  const todayList = tasksDueToday.value ?? [];
+  const sourceIndexAll = allTasks.findIndex((item) => item.id === draggedTaskId.value);
+  const targetIndexAll = allTasks.findIndex((item) => item.id === task.id);
+
+  if (sourceIndexAll < 0 || targetIndexAll < 0) {
+    dropIndicatorIndex.value = -1;
+    return;
+  }
+
+  const targetIndexToday = todayList.findIndex((item) => item.id === task.id);
+  const sourceIndexToday = todayList.findIndex((item) => item.id === draggedTaskId.value);
+
+  let indicatorIndex = targetIndexToday >= 0 ? targetIndexToday : 0;
+
+  if (sourceIndexAll < targetIndexAll) {
+    indicatorIndex = targetIndexToday >= 0 ? targetIndexToday + 1 : todayList.length;
+  } else if (sourceIndexToday >= 0 && targetIndexToday >= 0) {
+    indicatorIndex = targetIndexToday;
+  }
+
+  dropIndicatorIndex.value = indicatorIndex;
+  dragOverTaskId.value = task.id;
+};
+
+const handleDragLeave = (task) => {
+  if (dragOverTaskId.value === task.id) {
+    dragOverTaskId.value = null;
+    dropIndicatorIndex.value = -1;
+  }
+};
+
+const handleDrop = (task) => {
+  if (!draggedTaskId.value || draggedTaskId.value === task.id) {
+    dragOverTaskId.value = null;
+    dropIndicatorIndex.value = -1;
+    return;
+  }
+
+  const allTasks = tasks.value ?? [];
+  const sourceIndex = allTasks.findIndex((item) => item.id === draggedTaskId.value);
+  const targetIndex = allTasks.findIndex((item) => item.id === task.id);
+
+  if (sourceIndex < 0 || targetIndex < 0) {
+    dragOverTaskId.value = null;
+    dropIndicatorIndex.value = -1;
+    return;
+  }
+
+  let beforeId = task.id;
+  if (sourceIndex < targetIndex) {
+    const nextItem = allTasks[targetIndex + 1];
+    beforeId = nextItem ? nextItem.id : null;
+  }
+
+  reorderTask({
+    id: draggedTaskId.value,
+    beforeId,
+  });
+
+  dragOverTaskId.value = null;
+  draggedTaskId.value = null;
+  dropIndicatorIndex.value = -1;
+};
+
+const handleDropAtListEnd = () => {
+  if (!draggedTaskId.value) {
+    return;
+  }
+
+  reorderTask({
+    id: draggedTaskId.value,
+    beforeId: null,
+  });
+
+  dragOverTaskId.value = null;
+  draggedTaskId.value = null;
+  dropIndicatorIndex.value = -1;
+};
+
+const handleListDragOver = (event) => {
+  if (!draggedTaskId.value) {
+    return;
+  }
+  if (event?.target !== event?.currentTarget) {
+    return;
+  }
+  dropIndicatorIndex.value = (tasksDueToday.value ?? []).length;
+  dragOverTaskId.value = null;
+};
+
 watch(showEditDialog, (isOpen) => {
   if (!isOpen) {
     taskPendingEdit.value = null;
@@ -68,15 +178,43 @@ watch(showEditDialog, (isOpen) => {
     <p v-if="tasksDueToday.length === 0" class="task-panel__empty">
       No tasks are due today.
     </p>
-    <ul v-else class="task-panel__list">
-      <li v-for="task in tasksDueToday" :key="task.id" class="task-panel__item">
-        <Task
-          :task="task"
-          @toggle="handleToggle"
-          @remove="requestDelete"
-          @edit="startEdit"
+    <ul
+      v-else
+      class="task-panel__list"
+      @dragover.prevent="handleListDragOver($event)"
+      @drop.prevent="handleDropAtListEnd"
+    >
+      <template v-for="(task, index) in tasksDueToday" :key="task.id">
+        <li
+          v-if="dropIndicatorIndex === index"
+          class="task-panel__drop-indicator"
         />
-      </li>
+        <li
+          class="task-panel__item"
+          :class="{
+            'task-panel__item--drag-over': dragOverTaskId === task.id,
+            'task-panel__item--dragging': draggedTaskId === task.id,
+          }"
+          :draggable="!task.completed"
+          @dragstart="handleDragStart(task)"
+          @dragend="handleDragEnd"
+          @dragenter.prevent="handleDragEnter(task)"
+          @dragover.prevent
+          @dragleave="handleDragLeave(task)"
+          @drop.prevent.stop="handleDrop(task)"
+        >
+          <Task
+            :task="task"
+            @toggle="handleToggle"
+            @remove="requestDelete"
+            @edit="startEdit"
+          />
+        </li>
+      </template>
+      <li
+        v-if="dropIndicatorIndex === tasksDueToday.length"
+        class="task-panel__drop-indicator task-panel__drop-indicator--end"
+      />
     </ul>
   </section>
   <ConfirmDialog
@@ -149,5 +287,24 @@ watch(showEditDialog, (isOpen) => {
 
 .task-panel__item {
   list-style: none;
+}
+
+.task-panel__item--drag-over {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+}
+
+.task-panel__item--dragging {
+  opacity: 0.6;
+}
+
+.task-panel__drop-indicator {
+  height: 0;
+  border-top: 2px dashed #ef4444;
+  margin: 0.25rem 0;
+}
+
+.task-panel__drop-indicator--end {
+  margin-bottom: 0;
 }
 </style>

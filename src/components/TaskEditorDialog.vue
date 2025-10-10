@@ -148,7 +148,12 @@ watch(dueDate, (value) => {
 
 <template>
   <transition name="dialog-fade">
-    <div v-if="open" class="task-editor" role="presentation" @click.self="handleCancel">
+    <div
+      v-if="open"
+      class="task-editor"
+      role="presentation"
+      @click.self="handleCancel"
+    >
       <div
         ref="panel"
         class="task-editor__panel"
@@ -160,7 +165,14 @@ watch(dueDate, (value) => {
       >
         <header class="task-editor__header">
           <h2 id="task-editor-title">Edit Task</h2>
-          <button type="button" class="task-editor__close" aria-label="Close editor" @click="handleCancel">×</button>
+          <button
+            type="button"
+            class="task-editor__close"
+            aria-label="Close editor"
+            @click="handleCancel"
+          >
+            ×
+          </button>
         </header>
         <form class="task-editor__form" @submit.prevent="handleSave">
           <label class="task-editor__field">
@@ -177,31 +189,59 @@ watch(dueDate, (value) => {
           </label>
           <label class="task-editor__field">
             <span class="task-editor__label">Description</span>
-            <textarea v-model="description" name="description" class="task-editor__textarea" rows="3" />
+            <textarea
+              v-model="description"
+              name="description"
+              class="task-editor__textarea"
+              rows="3"
+            />
           </label>
           <div class="task-editor__row">
             <label class="task-editor__field">
               <span class="task-editor__label">Due date</span>
-              <input v-model="dueDate" type="date" name="dueDate" class="task-editor__input" />
+              <input
+                v-model="dueDate"
+                type="date"
+                name="dueDate"
+                class="task-editor__input"
+              />
             </label>
             <label class="task-editor__field">
               <span class="task-editor__label">Due time</span>
-              <input v-model="dueTime" type="time" name="dueTime" class="task-editor__input" :disabled="!dueDate" />
+              <input
+                v-model="dueTime"
+                type="time"
+                name="dueTime"
+                class="task-editor__input"
+                :disabled="!dueDate"
+              />
             </label>
           </div>
           <label class="task-editor__field">
             <span class="task-editor__label">Repeats</span>
             <select v-model="recurrence" name="recurrence" class="task-editor__input">
-              <option v-for="option in recurrenceOptions" :key="option.value" :value="option.value">
+              <option
+                v-for="option in recurrenceOptions"
+                :key="option.value"
+                :value="option.value"
+              >
                 {{ option.label }}
               </option>
             </select>
           </label>
           <footer class="task-editor__actions">
-            <button type="button" class="task-editor__button task-editor__button--ghost" @click="handleCancel">
+            <button
+              type="button"
+              class="task-editor__button task-editor__button--ghost"
+              @click="handleCancel"
+            >
               Cancel
             </button>
-            <button type="submit" class="task-editor__button task-editor__button--primary" :disabled="!canSave">
+            <button
+              type="submit"
+              class="task-editor__button task-editor__button--primary"
+              :disabled="!canSave"
+            >
               Save changes
             </button>
           </footer>
