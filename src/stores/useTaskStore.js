@@ -262,6 +262,28 @@ const removeTask = (taskId) => {
   removeCompletion(taskId);
 };
 
+const duplicateTask = (taskId) => {
+  const originalIndex = tasks.value.findIndex((item) => item.id === taskId);
+  if (originalIndex < 0) {
+    return null;
+  }
+
+  const original = tasks.value[originalIndex];
+  const duplicatedTask = {
+    id: initialId++,
+    title: original.title,
+    description: original.description ?? '',
+    completed: false,
+    due: original.due ?? null,
+    recurrence: original.recurrence ?? null,
+  };
+
+  const updatedTasks = [...tasks.value];
+  updatedTasks.splice(originalIndex + 1, 0, duplicatedTask);
+  tasks.value = updatedTasks;
+  return duplicatedTask;
+};
+
 const tasksDueToday = computed(() => {
   const currentTasks = Array.isArray(tasks.value) ? tasks.value : [];
   const today = new Date();
@@ -400,6 +422,7 @@ export const useTaskStore = () => {
     notifications,
     dismissNotification,
     addTask,
+    duplicateTask,
     updateTask,
     reorderTask,
     toggleTaskCompletion,

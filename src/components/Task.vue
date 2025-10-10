@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 
-const emit = defineEmits(['toggle', 'remove', 'edit']);
+const emit = defineEmits(['toggle', 'remove', 'edit', 'duplicate']);
 
 const props = defineProps({
   task: {
@@ -93,6 +93,10 @@ const handleEdit = () => {
   emit('edit', props.task);
 };
 
+const handleDuplicate = () => {
+  emit('duplicate', props.task);
+};
+
 </script>
 
 <template>
@@ -108,6 +112,14 @@ const handleEdit = () => {
         <span class="task__title">{{ task.title }}</span>
       </label>
       <div class="task__actions">
+        <button
+          type="button"
+          class="task__duplicate"
+          aria-label="Duplicate task"
+          @click="handleDuplicate"
+        >
+          Duplicate
+        </button>
         <button
           v-if="!task.completed"
           type="button"
@@ -249,6 +261,25 @@ $checkbox-bg: #101010;
     &:hover {
       color: $remove-hover;
       border-color: $remove-hover;
+      transform: translateY(-1px);
+    }
+  }
+
+  &__duplicate {
+    border: 1px solid $task-border;
+    background: rgba(59, 130, 246, 0.12);
+    color: #60a5fa;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 0.65rem;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: #93c5fd;
+      color: #bfdbfe;
       transform: translateY(-1px);
     }
   }

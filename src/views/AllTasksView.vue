@@ -11,6 +11,7 @@ const {
   removeTask,
   updateTask,
   reorderTask,
+  duplicateTask,
 } = useTaskStore();
 
 const showDeleteDialog = ref(false);
@@ -57,6 +58,13 @@ const closeEdit = () => {
 const handleEditSave = (payload) => {
   updateTask(payload);
   closeEdit();
+};
+
+const handleDuplicate = (task) => {
+  const duplicated = duplicateTask(task.id);
+  if (duplicated) {
+    startEdit(duplicated);
+  }
 };
 
 const handleDragStart = (task) => {
@@ -201,6 +209,7 @@ watch(showEditDialog, (isOpen) => {
             @toggle="handleToggle"
             @remove="requestDelete"
             @edit="startEdit"
+            @duplicate="handleDuplicate"
           />
         </li>
       </template>
