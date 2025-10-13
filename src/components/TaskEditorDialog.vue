@@ -30,6 +30,16 @@ const dueDate = ref('');
 const dueTime = ref('');
 const recurrence = ref('none');
 const lastTaskId = ref(null);
+const getTodayDateString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const setDueDateToToday = () => {
+  dueDate.value = getTodayDateString();
+};
 
 const canSave = computed(() => title.value.trim().length > 0);
 
@@ -199,12 +209,21 @@ watch(dueDate, (value) => {
           <div class="task-editor__row">
             <label class="task-editor__field">
               <span class="task-editor__label">Due date</span>
-              <input
-                v-model="dueDate"
-                type="date"
-                name="dueDate"
-                class="task-editor__input"
-              />
+              <div class="task-editor__date-input-wrapper">
+                <input
+                  v-model="dueDate"
+                  type="date"
+                  name="dueDate"
+                  class="task-editor__input task-editor__input--date"
+                />
+                <button
+                  type="button"
+                  class="task-editor__today-button"
+                  @click="setDueDateToToday"
+                >
+                  Today
+                </button>
+              </div>
             </label>
             <label class="task-editor__field">
               <span class="task-editor__label">Due time</span>
@@ -368,6 +387,40 @@ $ghost-hover: rgba(255, 255, 255, 0.08);
     &:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+    }
+  }
+
+  &__date-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__input--date {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &__today-button {
+    border: 1px solid $dialog-border;
+    background: $input-bg;
+    color: $input-text;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+      background: $ghost-hover;
+      border-color: $accent;
+      transform: translateY(-1px);
+    }
+
+    &:focus-visible {
+      outline: 2px solid $accent;
+      outline-offset: 2px;
     }
   }
 

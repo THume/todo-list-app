@@ -22,6 +22,17 @@ const recurrence = ref('none');
 const titleField = ref(null);
 const appliedDefaultDueDate = ref(null);
 let isApplyingDefaultDueDate = false;
+const getTodayDateString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const setDueDateToToday = () => {
+  dueDate.value = getTodayDateString();
+  appliedDefaultDueDate.value = null;
+};
 
 const recurrenceOptions = [
   { value: 'none', label: 'Does not repeat' },
@@ -147,6 +158,7 @@ watch(
           type="text"
           class="add-task__input"
           name="title"
+          autocomplete="off"
           placeholder="Task title"
           aria-label="Task title"
           required
@@ -162,13 +174,22 @@ watch(
         <div class="add-task__due-row">
           <label class="add-task__due-label">
             <span>Due date</span>
-            <input
-              v-model="dueDate"
-              type="date"
-              name="dueDate"
-              class="add-task__due-input"
-              aria-label="Due date"
-            />
+            <div class="add-task__due-input-wrapper">
+              <input
+                v-model="dueDate"
+                type="date"
+                name="dueDate"
+                class="add-task__due-input"
+                aria-label="Due date"
+              />
+              <button
+                type="button"
+                class="add-task__today-button"
+                @click="setDueDateToToday"
+              >
+                Today
+              </button>
+            </div>
           </label>
           <label class="add-task__due-label">
             <span>Due time</span>
@@ -291,12 +312,23 @@ $button-bg-hover: #f87171;
     min-height: 3.5rem;
   }
 
+  &__due-input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
   &__due-label {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
     font-size: 0.9rem;
     color: $muted-text;
+  }
+
+  &__due-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   &__recurrence {
@@ -321,6 +353,29 @@ $button-bg-hover: #f87171;
       border-color: $button-bg;
       box-shadow: 0 0 0 3px $focus-outline;
       background: $input-bg-focus;
+    }
+  }
+
+  &__today-button {
+    border: 1px solid $panel-border;
+    background: $input-bg;
+    color: $input-text;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+      background: $input-bg-focus;
+      border-color: $input-border;
+      transform: translateY(-1px);
+    }
+
+    &:focus-visible {
+      outline: 2px solid $focus-outline;
+      outline-offset: 2px;
     }
   }
 
