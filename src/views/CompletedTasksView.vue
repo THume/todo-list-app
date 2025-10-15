@@ -155,11 +155,13 @@ const formatTimestamp = (value) => {
 </template>
 
 <style scoped lang="scss">
+@use '../styles/theme' as theme;
+
 .history {
   display: grid;
   gap: 1rem;
   padding: 1.25rem;
-  border: 1px solid #262626;
+  border: 1px solid theme.$color-border-strong;
   border-radius: 1rem;
   background: rgba(23, 23, 24, 0.6);
   box-shadow: 0 18px 32px -28px rgba(0, 0, 0, 0.85);
@@ -177,14 +179,14 @@ const formatTimestamp = (value) => {
 }
 
 .history__count {
-  color: #a1a1aa;
+  color: theme.$color-text-muted;
   font-size: 0.95rem;
 }
 
 .history__empty {
   margin: 0;
   padding: 1rem 0;
-  color: #a1a1aa;
+  color: theme.$color-text-muted;
 }
 
 .history__list {
@@ -215,7 +217,7 @@ const formatTimestamp = (value) => {
 }
 
 .history__item {
-  border: 1px solid #2f2f2f;
+  border: 1px solid theme.$color-border-input;
   border-radius: 0.75rem;
   padding: 0.85rem 1rem;
   background: rgba(23, 23, 24, 0.55);
@@ -236,7 +238,7 @@ const formatTimestamp = (value) => {
 }
 
 .history__timestamp {
-  color: #a1a1aa;
+  color: theme.$color-text-muted;
   font-size: 0.85rem;
 }
 
@@ -260,7 +262,7 @@ const formatTimestamp = (value) => {
 }
 
 .history__due {
-  color: #ef4444;
+  color: theme.$color-accent;
   font-size: 0.85rem;
 }
 </style>

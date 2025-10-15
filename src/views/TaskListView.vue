@@ -352,8 +352,10 @@ watch(listTasks, () => {
 </template>
 
 <style scoped lang="scss">
+@use '../styles/theme' as theme;
+
 .task-panel {
-  border: 1px solid #262626;
+  border: 1px solid theme.$color-border-strong;
   border-radius: 1rem;
   padding: 1.25rem;
   background: rgba(23, 23, 24, 0.6);
@@ -380,16 +382,16 @@ watch(listTasks, () => {
 }
 
 .task-panel__count {
-  color: #a1a1aa;
+  color: theme.$color-text-muted;
   font-size: 0.95rem;
 }
 
 .task-panel__empty {
   margin: 0;
   padding: 1.5rem;
-  border: 2px dashed #2f2f2f;
+  border: 2px dashed theme.$color-border-input;
   border-radius: 1rem;
-  color: #a1a1aa;
+  color: theme.$color-text-muted;
   text-align: center;
   background: rgba(255, 255, 255, 0.04);
   display: grid;
@@ -398,7 +400,7 @@ watch(listTasks, () => {
 
 .task-panel__empty-button {
   justify-self: center;
-  border: 1px solid #2f2f2f;
+  border: 1px solid theme.$color-border-input;
   background: rgba(255, 255, 255, 0.04);
   color: #e5e5e5;
   font-size: 0.85rem;
@@ -410,13 +412,13 @@ watch(listTasks, () => {
 
   &:hover {
     background: rgba(239, 68, 68, 0.16);
-    border-color: #ef4444;
+    border-color: theme.$color-accent;
     color: #ffffff;
     transform: translateY(-1px);
   }
 
   &:focus-visible {
-    outline: 2px solid #ef4444;
+    outline: 2px solid theme.$color-accent;
     outline-offset: 2px;
   }
 }
@@ -434,7 +436,7 @@ watch(listTasks, () => {
 }
 
 .task-panel__item--drag-over {
-  outline: 2px solid #ef4444;
+  outline: 2px solid theme.$color-accent;
   outline-offset: 2px;
 }
 
@@ -444,7 +446,7 @@ watch(listTasks, () => {
 
 .task-panel__drop-indicator {
   height: 0;
-  border-top: 2px dashed #ef4444;
+  border-top: 2px dashed theme.$color-accent;
   margin: 0.25rem 0;
 }
 

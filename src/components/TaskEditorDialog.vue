@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, nextTick, ref, watch } from 'vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
@@ -211,7 +211,7 @@ watch(dueDate, (value) => {
             aria-label="Close editor"
             @click="handleCancel"
           >
-            ×
+            ├ù
           </button>
         </header>
         <form class="task-editor__form" @submit.prevent="handleSave">
@@ -315,18 +315,20 @@ watch(dueDate, (value) => {
 </template>
 
 <style scoped lang="scss">
-$dialog-backdrop: rgba(8, 8, 9, 0.82);
-$dialog-panel-bg: #181818;
-$dialog-border: #262626;
-$input-border: #2f2f2f;
-$input-bg: #111112;
-$input-bg-focus: #161617;
-$input-text: #f5f5f5;
-$muted-text: #a1a1aa;
-$focus-outline: rgba(239, 68, 68, 0.45);
-$accent: #ef4444;
-$accent-hover: #f87171;
-$ghost-hover: rgba(255, 255, 255, 0.08);
+@use '../styles/theme' as theme;
+
+$dialog-backdrop: theme.$color-overlay-strong;
+$dialog-panel-bg: theme.$color-surface-elevated;
+$dialog-border: theme.$color-border-strong;
+$input-border: theme.$color-border-input;
+$input-bg: theme.$color-surface-base;
+$input-bg-focus: theme.$color-surface-hover;
+$input-text: theme.$color-text-primary;
+$muted-text: theme.$color-text-muted;
+$focus-outline: theme.$color-accent-focus-strong;
+$accent: theme.$color-accent;
+$accent-hover: theme.$color-accent-hover;
+$ghost-hover: theme.$color-surface-ghost-strong;
 
 .dialog-fade-enter-active,
 .dialog-fade-leave-active {
@@ -528,7 +530,7 @@ $ghost-hover: rgba(255, 255, 255, 0.08);
     &--primary {
       border: none;
       background: $accent;
-      color: #0b0b0c;
+      color: theme.$color-text-inverted;
       box-shadow: 0 16px 28px -24px rgba(239, 68, 68, 0.85);
 
       &:hover:not(:disabled) {

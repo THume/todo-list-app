@@ -118,15 +118,17 @@ watch(
 </template>
 
 <style scoped lang="scss">
-$dialog-backdrop: rgba(8, 8, 9, 0.82);
-$dialog-panel-bg: #181818;
-$dialog-border: #262626;
-$input-text: #f5f5f5;
-$muted-text: #a1a1aa;
-$focus-outline: #ef4444;
-$danger-bg: #ef4444;
-$danger-bg-hover: #f87171;
-$danger-text: #0b0b0c;
+@use '../styles/theme' as theme;
+
+$dialog-backdrop: theme.$color-overlay-strong;
+$dialog-panel-bg: theme.$color-surface-elevated;
+$dialog-border: theme.$color-border-strong;
+$input-text: theme.$color-text-primary;
+$muted-text: theme.$color-text-muted;
+$focus-outline: theme.$color-accent;
+$danger-bg: theme.$color-accent;
+$danger-bg-hover: theme.$color-accent-hover;
+$danger-text: theme.$color-text-inverted;
 
 .dialog-fade-enter-active,
 .dialog-fade-leave-active {

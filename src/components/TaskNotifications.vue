@@ -31,6 +31,7 @@ const handleDismiss = (id) => {
 </template>
 
 <style scoped lang="scss">
+@use '../styles/theme' as theme;
 .notifications {
   position: fixed;
   top: 1.25rem;
@@ -61,10 +62,10 @@ const handleDismiss = (id) => {
   justify-content: space-between;
   gap: 1rem;
   background: rgba(23, 23, 24, 0.92);
-  border: 1px solid #272727;
+  border: 1px solid theme.$color-border-muted;
   border-radius: 0.75rem;
   padding: 0.85rem 1rem;
-  color: #f5f5f5;
+  color: theme.$color-text-primary;
   box-shadow: 0 12px 18px -20px rgba(0, 0, 0, 0.7);
 }
 
@@ -75,8 +76,8 @@ const handleDismiss = (id) => {
 
 .notifications__dismiss {
   border: none;
-  background: #ef4444;
-  color: #0b0b0c;
+  background: theme.$color-accent;
+  color: theme.$color-text-inverted;
   font-weight: 600;
   font-size: 0.9rem;
   padding: 0.35rem 0.9rem;
@@ -88,7 +89,7 @@ const handleDismiss = (id) => {
 
 .notifications__dismiss:hover {
   transform: translateY(-1px);
-  background: #f87171;
+  background: theme.$color-accent-hover;
 }
 
 .notification-enter-active,

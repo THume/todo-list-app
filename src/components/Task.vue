@@ -293,16 +293,18 @@ const handleMoveToTomorrow = () => {
 </template>
 
 <style scoped lang="scss">
-$task-border: #262626;
+@use '../styles/theme' as theme;
+
+$task-border: theme.$color-border-strong;
 $task-bg: #141414;
-$task-heading: #f4f4f5;
+$task-heading: theme.$color-text-heading;
 $task-description: #d4d4d8;
 $task-muted: #9ca3af;
-$checkbox-accent: #ef4444;
-$checkbox-bg: rgba(255, 255, 255, 0.06);
+$checkbox-accent: theme.$color-accent;
+$checkbox-bg: theme.$color-surface-ghost-soft;
 $task-due: #fb7185;
-$task-completed: #71717a;
-$remove-hover: #f87171;
+$task-completed: theme.$color-text-disabled;
+$remove-hover: theme.$color-accent-hover;
 
 .task {
   border: 1px solid $task-border;
@@ -490,4 +492,3 @@ $remove-hover: #f87171;
   transform: translateY(-6px);
 }
 </style>
-

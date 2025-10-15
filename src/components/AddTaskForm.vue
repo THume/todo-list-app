@@ -275,18 +275,20 @@ watch(
 </template>
 
 <style scoped lang="scss">
-$panel-bg: #181818;
-$panel-border: #262626;
-$input-border: #2f2f2f;
-$input-bg: #111112;
-$input-bg-focus: #161617;
-$focus-outline: rgba(239, 68, 68, 0.35);
-$input-text: #f5f5f5;
-$muted-text: #a1a1aa;
-$disabled-bg: #222222;
-$disabled-text: #71717a;
-$button-bg: #ef4444;
-$button-bg-hover: #f87171;
+@use '../styles/theme' as theme;
+
+$panel-bg: theme.$color-surface-elevated;
+$panel-border: theme.$color-border-strong;
+$input-border: theme.$color-border-input;
+$input-bg: theme.$color-surface-base;
+$input-bg-focus: theme.$color-surface-hover;
+$focus-outline: theme.$color-accent-focus-soft;
+$input-text: theme.$color-text-primary;
+$muted-text: theme.$color-text-muted;
+$disabled-bg: theme.$color-surface-disabled;
+$disabled-text: theme.$color-text-disabled;
+$button-bg: theme.$color-accent;
+$button-bg-hover: theme.$color-accent-hover;
 
 .add-task {
   background: $panel-bg;
@@ -458,7 +460,7 @@ $button-bg-hover: #f87171;
     align-self: start;
     border: none;
     background: $button-bg;
-    color: #0b0b0c;
+    color: theme.$color-text-inverted;
     font-size: 1rem;
     font-weight: 600;
     padding: 0.75rem 1.5rem;

@@ -192,19 +192,13 @@ onUnmounted(() => {
 </template>
 
 <style scoped lang="scss">
-$app-bg: #0f0f10;
-$app-sidebar-bg: #161616;
-$app-main-bg: #111112;
-$app-border: #272727;
-$app-text: #f4f4f5;
-$app-muted: #a1a1aa;
-$app-accent: #ef4444;
+@use './styles/theme' as theme;
 
 .layout {
   display: grid;
   grid-template-columns: minmax(16rem, 20rem) 1fr;
-  color: $app-text;
-  background: $app-bg;
+  color: theme.$color-text-heading;
+  background: theme.$color-app-background;
   min-height: 100vh;
   height: 100vh;
   overflow: hidden;
@@ -216,8 +210,8 @@ $app-accent: #ef4444;
 }
 
 .layout__sidebar {
-  background: $app-sidebar-bg;
-  border-right: 1px solid $app-border;
+  background: theme.$color-sidebar-background;
+  border-right: 1px solid theme.$color-border-muted;
   padding: 2.5rem 2rem;
   display: flex;
   flex-direction: column;
@@ -248,9 +242,9 @@ $app-accent: #ef4444;
 }
 
 .layout__collapse-toggle {
-  border: 1px solid $app-border;
+  border: 1px solid theme.$color-border-muted;
   background: rgba(255, 255, 255, 0.06);
-  color: $app-text;
+  color: theme.$color-text-heading;
   font-size: 0.8rem;
   font-weight: 600;
   border-radius: 999px;
@@ -261,13 +255,13 @@ $app-accent: #ef4444;
 
   &:hover {
     background: rgba(239, 68, 68, 0.18);
-    border-color: $app-accent;
+    border-color: theme.$color-accent;
     color: #1b1b1d;
     transform: translateY(-1px);
   }
 
   &:focus-visible {
-    outline: 2px solid $app-accent;
+    outline: 2px solid theme.$color-accent;
     outline-offset: 2px;
   }
 }
@@ -280,7 +274,7 @@ $app-accent: #ef4444;
   margin: 0;
   font-size: 2rem;
   font-weight: 700;
-  color: $app-text;
+  color: theme.$color-text-heading;
 }
 
 .layout__nav {
@@ -306,13 +300,13 @@ $app-accent: #ef4444;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: $app-muted;
+  color: theme.$color-text-muted;
 }
 
 .layout__add-list {
-  border: 1px solid $app-border;
+  border: 1px solid theme.$color-border-muted;
   background: transparent;
-  color: $app-muted;
+  color: theme.$color-text-muted;
   font-size: 0.75rem;
   font-weight: 600;
   padding: 0.25rem 0.7rem;
@@ -321,14 +315,14 @@ $app-accent: #ef4444;
   transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 
   &:hover {
-    color: $app-text;
-    border-color: $app-accent;
+    color: theme.$color-text-heading;
+    border-color: theme.$color-accent;
     background: rgba(239, 68, 68, 0.12);
     transform: translateY(-1px);
   }
 
   &:focus-visible {
-    outline: 2px solid $app-accent;
+    outline: 2px solid theme.$color-accent;
     outline-offset: 2px;
   }
 }
@@ -342,22 +336,22 @@ $app-accent: #ef4444;
   border: 1px solid transparent;
   border-radius: 0.75rem;
   padding: 0.55rem 0.9rem;
-  color: $app-muted;
+  color: theme.$color-text-muted;
   text-decoration: none;
   font-weight: 600;
   transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .layout__link:hover {
-  color: $app-text;
-  border-color: $app-border;
+  color: theme.$color-text-heading;
+  border-color: theme.$color-border-muted;
   background: rgba(255, 255, 255, 0.04);
   transform: translateX(2px);
 }
 
 .layout__link--active {
-  border-color: $app-accent;
-  background: $app-accent;
+  border-color: theme.$color-accent;
+  background: theme.$color-accent;
   color: #1b1b1d;
   box-shadow: 0 10px 25px -20px rgba(239, 68, 68, 0.9);
 }
@@ -367,7 +361,7 @@ $app-accent: #ef4444;
 }
 
 .layout__content {
-  background: $app-main-bg;
+  background: theme.$color-main-background;
   padding: 3rem clamp(1.5rem, 5vw, 3.5rem);
   display: block;
   height: 100%;
@@ -388,7 +382,7 @@ $app-accent: #ef4444;
     top: 0;
     z-index: 1;
     border-right: none;
-    border-bottom: 1px solid $app-border;
+    border-bottom: 1px solid theme.$color-border-muted;
     padding: 1.5rem 1.5rem 1.75rem;
     gap: 1.25rem;
     height: auto;
