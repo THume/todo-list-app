@@ -233,6 +233,74 @@ const removeCompletion = (taskId) => {
   completedTasks.value = completedTasks.value.filter((entry) => entry.taskId !== taskId);
 };
 
+const getStartOfDay = (timestamp) => {
+  const date = new Date(timestamp);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const buildDueIsoForTargetDate = (task, targetDate, ensureFuture = false) => {
+  const base = targetDate instanceof Date ? new Date(targetDate) : new Date(targetDate);
+
+  if (Number.isNaN(base.valueOf())) {
+    return null;
+  }
+
+  let hours = 23;
+  let minutes = 59;
+
+  if (task.due) {
+    const existing = new Date(task.due);
+    if (!Number.isNaN(existing.valueOf())) {
+      hours = existing.getHours();
+      minutes = existing.getMinutes();
+    }
+  }
+
+  base.setHours(hours, minutes, 0, 0);
+
+  if (ensureFuture && base.valueOf() <= currentTime.value) {
+    base.setHours(23, 59, 0, 0);
+  }
+
+  return base.toISOString();
+};
+
+const moveTaskToDate = (taskId, targetDate, ensureFuture = false) => {
+  const targetIndex = tasks.value.findIndex((item) => item.id === taskId);
+  if (targetIndex < 0) {
+    return false;
+  }
+
+  const targetTask = tasks.value[targetIndex];
+  if (!targetTask || targetTask.completed) {
+    return false;
+  }
+
+  const nextDue = buildDueIsoForTargetDate(targetTask, targetDate, ensureFuture);
+  if (!nextDue) {
+    return false;
+  }
+
+  const updated = [...tasks.value];
+  updated[targetIndex] = {
+    ...targetTask,
+    due: nextDue,
+  };
+  tasks.value = updated;
+  return true;
+};
+
+const moveTaskToToday = (taskId) => {
+  const todayStart = getStartOfDay(currentTime.value);
+  return moveTaskToDate(taskId, todayStart, true);
+};
+
+const moveTaskToTomorrow = (taskId) => {
+  const tomorrowStart = getStartOfDay(currentTime.value);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+  return moveTaskToDate(taskId, tomorrowStart);
+};
+
 const addTask = ({ title, description, dueDate, dueTime, recurrence, listId }) => {
   const due = buildDueDate(dueDate, dueTime);
   const recurrenceValue = normalizeRecurrence(recurrence);
@@ -654,6 +722,8 @@ export const useTaskStore = () => {
     reorderTask,
     toggleTaskCompletion,
     removeTask,
+    moveTaskToToday,
+    moveTaskToTomorrow,
     initialize,
     teardown,
     buildDueDate,

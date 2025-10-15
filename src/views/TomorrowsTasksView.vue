@@ -13,6 +13,8 @@ const {
   updateTask,
   reorderTask,
   duplicateTask,
+  moveTaskToToday,
+  moveTaskToTomorrow,
 } = useTaskStore();
 
 const showDeleteDialog = ref(false);
@@ -63,6 +65,14 @@ const handleDuplicate = (task) => {
   if (duplicated) {
     startEdit(duplicated);
   }
+};
+
+const handleMoveToToday = (task) => {
+  moveTaskToToday(task.id);
+};
+
+const handleMoveToTomorrow = (task) => {
+  moveTaskToTomorrow(task.id);
 };
 
 const handleDragStart = (task) => {
@@ -215,6 +225,8 @@ watch(showEditDialog, (isOpen) => {
             @remove="requestDelete"
             @edit="startEdit"
             @duplicate="handleDuplicate"
+            @move-to-today="handleMoveToToday"
+            @move-to-tomorrow="handleMoveToTomorrow"
           />
         </li>
       </template>
@@ -315,4 +327,3 @@ watch(showEditDialog, (isOpen) => {
   margin-bottom: 0;
 }
 </style>
-
