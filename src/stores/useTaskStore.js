@@ -360,6 +360,35 @@ const tasksDueToday = computed(() => {
   });
 });
 
+const activeTasks = computed(() => {
+  const currentTasks = Array.isArray(tasks.value) ? tasks.value : [];
+  return currentTasks.filter((task) => task && !task.completed);
+});
+
+const tasksDueTomorrow = computed(() => {
+  const currentTasks = Array.isArray(tasks.value) ? tasks.value : [];
+  const now = currentTime.value;
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  return currentTasks.filter((task) => {
+    if (!task || task.completed || !task.due) {
+      return false;
+    }
+
+    const dueDate = new Date(task.due);
+    const dueTimestamp = dueDate.getTime();
+
+    if (Number.isNaN(dueTimestamp) || dueTimestamp < now) {
+      return false;
+    }
+
+    return dueDate.getFullYear() === tomorrow.getFullYear()
+      && dueDate.getMonth() === tomorrow.getMonth()
+      && dueDate.getDate() === tomorrow.getDate();
+  });
+});
+
 const sortedCompletedTasks = computed(() => {
   return [...completedTasks.value].sort((a, b) => {
     const aTime = Date.parse(a.completedAt ?? '');
@@ -476,6 +505,8 @@ export const useTaskStore = () => {
     completedTasks,
     tasksOverdue,
     tasksDueToday,
+    tasksDueTomorrow,
+    activeTasks,
     sortedCompletedTasks,
     notifications,
     dismissNotification,

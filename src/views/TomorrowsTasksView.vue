@@ -7,7 +7,7 @@ import { useTaskStore } from '../stores/useTaskStore';
 
 const {
   tasks,
-  activeTasks,
+  tasksDueTomorrow,
   toggleTaskCompletion,
   removeTask,
   updateTask,
@@ -45,9 +45,6 @@ const confirmDelete = () => {
 };
 
 const startEdit = (task) => {
-  if (task.completed) {
-    return;
-  }
   taskPendingEdit.value = task;
   showEditDialog.value = true;
 };
@@ -69,9 +66,6 @@ const handleDuplicate = (task) => {
 };
 
 const handleDragStart = (task) => {
-  if (task.completed) {
-    return;
-  }
   draggedTaskId.value = task.id;
 };
 
@@ -86,24 +80,24 @@ const handleDragEnter = (task) => {
     return;
   }
   const allTasks = tasks.value ?? [];
-  const visibleTasks = activeTasks.value ?? [];
-  const sourceIndex = allTasks.findIndex((item) => item.id === draggedTaskId.value);
-  const targetIndex = allTasks.findIndex((item) => item.id === task.id);
+  const tomorrowList = tasksDueTomorrow.value ?? [];
+  const sourceIndexAll = allTasks.findIndex((item) => item.id === draggedTaskId.value);
+  const targetIndexAll = allTasks.findIndex((item) => item.id === task.id);
 
-  if (sourceIndex < 0 || targetIndex < 0) {
+  if (sourceIndexAll < 0 || targetIndexAll < 0) {
     dropIndicatorIndex.value = -1;
     return;
   }
 
-  const targetIndexVisible = visibleTasks.findIndex((item) => item.id === task.id);
-  const sourceIndexVisible = visibleTasks.findIndex((item) => item.id === draggedTaskId.value);
+  const targetIndexTomorrow = tomorrowList.findIndex((item) => item.id === task.id);
+  const sourceIndexTomorrow = tomorrowList.findIndex((item) => item.id === draggedTaskId.value);
 
-  let indicatorIndex = targetIndexVisible >= 0 ? targetIndexVisible : 0;
+  let indicatorIndex = targetIndexTomorrow >= 0 ? targetIndexTomorrow : 0;
 
-  if (sourceIndex < targetIndex) {
-    indicatorIndex = targetIndexVisible >= 0 ? targetIndexVisible + 1 : visibleTasks.length;
-  } else if (sourceIndexVisible >= 0 && targetIndexVisible >= 0) {
-    indicatorIndex = targetIndexVisible;
+  if (sourceIndexAll < targetIndexAll) {
+    indicatorIndex = targetIndexTomorrow >= 0 ? targetIndexTomorrow + 1 : tomorrowList.length;
+  } else if (sourceIndexTomorrow >= 0 && targetIndexTomorrow >= 0) {
+    indicatorIndex = targetIndexTomorrow;
   }
 
   dropIndicatorIndex.value = indicatorIndex;
@@ -146,7 +140,6 @@ const handleDrop = (task) => {
   });
 
   dragOverTaskId.value = null;
-  draggedTaskId.value = null;
   dropIndicatorIndex.value = -1;
 };
 
@@ -161,7 +154,6 @@ const handleDropAtListEnd = () => {
   });
 
   dragOverTaskId.value = null;
-  draggedTaskId.value = null;
   dropIndicatorIndex.value = -1;
 };
 
@@ -172,7 +164,7 @@ const handleListDragOver = (event) => {
   if (event?.target !== event?.currentTarget) {
     return;
   }
-  dropIndicatorIndex.value = (activeTasks.value ?? []).length;
+  dropIndicatorIndex.value = (tasksDueTomorrow.value ?? []).length;
   dragOverTaskId.value = null;
 };
 
@@ -186,11 +178,11 @@ watch(showEditDialog, (isOpen) => {
 <template>
   <section class="task-panel">
     <header class="task-panel__header">
-      <h2>All Tasks</h2>
-      <span class="task-panel__count">{{ activeTasks.length }} active</span>
+      <h2>Due Tomorrow</h2>
+      <span class="task-panel__count">{{ tasksDueTomorrow.length }} due</span>
     </header>
-    <p v-if="activeTasks.length === 0" class="task-panel__empty">
-      No active tasks right now.
+    <p v-if="tasksDueTomorrow.length === 0" class="task-panel__empty">
+      Nothing lined up for tomorrow.
     </p>
     <ul
       v-else
@@ -198,7 +190,7 @@ watch(showEditDialog, (isOpen) => {
       @dragover.prevent="handleListDragOver($event)"
       @drop.prevent="handleDropAtListEnd"
     >
-      <template v-for="(task, index) in activeTasks" :key="task.id">
+      <template v-for="(task, index) in tasksDueTomorrow" :key="task.id">
         <li
           v-if="dropIndicatorIndex === index"
           class="task-panel__drop-indicator"
@@ -227,12 +219,11 @@ watch(showEditDialog, (isOpen) => {
         </li>
       </template>
       <li
-        v-if="dropIndicatorIndex === activeTasks.length"
+        v-if="dropIndicatorIndex === tasksDueTomorrow.length"
         class="task-panel__drop-indicator task-panel__drop-indicator--end"
       />
     </ul>
   </section>
-
   <ConfirmDialog
     v-model:open="showDeleteDialog"
     title="Delete task?"
@@ -256,7 +247,7 @@ watch(showEditDialog, (isOpen) => {
   border-radius: 1rem;
   padding: 1.25rem;
   background: rgba(23, 23, 24, 0.6);
-  box-shadow: 0 18px 32px -28px rgba(0, 0, 0, 0.85);
+  box-shadow: 0 18px 28px -26px rgba(0, 0, 0, 0.85);
   display: grid;
   gap: 1rem;
 
@@ -324,3 +315,4 @@ watch(showEditDialog, (isOpen) => {
   margin-bottom: 0;
 }
 </style>
+

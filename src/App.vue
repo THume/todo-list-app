@@ -12,7 +12,9 @@ const {
   tasks,
   addTask,
   tasksDueToday,
+  tasksDueTomorrow,
   tasksOverdue,
+  activeTasks,
 } = useTaskStore();
 
 const showForm = ref(false);
@@ -29,11 +31,18 @@ const defaultDueDate = computed(() => {
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 });
-const todayDateFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+const shortDateFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 
 const todayLinkLabel = computed(() => {
   const count = tasksDueToday.value?.length ?? 0;
-  return `Today (${todayDateFormatter.format(new Date())}) (${count})`;
+  return `Today (${shortDateFormatter.format(new Date())}) (${count})`;
+});
+
+const tomorrowLinkLabel = computed(() => {
+  const count = tasksDueTomorrow.value?.length ?? 0;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return `Tomorrow (${shortDateFormatter.format(tomorrow)}) (${count})`;
 });
 
 const overdueLinkLabel = computed(() => {
@@ -42,7 +51,7 @@ const overdueLinkLabel = computed(() => {
 });
 
 const allLinkLabel = computed(() => {
-  const count = Array.isArray(tasks.value) ? tasks.value.length : 0;
+  const count = activeTasks.value?.length ?? 0;
   return `All Tasks (${count})`;
 });
 
@@ -78,6 +87,9 @@ onUnmounted(() => {
         <nav class="layout__nav">
           <RouterLink to="/today" class="layout__link" active-class="layout__link--active">
             {{ todayLinkLabel }}
+          </RouterLink>
+          <RouterLink to="/tomorrow" class="layout__link" active-class="layout__link--active">
+            {{ tomorrowLinkLabel }}
           </RouterLink>
           <RouterLink to="/overdue" class="layout__link" active-class="layout__link--active">
             {{ overdueLinkLabel }}

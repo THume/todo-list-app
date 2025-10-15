@@ -47,6 +47,17 @@ const formattedDueTime = computed(() => {
   }).format(dueDate.value);
 });
 
+const shouldShowDueTime = computed(() => {
+  if (!formattedDueTime.value) {
+    return false;
+  }
+
+  const hours = dueDate.value.getHours();
+  const minutes = dueDate.value.getMinutes();
+
+  return !(hours === 23 && minutes === 59);
+});
+
 const dueDateIso = computed(() => (dueDate.value ? dueDate.value.toISOString() : ''));
 
 const statusLabel = computed(() => (props.task.completed ? 'Completed' : 'Pending'));
@@ -56,7 +67,7 @@ const formattedDueLabel = computed(() => {
     return '';
   }
 
-  if (!formattedDueTime.value) {
+  if (!shouldShowDueTime.value) {
     return formattedDueDate.value;
   }
 

@@ -33,7 +33,7 @@ A polished task manager built with Vue 3 and Vite. Beyond the basics, it includ
 
 - `src/App.vue` – top-level layout with sidebar form and routed views.
 - `src/components` – task card, editor dialog, notifications, and supporting UI pieces.
-- `src/views` – Today, Overdue, All, and Completed task screens.
+- `src/views` – Today, Tomorrow, Overdue, All, and Completed task screens.
 - `src/stores/useTaskStore.js` – pinia-like composable store handling persistence, recurrence, notifications, and ordering logic.
 
 ## Tech Stack
