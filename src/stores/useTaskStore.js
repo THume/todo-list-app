@@ -6,6 +6,7 @@ const COMPLETED_STORAGE_KEY = 'todo-list-app/completed-tasks';
 
 const tasks = ref([]);
 const completedTasks = ref([]);
+const currentTime = ref(Date.now());
 
 const FALLBACK_DUE_TIME = '23:59';
 const {
@@ -19,8 +20,37 @@ const {
 let initialId = 1;
 let isInitialized = false;
 let watchersReady = false;
+let currentTimeTimer = null;
 
 const VALID_RECURRENCE = new Set(['daily', 'weekdays', 'weekly', 'monthly']);
+
+const startCurrentTimeTicker = () => {
+  if (typeof window === 'undefined') {
+    currentTime.value = Date.now();
+    return;
+  }
+
+  currentTime.value = Date.now();
+
+  if (currentTimeTimer !== null) {
+    return;
+  }
+
+  currentTimeTimer = window.setInterval(() => {
+    currentTime.value = Date.now();
+  }, 60000);
+};
+
+const stopCurrentTimeTicker = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (currentTimeTimer !== null) {
+    window.clearInterval(currentTimeTimer);
+    currentTimeTimer = null;
+  }
+};
 
 const normalizeRecurrence = (value) => {
   if (typeof value !== 'string') {
@@ -286,7 +316,7 @@ const duplicateTask = (taskId) => {
 
 const tasksOverdue = computed(() => {
   const currentTasks = Array.isArray(tasks.value) ? tasks.value : [];
-  const now = Date.now();
+  const now = currentTime.value;
 
   return currentTasks.filter((task) => {
     if (!task || task.completed || !task.due) {
@@ -305,7 +335,8 @@ const tasksOverdue = computed(() => {
 
 const tasksDueToday = computed(() => {
   const currentTasks = Array.isArray(tasks.value) ? tasks.value : [];
-  const today = new Date();
+  const now = currentTime.value;
+  const today = new Date(now);
 
   return currentTasks.filter((task) => {
     if (!task || task.completed || !task.due) {
@@ -313,8 +344,13 @@ const tasksDueToday = computed(() => {
     }
 
     const dueDate = new Date(task.due);
+    const dueTimestamp = dueDate.getTime();
 
-    if (Number.isNaN(dueDate.getTime())) {
+    if (Number.isNaN(dueTimestamp)) {
+      return false;
+    }
+
+    if (dueTimestamp < now) {
       return false;
     }
 
@@ -417,6 +453,7 @@ const initialize = () => {
     return;
   }
 
+  startCurrentTimeTicker();
   loadFromStorage();
   persistTasks(tasks.value);
   persistCompletedTasks(completedTasks.value);
@@ -428,6 +465,7 @@ const initialize = () => {
 
 const teardown = () => {
   stopDueWatcher();
+  stopCurrentTimeTicker();
 };
 
 export const useTaskStore = () => {
