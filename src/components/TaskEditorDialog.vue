@@ -1,14 +1,12 @@
 ﻿<script setup>
 import { computed, nextTick, ref, watch } from 'vue';
 import { useTaskStore } from '../stores/useTaskStore';
-
-const recurrenceOptions = [
-  { value: 'none', label: 'Does not repeat' },
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekdays', label: 'Weekdays' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' },
-];
+import {
+  getTodayDateString,
+  normalizeTaskLists,
+  resolveListId,
+  recurrenceOptions,
+} from '../composables/useTaskFormHelpers';
 
 const { lists } = useTaskStore();
 
@@ -34,27 +32,11 @@ const dueTime = ref('');
 const recurrence = ref('none');
 const lastTaskId = ref(null);
 const selectedListId = ref('');
-const getTodayDateString = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 const setDueDateToToday = () => {
   dueDate.value = getTodayDateString();
 };
 
-const listOptions = computed(() => (Array.isArray(lists.value) ? lists.value : []));
-const resolveListId = (candidate) => {
-  if (!listOptions.value.length) {
-    return '';
-  }
-  if (candidate && listOptions.value.some((list) => list.id === candidate)) {
-    return candidate;
-  }
-  return listOptions.value[0].id;
-};
+const listOptions = computed(() => normalizeTaskLists(lists.value));
 
 const canSave = computed(() => title.value.trim().length > 0);
 
@@ -106,7 +88,7 @@ const applyTask = (task) => {
     dueTime.value = '';
     recurrence.value = 'none';
     lastTaskId.value = null;
-    selectedListId.value = resolveListId(null);
+    selectedListId.value = resolveListId(listOptions.value, null);
     return;
   }
 
@@ -116,7 +98,7 @@ const applyTask = (task) => {
   dueTime.value = formatTimeInput(task.due);
   recurrence.value = task.recurrence ?? 'none';
   lastTaskId.value = task.id ?? null;
-  selectedListId.value = resolveListId(task.listId);
+  selectedListId.value = resolveListId(listOptions.value, task.listId);
 };
 
 const handleSave = () => {
@@ -170,11 +152,11 @@ watch(
 watch(
   listOptions,
   (options) => {
-    if (!Array.isArray(options) || options.length === 0) {
+    if (!options.length) {
       selectedListId.value = '';
       return;
     }
-    selectedListId.value = resolveListId(selectedListId.value);
+    selectedListId.value = resolveListId(options, selectedListId.value);
   },
   { immediate: true }
 );

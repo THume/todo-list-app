@@ -1,5 +1,11 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue';
+import {
+  getTodayDateString,
+  normalizeTaskLists,
+  resolveListId,
+  recurrenceOptions,
+} from '../composables/useTaskFormHelpers';
 
 const props = defineProps({
   visible: {
@@ -31,36 +37,12 @@ const selectedListId = ref('');
 const titleField = ref(null);
 const appliedDefaultDueDate = ref(null);
 let isApplyingDefaultDueDate = false;
-const getTodayDateString = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 const setDueDateToToday = () => {
   dueDate.value = getTodayDateString();
   appliedDefaultDueDate.value = null;
 };
 
-const recurrenceOptions = [
-  { value: 'none', label: 'Does not repeat' },
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekdays', label: 'Weekdays' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' },
-];
-
-const listOptions = computed(() => (Array.isArray(props.lists) ? props.lists : []));
-const resolveListId = (candidate) => {
-  if (!listOptions.value.length) {
-    return '';
-  }
-  if (candidate && listOptions.value.some((list) => list.id === candidate)) {
-    return candidate;
-  }
-  return listOptions.value[0].id;
-};
+const listOptions = computed(() => normalizeTaskLists(props.lists));
 
 const canSubmit = computed(() => title.value.trim().length > 0);
 
@@ -122,12 +104,12 @@ watch(
 watch(
   [() => listOptions.value, () => props.defaultListId],
   ([options, defaultId]) => {
-    if (!Array.isArray(options) || options.length === 0) {
+    if (!options.length) {
       selectedListId.value = '';
       return;
     }
     const preferred = defaultId ?? selectedListId.value;
-    selectedListId.value = resolveListId(preferred);
+    selectedListId.value = resolveListId(options, preferred);
   },
   { immediate: true }
 );
