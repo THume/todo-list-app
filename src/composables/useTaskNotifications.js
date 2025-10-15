@@ -142,6 +142,7 @@ export const useTaskNotifications = (tasksRef) => {
   const checkDueTasks = () => {
     const currentTasks = Array.isArray(tasksRef.value) ? tasksRef.value : [];
     const now = Date.now();
+    const newlyDueTasks = [];
 
     currentTasks.forEach((task) => {
       if (!task || task.completed || !task.due || notifiedTaskIds.has(task.id)) {
@@ -156,15 +157,43 @@ export const useTaskNotifications = (tasksRef) => {
 
       if (dueTime <= now) {
         notifiedTaskIds.add(task.id);
-        const message = `Task "${task.title}" is due now.`;
-        pushNotification(message, {
-          desktop: true,
-          desktopTitle: 'Task due',
-          desktopBody: message,
-          desktopTag: `task-due-${task.id}`,
-          playTone: true,
-        });
+        newlyDueTasks.push(task);
       }
+    });
+
+    if (newlyDueTasks.length === 0) {
+      return;
+    }
+
+    if (newlyDueTasks.length === 1) {
+      const [task] = newlyDueTasks;
+      const message = `Task "${task.title}" is due now.`;
+      pushNotification(message, {
+        desktop: true,
+        desktopTitle: 'Task due',
+        desktopBody: message,
+        desktopTag: `task-due-${task.id}`,
+        playTone: true,
+      });
+      return;
+    }
+
+    const taskTitles = newlyDueTasks.map((task) => `"${task.title}"`).slice(0, 3);
+    const remainingCount = newlyDueTasks.length - taskTitles.length;
+    let message = `${newlyDueTasks.length} tasks are due now: ${taskTitles.join(', ')}`;
+
+    if (remainingCount > 0) {
+      message += `, and ${remainingCount} more`;
+    }
+
+    message += '.';
+
+    pushNotification(message, {
+      desktop: true,
+      desktopTitle: 'Tasks due',
+      desktopBody: message,
+      desktopTag: `tasks-due-${now}`,
+      playTone: true,
     });
   };
 
