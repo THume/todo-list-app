@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onUnmounted, ref, watch } from 'vue';
-import { RouterLink, RouterView, useRoute } from 'vue-router';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import AddTaskForm from './components/AddTaskForm.vue';
 import TaskNotifications from './components/TaskNotifications.vue';
 import { useTaskStore } from './stores/useTaskStore';
@@ -15,11 +15,15 @@ const {
   tasksDueTomorrow,
   tasksOverdue,
   activeTasks,
+  lists,
+  addList,
+  activeCountsByList,
 } = useTaskStore();
 
 const showForm = ref(false);
 let hasInitializedVisibility = false;
 const route = useRoute();
+const router = useRouter();
 
 const defaultDueDate = computed(() => {
   if (route.path !== '/today') {
@@ -32,6 +36,24 @@ const defaultDueDate = computed(() => {
   return `${year}-${month}-${day}`;
 });
 const shortDateFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+const listCounts = computed(() => activeCountsByList.value ?? {});
+const activeListId = computed(() => {
+  if (typeof route.params?.id !== 'string') {
+    return null;
+  }
+  return route.path.startsWith('/lists/') ? route.params.id : null;
+});
+const defaultListIdForForm = computed(() => {
+  const availableLists = Array.isArray(lists.value) ? lists.value : [];
+  if (!availableLists.length) {
+    return null;
+  }
+  const candidate = activeListId.value;
+  if (candidate && availableLists.some((list) => list.id === candidate)) {
+    return candidate;
+  }
+  return availableLists[0].id;
+});
 
 const todayLinkLabel = computed(() => {
   const count = tasksDueToday.value?.length ?? 0;
@@ -54,6 +76,20 @@ const allLinkLabel = computed(() => {
   const count = activeTasks.value?.length ?? 0;
   return `All Tasks (${count})`;
 });
+
+const handleCreateList = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const name = window.prompt('List name');
+  if (!name) {
+    return;
+  }
+  const created = addList(name);
+  if (created) {
+    router.push(`/lists/${created.id}`);
+  }
+};
 
 const handleAddTask = (payload) => {
   addTask(payload);
@@ -99,11 +135,32 @@ onUnmounted(() => {
           </RouterLink>
           <RouterLink to="/completed" class="layout__link" active-class="layout__link--active"> Completed </RouterLink>
         </nav>
+        <section class="layout__lists">
+          <header class="layout__lists-header">
+            <span class="layout__lists-title">Lists</span>
+            <button type="button" class="layout__add-list" @click="handleCreateList">
+              New List
+            </button>
+          </header>
+          <nav class="layout__list-nav">
+            <RouterLink
+              v-for="list in lists"
+              :key="list.id"
+              :to="`/lists/${list.id}`"
+              class="layout__link layout__link--list"
+              active-class="layout__link--active"
+            >
+              {{ list.name }} ({{ listCounts[list.id] ?? 0 }})
+            </RouterLink>
+          </nav>
+        </section>
       </div>
       <AddTaskForm
         v-model:visible="showForm"
         class="layout__sidebar-form"
         :default-due-date="defaultDueDate"
+        :lists="lists"
+        :default-list-id="defaultListIdForForm"
         @submit="handleAddTask"
       />
     </aside>
@@ -163,6 +220,56 @@ $app-accent: #ef4444;
   gap: 0.75rem;
 }
 
+.layout__lists {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1.5rem;
+}
+
+.layout__lists-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.layout__lists-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $app-muted;
+}
+
+.layout__add-list {
+  border: 1px solid $app-border;
+  background: transparent;
+  color: $app-muted;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    color: $app-text;
+    border-color: $app-accent;
+    background: rgba(239, 68, 68, 0.12);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $app-accent;
+    outline-offset: 2px;
+  }
+}
+
+.layout__list-nav {
+  display: grid;
+  gap: 0.5rem;
+}
+
 .layout__link {
   border: 1px solid transparent;
   border-radius: 0.75rem;
@@ -185,6 +292,10 @@ $app-accent: #ef4444;
   background: $app-accent;
   color: #1b1b1d;
   box-shadow: 0 10px 25px -20px rgba(239, 68, 68, 0.9);
+}
+
+.layout__link--list {
+  font-size: 0.95rem;
 }
 
 .layout__content {
@@ -225,8 +336,21 @@ $app-accent: #ef4444;
     gap: 0.5rem;
   }
 
+  .layout__lists {
+    margin-top: 1rem;
+  }
+
+  .layout__list-nav {
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: 0.5rem;
+  }
+
   .layout__link {
     text-align: center;
+  }
+
+  .layout__add-list {
+    padding: 0.3rem 0.75rem;
   }
 
   .layout__sidebar-form {

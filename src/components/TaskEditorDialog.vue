@@ -1,5 +1,6 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue';
+import { useTaskStore } from '../stores/useTaskStore';
 
 const recurrenceOptions = [
   { value: 'none', label: 'Does not repeat' },
@@ -8,6 +9,8 @@ const recurrenceOptions = [
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
 ];
+
+const { lists } = useTaskStore();
 
 const props = defineProps({
   open: {
@@ -30,6 +33,7 @@ const dueDate = ref('');
 const dueTime = ref('');
 const recurrence = ref('none');
 const lastTaskId = ref(null);
+const selectedListId = ref('');
 const getTodayDateString = () => {
   const now = new Date();
   const year = now.getFullYear();
@@ -39,6 +43,17 @@ const getTodayDateString = () => {
 };
 const setDueDateToToday = () => {
   dueDate.value = getTodayDateString();
+};
+
+const listOptions = computed(() => (Array.isArray(lists.value) ? lists.value : []));
+const resolveListId = (candidate) => {
+  if (!listOptions.value.length) {
+    return '';
+  }
+  if (candidate && listOptions.value.some((list) => list.id === candidate)) {
+    return candidate;
+  }
+  return listOptions.value[0].id;
 };
 
 const canSave = computed(() => title.value.trim().length > 0);
@@ -91,6 +106,7 @@ const applyTask = (task) => {
     dueTime.value = '';
     recurrence.value = 'none';
     lastTaskId.value = null;
+    selectedListId.value = resolveListId(null);
     return;
   }
 
@@ -100,6 +116,7 @@ const applyTask = (task) => {
   dueTime.value = formatTimeInput(task.due);
   recurrence.value = task.recurrence ?? 'none';
   lastTaskId.value = task.id ?? null;
+  selectedListId.value = resolveListId(task.listId);
 };
 
 const handleSave = () => {
@@ -115,6 +132,7 @@ const handleSave = () => {
     dueDate: dueDate.value || null,
     dueTime: dueTime.value || null,
     recurrence: recurrence.value,
+    listId: selectedListId.value || null,
   });
 
   close();
@@ -147,6 +165,18 @@ watch(
       });
     }
   }
+);
+
+watch(
+  listOptions,
+  (options) => {
+    if (!Array.isArray(options) || options.length === 0) {
+      selectedListId.value = '';
+      return;
+    }
+    selectedListId.value = resolveListId(selectedListId.value);
+  },
+  { immediate: true }
 );
 
 watch(dueDate, (value) => {
@@ -198,15 +228,29 @@ watch(dueDate, (value) => {
             />
           </label>
           <label class="task-editor__field">
-            <span class="task-editor__label">Description</span>
-            <textarea
-              v-model="description"
-              name="description"
-              class="task-editor__textarea"
-              rows="3"
-            />
-          </label>
-          <div class="task-editor__row">
+          <span class="task-editor__label">Description</span>
+          <textarea
+            v-model="description"
+            name="description"
+            class="task-editor__textarea"
+            rows="3"
+          />
+        </label>
+        <label class="task-editor__field">
+          <span class="task-editor__label">List</span>
+          <select
+            v-model="selectedListId"
+            name="list"
+            class="task-editor__input"
+            aria-label="Task list"
+            :disabled="listOptions.length === 0"
+          >
+            <option v-for="list in listOptions" :key="list.id" :value="list.id">
+              {{ list.name }}
+            </option>
+          </select>
+        </label>
+        <div class="task-editor__row">
             <label class="task-editor__field">
               <span class="task-editor__label">Due date</span>
               <div class="task-editor__date-input-wrapper">

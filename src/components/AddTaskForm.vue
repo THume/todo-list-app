@@ -10,6 +10,14 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  lists: {
+    type: Array,
+    default: () => [],
+  },
+  defaultListId: {
+    type: String,
+    default: null,
+  },
 });
 
 const emit = defineEmits(['submit', 'update:visible']);
@@ -19,6 +27,7 @@ const description = ref('');
 const dueDate = ref('');
 const dueTime = ref('');
 const recurrence = ref('none');
+const selectedListId = ref('');
 const titleField = ref(null);
 const appliedDefaultDueDate = ref(null);
 let isApplyingDefaultDueDate = false;
@@ -41,6 +50,17 @@ const recurrenceOptions = [
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
 ];
+
+const listOptions = computed(() => (Array.isArray(props.lists) ? props.lists : []));
+const resolveListId = (candidate) => {
+  if (!listOptions.value.length) {
+    return '';
+  }
+  if (candidate && listOptions.value.some((list) => list.id === candidate)) {
+    return candidate;
+  }
+  return listOptions.value[0].id;
+};
 
 const canSubmit = computed(() => title.value.trim().length > 0);
 
@@ -79,6 +99,7 @@ const handleSubmit = () => {
     dueDate: dueDate.value || null,
     dueTime: dueTime.value || null,
     recurrence: recurrence.value,
+    listId: selectedListId.value || null,
   });
 
   resetForm();
@@ -94,6 +115,19 @@ watch(
     if (visible) {
       nextTick(() => titleField.value?.focus());
     }
+  },
+  { immediate: true }
+);
+
+watch(
+  [() => listOptions.value, () => props.defaultListId],
+  ([options, defaultId]) => {
+    if (!Array.isArray(options) || options.length === 0) {
+      selectedListId.value = '';
+      return;
+    }
+    const preferred = defaultId ?? selectedListId.value;
+    selectedListId.value = resolveListId(preferred);
   },
   { immediate: true }
 );
@@ -171,6 +205,20 @@ watch(
           aria-label="Task description"
           rows="2"
         />
+        <label class="add-task__due-label add-task__list">
+          <span>List</span>
+          <select
+            v-model="selectedListId"
+            class="add-task__select"
+            name="list"
+            aria-label="Task list"
+            :disabled="listOptions.length === 0"
+          >
+            <option v-for="list in listOptions" :key="list.id" :value="list.id">
+              {{ list.name }}
+            </option>
+          </select>
+        </label>
         <div class="add-task__due-row">
           <label class="add-task__due-label">
             <span>Due date</span>
@@ -332,6 +380,10 @@ $button-bg-hover: #f87171;
   }
 
   &__recurrence {
+    max-width: 16rem;
+  }
+
+  &__list {
     max-width: 16rem;
   }
 

@@ -3,9 +3,17 @@ import { useTaskNotifications } from '../composables/useTaskNotifications';
 
 const STORAGE_KEY = 'todo-list-app/tasks';
 const COMPLETED_STORAGE_KEY = 'todo-list-app/completed-tasks';
+const LISTS_STORAGE_KEY = 'todo-list-app/lists';
+const DEFAULT_LIST_ID = 'default';
+const DEFAULT_LIST_NAME = 'My Tasks';
+const DEFAULT_LIST = Object.freeze({
+  id: DEFAULT_LIST_ID,
+  name: DEFAULT_LIST_NAME,
+});
 
 const tasks = ref([]);
 const completedTasks = ref([]);
+const lists = ref([DEFAULT_LIST]);
 const currentTime = ref(Date.now());
 
 const FALLBACK_DUE_TIME = '23:59';
@@ -21,8 +29,34 @@ let initialId = 1;
 let isInitialized = false;
 let watchersReady = false;
 let currentTimeTimer = null;
+let listInitialId = 1;
 
 const VALID_RECURRENCE = new Set(['daily', 'weekdays', 'weekly', 'monthly']);
+
+const createListId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  listInitialId += 1;
+  return `list-${Date.now()}-${listInitialId}`;
+};
+
+const ensureDefaultList = () => {
+  const hasDefault = lists.value.some((list) => list.id === DEFAULT_LIST_ID);
+  if (!hasDefault) {
+    lists.value = [DEFAULT_LIST, ...lists.value];
+  }
+};
+
+const normalizeListId = (value) => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.length > 0 && lists.value.some((list) => list.id === trimmed)) {
+      return trimmed;
+    }
+  }
+  return DEFAULT_LIST_ID;
+};
 
 const startCurrentTimeTicker = () => {
   if (typeof window === 'undefined') {
@@ -74,6 +108,14 @@ const persistCompletedTasks = (value) => {
     window.localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(value));
   } catch (error) {
     console.error('Failed to persist completed tasks', error);
+  }
+};
+
+const persistLists = (value) => {
+  try {
+    window.localStorage.setItem(LISTS_STORAGE_KEY, JSON.stringify(value));
+  } catch (error) {
+    console.error('Failed to persist lists', error);
   }
 };
 
@@ -157,6 +199,7 @@ const createRecurringTask = (task) => {
     completed: false,
     due: nextDue ?? task.due ?? null,
     recurrence,
+    listId: normalizeListId(task.listId),
   };
 };
 
@@ -172,6 +215,7 @@ const recordCompletion = (task) => {
     due: task.due ?? null,
     completedAt: new Date().toISOString(),
     recurrence: normalizeRecurrence(task.recurrence),
+    listId: normalizeListId(task.listId),
   };
 
   const existingIndex = completedTasks.value.findIndex((item) => item.taskId === task.id);
@@ -189,7 +233,7 @@ const removeCompletion = (taskId) => {
   completedTasks.value = completedTasks.value.filter((entry) => entry.taskId !== taskId);
 };
 
-const addTask = ({ title, description, dueDate, dueTime, recurrence }) => {
+const addTask = ({ title, description, dueDate, dueTime, recurrence, listId }) => {
   const due = buildDueDate(dueDate, dueTime);
   const recurrenceValue = normalizeRecurrence(recurrence);
   const newTask = {
@@ -199,12 +243,13 @@ const addTask = ({ title, description, dueDate, dueTime, recurrence }) => {
     completed: false,
     due,
     recurrence: recurrenceValue,
+    listId: normalizeListId(listId),
   };
 
   tasks.value = [...tasks.value, newTask];
 };
 
-const updateTask = ({ id, title, description, dueDate, dueTime, recurrence }) => {
+const updateTask = ({ id, title, description, dueDate, dueTime, recurrence, listId }) => {
   const targetIndex = tasks.value.findIndex((item) => item.id === id);
   if (targetIndex < 0) {
     return false;
@@ -222,6 +267,7 @@ const updateTask = ({ id, title, description, dueDate, dueTime, recurrence }) =>
     description: typeof description === 'string' ? description : target.description,
     due: buildDueDate(dueDate, dueTime),
     recurrence: normalizeRecurrence(recurrence),
+    listId: normalizeListId(listId ?? target.listId),
   };
 
   if (!dueDate) {
@@ -292,6 +338,29 @@ const removeTask = (taskId) => {
   removeCompletion(taskId);
 };
 
+const addList = (name) => {
+  const trimmed = typeof name === 'string' ? name.trim() : '';
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const existing = lists.value.find(
+    (list) => list.name.toLowerCase() === trimmed.toLowerCase()
+  );
+
+  if (existing) {
+    return existing;
+  }
+
+  const newList = {
+    id: createListId(),
+    name: trimmed,
+  };
+
+  lists.value = [...lists.value, newList];
+  return newList;
+};
+
 const duplicateTask = (taskId) => {
   const originalIndex = tasks.value.findIndex((item) => item.id === taskId);
   if (originalIndex < 0) {
@@ -306,6 +375,7 @@ const duplicateTask = (taskId) => {
     completed: false,
     due: original.due ?? null,
     recurrence: original.recurrence ?? null,
+    listId: normalizeListId(original.listId),
   };
 
   const updatedTasks = [...tasks.value];
@@ -365,6 +435,23 @@ const activeTasks = computed(() => {
   return currentTasks.filter((task) => task && !task.completed);
 });
 
+const activeCountsByList = computed(() => {
+  const counts = {};
+  lists.value.forEach((list) => {
+    counts[list.id] = 0;
+  });
+
+  (Array.isArray(tasks.value) ? tasks.value : []).forEach((task) => {
+    if (!task || task.completed) {
+      return;
+    }
+    const targetListId = normalizeListId(task.listId);
+    counts[targetListId] = (counts[targetListId] ?? 0) + 1;
+  });
+
+  return counts;
+});
+
 const tasksDueTomorrow = computed(() => {
   const currentTasks = Array.isArray(tasks.value) ? tasks.value : [];
   const now = currentTime.value;
@@ -404,6 +491,38 @@ const sortedCompletedTasks = computed(() => {
 
 const loadFromStorage = () => {
   try {
+    const rawLists = window.localStorage.getItem(LISTS_STORAGE_KEY);
+    if (rawLists) {
+      const parsedLists = JSON.parse(rawLists);
+      if (Array.isArray(parsedLists)) {
+        const sanitized = parsedLists
+          .map((entry, index) => {
+            const id =
+              typeof entry?.id === 'string' && entry.id.trim().length > 0
+                ? entry.id.trim()
+                : `list-${index + 1}`;
+            const name =
+              typeof entry?.name === 'string' && entry.name.trim().length > 0
+                ? entry.name.trim()
+                : `List ${index + 1}`;
+            return { id, name };
+          })
+          .filter(
+            (item, index, array) => array.findIndex((other) => other.id === item.id) === index
+          );
+        if (sanitized.length > 0) {
+          lists.value = sanitized;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load lists from localStorage', error);
+    lists.value = [DEFAULT_LIST];
+  }
+
+  ensureDefaultList();
+
+  try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
@@ -416,6 +535,7 @@ const loadFromStorage = () => {
           completed: Boolean(task.completed),
           due: task.due ?? null,
           recurrence: normalizeRecurrence(task.recurrence),
+          listId: normalizeListId(task.listId),
         }));
       }
     }
@@ -437,6 +557,7 @@ const loadFromStorage = () => {
           due: entry.due ?? null,
           completedAt: entry.completedAt ?? new Date().toISOString(),
           recurrence: normalizeRecurrence(entry.recurrence),
+          listId: normalizeListId(entry.listId),
         }));
       }
     }
@@ -445,6 +566,7 @@ const loadFromStorage = () => {
     completedTasks.value = [];
   }
 
+  ensureDefaultList();
   syncInitialId();
 
   tasks.value.forEach((task) => {
@@ -477,6 +599,18 @@ watch(
   { deep: true }
 );
 
+watch(
+  lists,
+  () => {
+    ensureDefaultList();
+    if (!watchersReady) {
+      return;
+    }
+    persistLists(lists.value);
+  },
+  { deep: true }
+);
+
 const initialize = () => {
   if (isInitialized) {
     return;
@@ -486,6 +620,7 @@ const initialize = () => {
   loadFromStorage();
   persistTasks(tasks.value);
   persistCompletedTasks(completedTasks.value);
+  persistLists(lists.value);
   checkDueTasks();
   startDueWatcher();
   watchersReady = true;
@@ -503,13 +638,16 @@ export const useTaskStore = () => {
   return {
     tasks,
     completedTasks,
+    lists,
     tasksOverdue,
     tasksDueToday,
     tasksDueTomorrow,
     activeTasks,
+    activeCountsByList,
     sortedCompletedTasks,
     notifications,
     dismissNotification,
+    addList,
     addTask,
     duplicateTask,
     updateTask,
