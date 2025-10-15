@@ -5,7 +5,15 @@ import AddTaskForm from './components/AddTaskForm.vue';
 import TaskNotifications from './components/TaskNotifications.vue';
 import { useTaskStore } from './stores/useTaskStore';
 
-const { notifications, dismissNotification, teardown, tasks, addTask } = useTaskStore();
+const {
+  notifications,
+  dismissNotification,
+  teardown,
+  tasks,
+  addTask,
+  tasksDueToday,
+  tasksOverdue,
+} = useTaskStore();
 
 const showForm = ref(false);
 let hasInitializedVisibility = false;
@@ -20,6 +28,22 @@ const defaultDueDate = computed(() => {
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+});
+const todayDateFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+
+const todayLinkLabel = computed(() => {
+  const count = tasksDueToday.value?.length ?? 0;
+  return `Today (${todayDateFormatter.format(new Date())}) (${count})`;
+});
+
+const overdueLinkLabel = computed(() => {
+  const count = tasksOverdue.value?.length ?? 0;
+  return `Overdue (${count})`;
+});
+
+const allLinkLabel = computed(() => {
+  const count = Array.isArray(tasks.value) ? tasks.value.length : 0;
+  return `All Tasks (${count})`;
 });
 
 const handleAddTask = (payload) => {
@@ -52,8 +76,15 @@ onUnmounted(() => {
       <div class="layout__sidebar-top">
         <h1 class="layout__title">Todo List</h1>
         <nav class="layout__nav">
-          <RouterLink to="/today" class="layout__link" active-class="layout__link--active"> Today </RouterLink>
-          <RouterLink to="/all" class="layout__link" active-class="layout__link--active"> All Tasks </RouterLink>
+          <RouterLink to="/today" class="layout__link" active-class="layout__link--active">
+            {{ todayLinkLabel }}
+          </RouterLink>
+          <RouterLink to="/overdue" class="layout__link" active-class="layout__link--active">
+            {{ overdueLinkLabel }}
+          </RouterLink>
+          <RouterLink to="/all" class="layout__link" active-class="layout__link--active">
+            {{ allLinkLabel }}
+          </RouterLink>
           <RouterLink to="/completed" class="layout__link" active-class="layout__link--active"> Completed </RouterLink>
         </nav>
       </div>

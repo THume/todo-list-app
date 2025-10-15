@@ -284,6 +284,25 @@ const duplicateTask = (taskId) => {
   return duplicatedTask;
 };
 
+const tasksOverdue = computed(() => {
+  const currentTasks = Array.isArray(tasks.value) ? tasks.value : [];
+  const now = Date.now();
+
+  return currentTasks.filter((task) => {
+    if (!task || task.completed || !task.due) {
+      return false;
+    }
+
+    const dueTime = Date.parse(task.due);
+
+    if (Number.isNaN(dueTime)) {
+      return false;
+    }
+
+    return dueTime < now;
+  });
+});
+
 const tasksDueToday = computed(() => {
   const currentTasks = Array.isArray(tasks.value) ? tasks.value : [];
   const today = new Date();
@@ -417,6 +436,7 @@ export const useTaskStore = () => {
   return {
     tasks,
     completedTasks,
+    tasksOverdue,
     tasksDueToday,
     sortedCompletedTasks,
     notifications,
