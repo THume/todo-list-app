@@ -194,7 +194,12 @@ const handleMoveToTomorrow = () => {
   <article class="task" :class="{ 'task--completed': task.completed }">
     <header class="task__header">
       <label class="task__checkbox">
-        <input type="checkbox" class="task__checkbox-input" :checked="task.completed" @change="handleToggle" />
+        <input
+          type="checkbox"
+          class="task__checkbox-input"
+          :checked="task.completed"
+          @change="handleToggle"
+        />
         <span class="task__title">{{ task.title }}</span>
       </label>
       <div class="task__actions">
@@ -211,19 +216,40 @@ const handleMoveToTomorrow = () => {
             ...
           </button>
           <transition name="task-menu">
-            <ul v-if="menuOpen" ref="menuPanel" class="task__menu-list" role="menu" @click.stop>
+            <ul
+              v-if="menuOpen"
+              ref="menuPanel"
+              class="task__menu-list"
+              role="menu"
+              @click.stop
+            >
               <li v-if="showMoveToToday" role="none">
-                <button type="button" class="task__menu-item" role="menuitem" @click="handleMoveToToday">
+                <button
+                  type="button"
+                  class="task__menu-item"
+                  role="menuitem"
+                  @click="handleMoveToToday"
+                >
                   Move to Today
                 </button>
               </li>
               <li v-if="showMoveToTomorrow" role="none">
-                <button type="button" class="task__menu-item" role="menuitem" @click="handleMoveToTomorrow">
+                <button
+                  type="button"
+                  class="task__menu-item"
+                  role="menuitem"
+                  @click="handleMoveToTomorrow"
+                >
                   Move to Tomorrow
                 </button>
               </li>
               <li role="none">
-                <button type="button" class="task__menu-item" role="menuitem" @click="handleDuplicate">
+                <button
+                  type="button"
+                  class="task__menu-item"
+                  role="menuitem"
+                  @click="handleDuplicate"
+                >
                   Duplicate
                 </button>
               </li>

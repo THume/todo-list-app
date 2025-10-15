@@ -316,15 +316,15 @@ watch(listTasks, () => {
             @dragleave="handleDragLeave(task)"
             @drop.prevent.stop="handleDrop(task)"
           >
-          <Task
-            :task="task"
-            @toggle="handleToggle"
-            @remove="requestDelete"
-            @edit="startEdit"
-            @duplicate="handleDuplicate"
-            @move-to-today="handleMoveToToday"
-            @move-to-tomorrow="handleMoveToTomorrow"
-          />
+            <Task
+              :task="task"
+              @toggle="handleToggle"
+              @remove="requestDelete"
+              @edit="startEdit"
+              @duplicate="handleDuplicate"
+              @move-to-today="handleMoveToToday"
+              @move-to-tomorrow="handleMoveToTomorrow"
+            />
           </li>
         </template>
         <li

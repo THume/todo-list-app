@@ -21,6 +21,7 @@ const {
 } = useTaskStore();
 
 const showForm = ref(false);
+const isSidebarCollapsed = ref(false);
 let hasInitializedVisibility = false;
 const route = useRoute();
 const router = useRouter();
@@ -91,6 +92,10 @@ const handleCreateList = () => {
   }
 };
 
+const toggleSidebar = () => {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value;
+};
+
 const handleAddTask = (payload) => {
   addTask(payload);
 };
@@ -116,53 +121,69 @@ onUnmounted(() => {
 
 <template>
   <TaskNotifications :notifications="notifications" @dismiss="dismissNotification" />
-  <div class="layout">
-    <aside class="layout__sidebar">
-      <div class="layout__sidebar-top">
-        <h1 class="layout__title">Todo List</h1>
-        <nav class="layout__nav">
-          <RouterLink to="/today" class="layout__link" active-class="layout__link--active">
-            {{ todayLinkLabel }}
-          </RouterLink>
-          <RouterLink to="/tomorrow" class="layout__link" active-class="layout__link--active">
-            {{ tomorrowLinkLabel }}
-          </RouterLink>
-          <RouterLink to="/overdue" class="layout__link" active-class="layout__link--active">
-            {{ overdueLinkLabel }}
-          </RouterLink>
-          <RouterLink to="/all" class="layout__link" active-class="layout__link--active">
-            {{ allLinkLabel }}
-          </RouterLink>
-          <RouterLink to="/completed" class="layout__link" active-class="layout__link--active"> Completed </RouterLink>
-        </nav>
-        <section class="layout__lists">
-          <header class="layout__lists-header">
-            <span class="layout__lists-title">Lists</span>
-            <button type="button" class="layout__add-list" @click="handleCreateList">
-              New List
-            </button>
-          </header>
-          <nav class="layout__list-nav">
-            <RouterLink
-              v-for="list in lists"
-              :key="list.id"
-              :to="`/lists/${list.id}`"
-              class="layout__link layout__link--list"
-              active-class="layout__link--active"
-            >
-              {{ list.name }} ({{ listCounts[list.id] ?? 0 }})
+  <div class="layout" :class="{ 'layout--collapsed': isSidebarCollapsed }">
+    <aside
+      :class="['layout__sidebar', { 'layout__sidebar--collapsed': isSidebarCollapsed }]"
+      :aria-expanded="!isSidebarCollapsed"
+    >
+      <button
+        type="button"
+        class="layout__collapse-toggle"
+        :aria-expanded="!isSidebarCollapsed"
+        @click="toggleSidebar"
+      >
+        <span v-if="isSidebarCollapsed">Expand</span>
+        <span v-else>Collapse</span>
+      </button>
+      <div v-show="!isSidebarCollapsed" class="layout__sidebar-content">
+        <div class="layout__sidebar-top">
+          <h1 class="layout__title">Todo List</h1>
+          <nav class="layout__nav">
+            <RouterLink to="/today" class="layout__link" active-class="layout__link--active">
+              {{ todayLinkLabel }}
+            </RouterLink>
+            <RouterLink to="/tomorrow" class="layout__link" active-class="layout__link--active">
+              {{ tomorrowLinkLabel }}
+            </RouterLink>
+            <RouterLink to="/overdue" class="layout__link" active-class="layout__link--active">
+              {{ overdueLinkLabel }}
+            </RouterLink>
+            <RouterLink to="/all" class="layout__link" active-class="layout__link--active">
+              {{ allLinkLabel }}
+            </RouterLink>
+            <RouterLink to="/completed" class="layout__link" active-class="layout__link--active">
+              Completed
             </RouterLink>
           </nav>
-        </section>
+          <section class="layout__lists">
+            <header class="layout__lists-header">
+              <span class="layout__lists-title">Lists</span>
+              <button type="button" class="layout__add-list" @click="handleCreateList">
+                New List
+              </button>
+            </header>
+            <nav class="layout__list-nav">
+              <RouterLink
+                v-for="list in lists"
+                :key="list.id"
+                :to="`/lists/${list.id}`"
+                class="layout__link layout__link--list"
+                active-class="layout__link--active"
+              >
+                {{ list.name }} ({{ listCounts[list.id] ?? 0 }})
+              </RouterLink>
+            </nav>
+          </section>
+        </div>
+        <AddTaskForm
+          v-model:visible="showForm"
+          class="layout__sidebar-form"
+          :default-due-date="defaultDueDate"
+          :lists="lists"
+          :default-list-id="defaultListIdForForm"
+          @submit="handleAddTask"
+        />
       </div>
-      <AddTaskForm
-        v-model:visible="showForm"
-        class="layout__sidebar-form"
-        :default-due-date="defaultDueDate"
-        :lists="lists"
-        :default-list-id="defaultListIdForForm"
-        @submit="handleAddTask"
-      />
     </aside>
     <main class="layout__content">
       <RouterView />
@@ -190,22 +211,69 @@ $app-accent: #ef4444;
   box-sizing: border-box;
 }
 
+.layout--collapsed {
+  grid-template-columns: 4.75rem 1fr;
+}
+
 .layout__sidebar {
   background: $app-sidebar-bg;
   border-right: 1px solid $app-border;
   padding: 2.5rem 2rem;
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
+  gap: 1.5rem;
   height: 100%;
   min-height: 0;
   box-sizing: border-box;
   overflow-y: auto;
 }
 
+.layout__sidebar-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.layout__sidebar--collapsed {
+  padding: 1.25rem 1rem;
+  align-items: center;
+  overflow: visible;
+}
+
 .layout__sidebar-top {
   display: grid;
   gap: 2rem;
+}
+
+.layout__collapse-toggle {
+  border: 1px solid $app-border;
+  background: rgba(255, 255, 255, 0.06);
+  color: $app-text;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  align-self: flex-end;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: $app-accent;
+    color: #1b1b1d;
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $app-accent;
+    outline-offset: 2px;
+  }
+}
+
+.layout__sidebar--collapsed .layout__collapse-toggle {
+  align-self: center;
 }
 
 .layout__title {
@@ -322,9 +390,21 @@ $app-accent: #ef4444;
     border-right: none;
     border-bottom: 1px solid $app-border;
     padding: 1.5rem 1.5rem 1.75rem;
-    gap: 1.5rem;
+    gap: 1.25rem;
     height: auto;
     min-height: auto;
+  }
+
+  .layout__sidebar-content {
+    gap: 1.5rem;
+  }
+
+  .layout--collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .layout__sidebar--collapsed {
+    align-items: flex-end;
   }
 
   .layout__sidebar-top {

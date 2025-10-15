@@ -228,29 +228,29 @@ watch(dueDate, (value) => {
             />
           </label>
           <label class="task-editor__field">
-          <span class="task-editor__label">Description</span>
-          <textarea
-            v-model="description"
-            name="description"
-            class="task-editor__textarea"
-            rows="3"
-          />
-        </label>
-        <label class="task-editor__field">
-          <span class="task-editor__label">List</span>
-          <select
-            v-model="selectedListId"
-            name="list"
-            class="task-editor__input"
-            aria-label="Task list"
-            :disabled="listOptions.length === 0"
-          >
-            <option v-for="list in listOptions" :key="list.id" :value="list.id">
-              {{ list.name }}
-            </option>
-          </select>
-        </label>
-        <div class="task-editor__row">
+            <span class="task-editor__label">Description</span>
+            <textarea
+              v-model="description"
+              name="description"
+              class="task-editor__textarea"
+              rows="3"
+            />
+          </label>
+          <label class="task-editor__field">
+            <span class="task-editor__label">List</span>
+            <select
+              v-model="selectedListId"
+              name="list"
+              class="task-editor__input"
+              aria-label="Task list"
+              :disabled="listOptions.length === 0"
+            >
+              <option v-for="list in listOptions" :key="list.id" :value="list.id">
+                {{ list.name }}
+              </option>
+            </select>
+          </label>
+          <div class="task-editor__row">
             <label class="task-editor__field">
               <span class="task-editor__label">Due date</span>
               <div class="task-editor__date-input-wrapper">
