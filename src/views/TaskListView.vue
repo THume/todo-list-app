@@ -53,6 +53,31 @@ const listTasks = computed(() => {
   );
 });
 
+const listNameById = computed(() => {
+  const result = {};
+  const available = Array.isArray(lists.value) ? lists.value : [];
+  available.forEach((list) => {
+    if (list && typeof list.id === 'string') {
+      result[list.id] = typeof list.name === 'string' && list.name.trim().length > 0
+        ? list.name.trim()
+        : 'My Tasks';
+    }
+  });
+  return result;
+});
+
+const resolveListName = (task) => {
+  if (!task) {
+    return listNameById.value.default ?? activeList.value?.name ?? 'My Tasks';
+  }
+  const listId = typeof task.listId === 'string' ? task.listId : '';
+  const fallback = listNameById.value.default ?? activeList.value?.name ?? 'My Tasks';
+  if (listId && listNameById.value[listId]) {
+    return listNameById.value[listId];
+  }
+  return fallback;
+};
+
 const navigateToDefaultList = () => {
   const availableLists = Array.isArray(lists.value) ? lists.value : [];
   if (availableLists.length === 0) {
@@ -308,21 +333,22 @@ watch(listTasks, () => {
               'task-panel__item--drag-over': dragOverTaskId === task.id,
               'task-panel__item--dragging': draggedTaskId === task.id,
             }"
-            :draggable="!task.completed"
-            @dragstart="handleDragStart(task)"
-            @dragend="handleDragEnd"
-            @dragenter.prevent="handleDragEnter(task)"
-            @dragover.prevent
-            @dragleave="handleDragLeave(task)"
-            @drop.prevent.stop="handleDrop(task)"
-          >
-            <Task
-              :task="task"
-              @toggle="handleToggle"
-              @remove="requestDelete"
-              @edit="startEdit"
-              @duplicate="handleDuplicate"
-              @move-to-today="handleMoveToToday"
+          :draggable="!task.completed"
+          @dragstart="handleDragStart(task)"
+          @dragend="handleDragEnd"
+          @dragenter.prevent="handleDragEnter(task)"
+          @dragover.prevent
+          @dragleave="handleDragLeave(task)"
+          @drop.prevent.stop="handleDrop(task)"
+        >
+          <Task
+            :task="task"
+            :list-name="resolveListName(task)"
+            @toggle="handleToggle"
+            @remove="requestDelete"
+            @edit="startEdit"
+            @duplicate="handleDuplicate"
+            @move-to-today="handleMoveToToday"
               @move-to-tomorrow="handleMoveToTomorrow"
             />
           </li>

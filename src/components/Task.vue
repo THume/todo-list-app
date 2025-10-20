@@ -20,6 +20,10 @@ const props = defineProps({
       return hasTitle && hasCompletedFlag;
     },
   },
+  listName: {
+    type: String,
+    default: '',
+  },
 });
 
 const dueDate = computed(() => {
@@ -96,6 +100,14 @@ const recurrenceLabel = computed(() => {
   }
 });
 
+const listLabel = computed(() => {
+  const raw = props.listName;
+  if (typeof raw !== 'string') {
+    return '';
+  }
+  const trimmed = raw.trim();
+  return trimmed;
+});
 const menuOpen = ref(false);
 const menuButton = ref(null);
 const menuPanel = ref(null);
@@ -285,6 +297,9 @@ const handleMoveToTomorrow = () => {
     </p>
 
     <footer class="task__meta">
+      <span v-if="listLabel" class="task__list">
+        {{ listLabel }}
+      </span>
       <span class="task__status">{{ statusLabel }}</span>
       <span v-if="recurrenceLabel" class="task__recurrence">{{ recurrenceLabel }}</span>
       <time v-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">Due {{ formattedDueLabel }}</time>
@@ -357,10 +372,28 @@ $remove-hover: theme.$color-accent-hover;
 
 .task__meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   font-size: 0.85rem;
   color: $task-muted;
+}
+
+.task__list {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(148, 163, 184, 0.12);
+  color: $task-heading;
+  font-weight: 600;
+  font-size: 0.8rem;
+  max-width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .task__actions {

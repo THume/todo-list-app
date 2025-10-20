@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import Task from '../components/Task.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import TaskEditorDialog from '../components/TaskEditorDialog.vue';
@@ -15,6 +15,7 @@ const {
   duplicateTask,
   moveTaskToToday,
   moveTaskToTomorrow,
+  lists,
 } = useTaskStore();
 
 const showDeleteDialog = ref(false);
@@ -24,6 +25,31 @@ const taskPendingEdit = ref(null);
 const draggedTaskId = ref(null);
 const dragOverTaskId = ref(null);
 const dropIndicatorIndex = ref(-1);
+
+const listNameById = computed(() => {
+  const result = {};
+  const available = Array.isArray(lists.value) ? lists.value : [];
+  available.forEach((list) => {
+    if (list && typeof list.id === 'string') {
+      result[list.id] = typeof list.name === 'string' && list.name.trim().length > 0
+        ? list.name.trim()
+        : 'My Tasks';
+    }
+  });
+  return result;
+});
+
+const resolveListName = (task) => {
+  if (!task) {
+    return listNameById.value.default ?? 'My Tasks';
+  }
+  const listId = typeof task.listId === 'string' ? task.listId : '';
+  const fallback = listNameById.value.default ?? 'My Tasks';
+  if (listId && listNameById.value[listId]) {
+    return listNameById.value[listId];
+  }
+  return fallback;
+};
 
 const handleToggle = (task) => {
   toggleTaskCompletion(task.id);
@@ -221,6 +247,7 @@ watch(showEditDialog, (isOpen) => {
         >
           <Task
             :task="task"
+            :list-name="resolveListName(task)"
             @toggle="handleToggle"
             @remove="requestDelete"
             @edit="startEdit"

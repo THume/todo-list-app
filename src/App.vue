@@ -79,26 +79,16 @@ const defaultListIdForForm = computed(() => {
   return availableLists[0].id;
 });
 
-const todayLinkLabel = computed(() => {
-  const count = tasksDueToday.value?.length ?? 0;
-  return `Today (${shortDateFormatter.format(new Date())}) (${count})`;
-});
+const todayCount = computed(() => tasksDueToday.value?.length ?? 0);
+const tomorrowCount = computed(() => tasksDueTomorrow.value?.length ?? 0);
+const overdueCount = computed(() => tasksOverdue.value?.length ?? 0);
+const allCount = computed(() => activeTasks.value?.length ?? 0);
 
-const tomorrowLinkLabel = computed(() => {
-  const count = tasksDueTomorrow.value?.length ?? 0;
+const todayLabel = computed(() => `Today (${shortDateFormatter.format(new Date())})`);
+const tomorrowLabel = computed(() => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  return `Tomorrow (${shortDateFormatter.format(tomorrow)}) (${count})`;
-});
-
-const overdueLinkLabel = computed(() => {
-  const count = tasksOverdue.value?.length ?? 0;
-  return `Overdue (${count})`;
-});
-
-const allLinkLabel = computed(() => {
-  const count = activeTasks.value?.length ?? 0;
-  return `All Tasks (${count})`;
+  return `Tomorrow (${shortDateFormatter.format(tomorrow)})`;
 });
 
 const handleCreateList = () => {
@@ -281,16 +271,20 @@ onUnmounted(() => {
           <h1 class="layout__title">Todo List</h1>
           <nav class="layout__nav">
             <RouterLink to="/today" class="layout__link" active-class="layout__link--active">
-              {{ todayLinkLabel }}
+              <span class="layout__nav-label">{{ todayLabel }}</span>
+              <span class="layout__list-count layout__nav-count">{{ todayCount }}</span>
             </RouterLink>
             <RouterLink to="/tomorrow" class="layout__link" active-class="layout__link--active">
-              {{ tomorrowLinkLabel }}
+              <span class="layout__nav-label">{{ tomorrowLabel }}</span>
+              <span class="layout__list-count layout__nav-count">{{ tomorrowCount }}</span>
             </RouterLink>
             <RouterLink to="/overdue" class="layout__link" active-class="layout__link--active">
-              {{ overdueLinkLabel }}
+              <span class="layout__nav-label">Overdue</span>
+              <span class="layout__list-count layout__nav-count">{{ overdueCount }}</span>
             </RouterLink>
             <RouterLink to="/all" class="layout__link" active-class="layout__link--active">
-              {{ allLinkLabel }}
+              <span class="layout__nav-label">All Tasks</span>
+              <span class="layout__list-count layout__nav-count">{{ allCount }}</span>
             </RouterLink>
             <RouterLink to="/completed" class="layout__link" active-class="layout__link--active">
               Completed
@@ -310,7 +304,8 @@ onUnmounted(() => {
                   class="layout__link layout__link--list"
                   active-class="layout__link--active"
                 >
-                  {{ list.name }} ({{ listCounts[list.id] ?? 0 }})
+                  <span class="layout__list-name">{{ list.name }}</span>
+                  <span class="layout__list-count">{{ listCounts[list.id] ?? 0 }}</span>
                 </RouterLink>
                 <button
                   v-if="list.id !== DEFAULT_LIST_ID"
@@ -419,7 +414,7 @@ onUnmounted(() => {
 .layout__resize-handle {
   position: absolute;
   top: 0;
-  right: -0.5rem;
+  right: 0;
   width: 1rem;
   height: 100%;
   cursor: col-resize;
@@ -573,6 +568,10 @@ onUnmounted(() => {
   text-decoration: none;
   font-weight: 600;
   transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .layout__link:hover {
@@ -591,6 +590,39 @@ onUnmounted(() => {
 
 .layout__link--list {
   font-size: 0.95rem;
+}
+
+.layout__list-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout__list-count {
+  flex: 0 0 auto;
+  min-width: 2.25rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.layout__link--active .layout__list-count {
+  opacity: 1;
+}
+
+.layout__nav-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout__nav-count {
+  min-width: 2rem;
 }
 
 .layout__content {
@@ -665,8 +697,16 @@ onUnmounted(() => {
     padding: 0.2rem;
   }
 
+  .layout__list-count {
+    min-width: 1.75rem;
+  }
+
   .layout__link {
     text-align: center;
+  }
+
+  .layout__link--list {
+    text-align: left;
   }
 
   .layout__add-list {
