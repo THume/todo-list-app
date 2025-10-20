@@ -8,12 +8,16 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['dismiss']);
+const emit = defineEmits(['dismiss', 'action']);
 
 const hasNotifications = computed(() => props.notifications.length > 0);
 
 const handleDismiss = (id) => {
   emit('dismiss', id);
+};
+
+const handleAction = (id, action) => {
+  emit('action', { id, action });
 };
 </script>
 
@@ -22,9 +26,19 @@ const handleDismiss = (id) => {
     <transition-group name="notification" tag="ul" class="notifications__list">
       <li v-for="note in notifications" :key="note.id" class="notifications__item">
         <span class="notifications__message">{{ note.message }}</span>
-        <button type="button" class="notifications__dismiss" @click="handleDismiss(note.id)">
-          Dismiss
-        </button>
+        <div class="notifications__actions">
+          <button
+            v-if="note.action"
+            type="button"
+            class="notifications__action"
+            @click="handleAction(note.id, note.action)"
+          >
+            {{ note.action.label }}
+          </button>
+          <button type="button" class="notifications__dismiss" @click="handleDismiss(note.id)">
+            Dismiss
+          </button>
+        </div>
       </li>
     </transition-group>
   </section>
@@ -72,6 +86,35 @@ const handleDismiss = (id) => {
 .notifications__message {
   flex: 1 1 auto;
   margin: 0;
+}
+
+.notifications__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notifications__action {
+  border: 1px solid theme.$color-border-muted;
+  background: transparent;
+  color: theme.$color-text-primary;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: theme.$color-accent;
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
 }
 
 .notifications__dismiss {

@@ -1,8 +1,9 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
-const { sortedCompletedTasks } = useTaskStore();
+const { sortedCompletedTasks, reviveCompletedTask, deleteCompletedTask } = useTaskStore();
 
 const totalCompleted = computed(() => sortedCompletedTasks.value.length);
 
@@ -112,6 +113,33 @@ const formatTimestamp = (value) => {
     timeStyle: 'short',
   }).format(date);
 };
+
+const showDeleteDialog = ref(false);
+const entryPendingDelete = ref(null);
+
+const handleRevive = (entry) => {
+  if (!entry) {
+    return;
+  }
+  reviveCompletedTask(entry.taskId);
+};
+
+const requestDelete = (entry) => {
+  entryPendingDelete.value = entry;
+  showDeleteDialog.value = true;
+};
+
+const handleCancelDelete = () => {
+  showDeleteDialog.value = false;
+  entryPendingDelete.value = null;
+};
+
+const handleConfirmDelete = () => {
+  if (entryPendingDelete.value) {
+    deleteCompletedTask(entryPendingDelete.value.taskId);
+  }
+  handleCancelDelete();
+};
 </script>
 
 <template>
@@ -147,11 +175,33 @@ const formatTimestamp = (value) => {
             >
               Original due: {{ formatTimestamp(entry.due) }}
             </time>
+            <div class="history__item-actions">
+              <button type="button" class="history__action" @click="handleRevive(entry)">
+                Revive
+              </button>
+              <button
+                type="button"
+                class="history__action history__action--danger"
+                @click="requestDelete(entry)"
+              >
+                Delete
+              </button>
+            </div>
           </li>
         </ul>
       </li>
     </ul>
   </section>
+  <ConfirmDialog
+    v-model:open="showDeleteDialog"
+    title="Delete completed task?"
+    confirm-label="Delete"
+    cancel-label="Cancel"
+    :item-label="entryPendingDelete?.title || ''"
+    message="This will permanently remove the completed task and its history."
+    @confirm="handleConfirmDelete"
+    @cancel="handleCancelDelete"
+  />
 </template>
 
 <style scoped lang="scss">
@@ -223,6 +273,47 @@ const formatTimestamp = (value) => {
   background: rgba(23, 23, 24, 0.55);
   display: grid;
   gap: 0.5rem;
+}
+
+.history__item-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.history__action {
+  border: 1px solid theme.$color-border-input;
+  background: transparent;
+  color: theme.$color-text-primary;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    color: theme.$color-text-heading;
+    border-color: theme.$color-accent;
+    background: rgba(239, 68, 68, 0.1);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
+}
+
+.history__action--danger {
+  border-color: rgba(239, 68, 68, 0.6);
+  color: rgba(248, 113, 113, 0.95);
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ffffff;
+  }
 }
 
 .history__item-header {

@@ -109,30 +109,52 @@ export const useTaskNotifications = (tasksRef) => {
   };
 
   const pushNotification = (message, options = {}) => {
+    const {
+      desktop = false,
+      desktopTitle,
+      desktopBody,
+      desktopTag,
+      playTone = false,
+      action = null,
+      duration = 8000,
+    } = options;
+
     const id = createNotificationId();
+    const sanitizedAction = action
+      ? {
+          label:
+            typeof action.label === 'string' && action.label.trim().length > 0
+              ? action.label.trim()
+              : 'Action',
+          type: action.type ?? null,
+          payload: action.payload ?? null,
+        }
+      : null;
+
     const notification = {
       id,
       message,
       createdAt: new Date().toISOString(),
+      action: sanitizedAction,
     };
 
     notifications.value = [...notifications.value, notification];
 
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof duration === 'number' && duration > 0) {
       window.setTimeout(() => {
         dismissNotification(id);
-      }, 8000);
+      }, duration);
     }
 
-    if (options.desktop) {
+    if (desktop) {
       maybeShowSystemNotification({
-        title: options.desktopTitle ?? 'Task notification',
-        body: options.desktopBody ?? message,
-        tag: options.desktopTag,
+        title: desktopTitle ?? 'Task notification',
+        body: desktopBody ?? message,
+        tag: desktopTag,
       });
     }
 
-    if (options.playTone) {
+    if (playTone) {
       playDueTone();
     }
 

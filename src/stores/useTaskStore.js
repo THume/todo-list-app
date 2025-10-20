@@ -20,6 +20,7 @@ const FALLBACK_DUE_TIME = '23:59';
 const {
   notifications,
   dismissNotification,
+  pushNotification,
   startDueWatcher,
   stopDueWatcher,
   checkDueTasks,
@@ -30,6 +31,8 @@ let isInitialized = false;
 let watchersReady = false;
 let currentTimeTimer = null;
 let listInitialId = 1;
+const completionNotificationIds = new Map();
+const spawnedRecurringTaskIds = new Map();
 
 const VALID_RECURRENCE = new Set(['daily', 'weekdays', 'weekly', 'monthly']);
 
@@ -376,34 +379,146 @@ const reorderTask = ({ id, beforeId = null }) => {
   return true;
 };
 
-const toggleTaskCompletion = (taskId) => {
-  const targetIndex = tasks.value.findIndex((item) => item.id === taskId);
+const toggleTaskCompletion = (taskId, options = {}) => {
+  const { suppressNotification = false } = options;
+  const targetIndex = tasks.value.findIndex((item) => item?.id === taskId);
   if (targetIndex < 0) {
     return;
   }
 
-  const target = tasks.value[targetIndex];
-  target.completed = !target.completed;
+  const originalTask = tasks.value[targetIndex];
+  if (!originalTask) {
+    return;
+  }
 
-  if (target.completed) {
-    recordCompletion(target);
-    const nextTask = createRecurringTask(target);
-    const updatedTasks = [...tasks.value];
+  const updatedTask = {
+    ...originalTask,
+    completed: !originalTask.completed,
+  };
+
+  const updatedTasks = [...tasks.value];
+  updatedTasks[targetIndex] = updatedTask;
+
+  if (updatedTask.completed) {
+    recordCompletion(updatedTask);
+    const nextTask = createRecurringTask(updatedTask);
 
     if (nextTask) {
+      spawnedRecurringTaskIds.set(updatedTask.id, nextTask.id);
       updatedTasks.push(nextTask);
+    } else {
+      spawnedRecurringTaskIds.delete(updatedTask.id);
     }
 
     tasks.value = updatedTasks;
+
+    if (!suppressNotification) {
+      const existingNotificationId = completionNotificationIds.get(updatedTask.id);
+      if (existingNotificationId) {
+        dismissNotification(existingNotificationId);
+      }
+
+      const notificationId = pushNotification(
+        `Task "${updatedTask.title || 'Untitled task'}" completed.`,
+        {
+          action: {
+            label: 'Undo',
+            type: 'undo-completed-task',
+            payload: { taskId: updatedTask.id },
+          },
+          duration: 10000,
+        }
+      );
+      completionNotificationIds.set(updatedTask.id, notificationId);
+    }
   } else {
-    removeCompletion(target.id);
-    tasks.value = [...tasks.value];
+    removeCompletion(updatedTask.id);
+
+    const spawnedId = spawnedRecurringTaskIds.get(updatedTask.id);
+    if (spawnedId !== undefined) {
+      const removalIndex = updatedTasks.findIndex((item) => item?.id === spawnedId);
+      if (removalIndex >= 0) {
+        updatedTasks.splice(removalIndex, 1);
+      }
+      spawnedRecurringTaskIds.delete(updatedTask.id);
+    }
+
+    tasks.value = updatedTasks;
+
+    const notificationId = completionNotificationIds.get(updatedTask.id);
+    if (notificationId) {
+      dismissNotification(notificationId);
+      completionNotificationIds.delete(updatedTask.id);
+    }
   }
 };
 
 const removeTask = (taskId) => {
   tasks.value = tasks.value.filter((item) => item.id !== taskId);
   removeCompletion(taskId);
+  completionNotificationIds.delete(taskId);
+  spawnedRecurringTaskIds.delete(taskId);
+
+  Array.from(spawnedRecurringTaskIds.entries()).forEach(([originId, spawnedId]) => {
+    if (spawnedId === taskId) {
+      spawnedRecurringTaskIds.delete(originId);
+    }
+  });
+};
+
+const reviveCompletedTask = (taskId) => {
+  const entryIndex = completedTasks.value.findIndex((entry) => entry.taskId === taskId);
+  if (entryIndex < 0) {
+    return false;
+  }
+
+  const currentTasks = Array.isArray(tasks.value) ? tasks.value : [];
+  const targetIndex = currentTasks.findIndex((task) => task?.id === taskId);
+
+  if (targetIndex >= 0) {
+    const targetTask = currentTasks[targetIndex];
+
+    if (targetTask.completed) {
+      toggleTaskCompletion(taskId, { suppressNotification: true });
+    } else {
+      completedTasks.value = completedTasks.value.filter((entry) => entry.taskId !== taskId);
+    }
+  } else {
+    const entry = completedTasks.value[entryIndex];
+    const revivedTask = {
+      id: taskId,
+      title: entry.title ?? 'Untitled task',
+      description: entry.description ?? '',
+      completed: false,
+      due: entry.due ?? null,
+      recurrence: entry.recurrence ?? null,
+      listId: normalizeListId(entry.listId),
+    };
+
+    tasks.value = [...currentTasks, revivedTask];
+    completedTasks.value = completedTasks.value.filter((item) => item.taskId !== taskId);
+  }
+
+  completionNotificationIds.delete(taskId);
+  spawnedRecurringTaskIds.delete(taskId);
+
+  Array.from(spawnedRecurringTaskIds.entries()).forEach(([originId, spawnedId]) => {
+    if (spawnedId === taskId) {
+      spawnedRecurringTaskIds.delete(originId);
+    }
+  });
+
+  return true;
+};
+
+const deleteCompletedTask = (taskId) => {
+  const hasEntry = completedTasks.value.some((entry) => entry.taskId === taskId);
+  if (!hasEntry) {
+    return false;
+  }
+
+  removeTask(taskId);
+  return true;
 };
 
 const addList = (name) => {
@@ -427,6 +542,32 @@ const addList = (name) => {
 
   lists.value = [...lists.value, newList];
   return newList;
+};
+
+const removeList = (listId) => {
+  const targetId = typeof listId === 'string' ? listId.trim() : '';
+  if (targetId.length === 0 || targetId === DEFAULT_LIST_ID) {
+    return false;
+  }
+
+  const existingIndex = lists.value.findIndex((list) => list.id === targetId);
+  if (existingIndex < 0) {
+    return false;
+  }
+
+  lists.value = lists.value.filter((list) => list.id !== targetId);
+
+  const reassignTasks = (collection) =>
+    collection.map((entry) =>
+      entry.listId === targetId ? { ...entry, listId: DEFAULT_LIST_ID } : entry
+    );
+
+  tasks.value = reassignTasks(Array.isArray(tasks.value) ? tasks.value : []);
+  completedTasks.value = reassignTasks(
+    Array.isArray(completedTasks.value) ? completedTasks.value : []
+  );
+
+  return true;
 };
 
 const duplicateTask = (taskId) => {
@@ -679,6 +820,22 @@ watch(
   { deep: true }
 );
 
+watch(
+  notifications,
+  (current) => {
+    const activeIds = new Set(
+      (Array.isArray(current) ? current : []).map((notification) => notification?.id)
+    );
+
+    Array.from(completionNotificationIds.entries()).forEach(([taskId, noteId]) => {
+      if (!activeIds.has(noteId)) {
+        completionNotificationIds.delete(taskId);
+      }
+    });
+  },
+  { deep: false }
+);
+
 const initialize = () => {
   if (isInitialized) {
     return;
@@ -716,7 +873,10 @@ export const useTaskStore = () => {
     notifications,
     dismissNotification,
     addList,
+    removeList,
     addTask,
+    reviveCompletedTask,
+    deleteCompletedTask,
     duplicateTask,
     updateTask,
     reorderTask,

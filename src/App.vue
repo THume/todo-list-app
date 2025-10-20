@@ -2,6 +2,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import AddTaskForm from './components/AddTaskForm.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 import TaskNotifications from './components/TaskNotifications.vue';
 import { useTaskStore } from './stores/useTaskStore';
 
@@ -11,17 +12,20 @@ const {
   teardown,
   tasks,
   addTask,
+  toggleTaskCompletion,
   tasksDueToday,
   tasksDueTomorrow,
   tasksOverdue,
   activeTasks,
   lists,
   addList,
+  removeList,
   activeCountsByList,
 } = useTaskStore();
 
 const showForm = ref(false);
 const isSidebarCollapsed = ref(false);
+const DEFAULT_LIST_ID = 'default';
 const DEFAULT_SIDEBAR_WIDTH = 320;
 const MIN_SIDEBAR_WIDTH = 256;
 const MAX_SIDEBAR_WIDTH = 480;
@@ -30,6 +34,8 @@ const lastExpandedWidth = ref(DEFAULT_SIDEBAR_WIDTH);
 const isResizingSidebar = ref(false);
 const pointerStartX = ref(0);
 const pointerStartWidth = ref(DEFAULT_SIDEBAR_WIDTH);
+const showListDeleteDialog = ref(false);
+const listPendingDelete = ref(null);
 const layoutStyle = computed(() => {
   if (isSidebarCollapsed.value) {
     return {};
@@ -113,6 +119,49 @@ const toggleSidebar = () => {
   isSidebarCollapsed.value = !isSidebarCollapsed.value;
 };
 
+const resetDeleteListState = () => {
+  showListDeleteDialog.value = false;
+  listPendingDelete.value = null;
+};
+
+const requestDeleteList = (list) => {
+  if (!list || list.id === DEFAULT_LIST_ID) {
+    return;
+  }
+  listPendingDelete.value = list;
+  showListDeleteDialog.value = true;
+};
+
+const handleCancelDeleteList = () => {
+  resetDeleteListState();
+};
+
+const handleConfirmDeleteList = () => {
+  if (!listPendingDelete.value) {
+    resetDeleteListState();
+    return;
+  }
+
+  const targetId = listPendingDelete.value.id;
+  resetDeleteListState();
+
+  const removed = removeList(targetId);
+  if (!removed) {
+    return;
+  }
+
+  if (route.path === `/lists/${targetId}`) {
+    const remainingLists = (Array.isArray(lists.value) ? lists.value : []).filter(
+      (list) => list.id !== targetId
+    );
+    if (remainingLists.length > 0) {
+      router.push(`/lists/${remainingLists[0].id}`);
+    } else {
+      router.push('/today');
+    }
+  }
+};
+
 const onSidebarResizePointerMove = (event) => {
   if (!isResizingSidebar.value) {
     return;
@@ -163,6 +212,21 @@ const handleAddTask = (payload) => {
   addTask(payload);
 };
 
+const handleNotificationAction = ({ id, action }) => {
+  if (!action) {
+    return;
+  }
+
+  if (action.type === 'undo-completed-task') {
+    const taskId = action.payload?.taskId;
+    if (taskId !== undefined && taskId !== null) {
+      toggleTaskCompletion(taskId, { suppressNotification: true });
+    }
+  }
+
+  dismissNotification(id);
+};
+
 watch(isSidebarCollapsed, (collapsed) => {
   if (collapsed) {
     lastExpandedWidth.value = sidebarWidth.value;
@@ -193,7 +257,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <TaskNotifications :notifications="notifications" @dismiss="dismissNotification" />
+  <TaskNotifications
+    :notifications="notifications"
+    @dismiss="dismissNotification"
+    @action="handleNotificationAction"
+  />
   <div class="layout" :class="{ 'layout--collapsed': isSidebarCollapsed }" :style="layoutStyle">
     <aside
       :class="['layout__sidebar', { 'layout__sidebar--collapsed': isSidebarCollapsed }]"
@@ -236,15 +304,25 @@ onUnmounted(() => {
               </button>
             </header>
             <nav class="layout__list-nav">
-              <RouterLink
-                v-for="list in lists"
-                :key="list.id"
-                :to="`/lists/${list.id}`"
-                class="layout__link layout__link--list"
-                active-class="layout__link--active"
-              >
-                {{ list.name }} ({{ listCounts[list.id] ?? 0 }})
-              </RouterLink>
+              <div v-for="list in lists" :key="list.id" class="layout__list-item">
+                <RouterLink
+                  :to="`/lists/${list.id}`"
+                  class="layout__link layout__link--list"
+                  active-class="layout__link--active"
+                >
+                  {{ list.name }} ({{ listCounts[list.id] ?? 0 }})
+                </RouterLink>
+                <button
+                  v-if="list.id !== DEFAULT_LIST_ID"
+                  type="button"
+                  class="layout__list-delete"
+                  :aria-label="`Delete list ${list.name}`"
+                  title="Delete list"
+                  @click.stop="requestDeleteList(list)"
+                >
+                  &times;
+                </button>
+              </div>
             </nav>
           </section>
         </div>
@@ -274,6 +352,16 @@ onUnmounted(() => {
       <RouterView />
     </main>
   </div>
+  <ConfirmDialog
+    v-model:open="showListDeleteDialog"
+    title="Delete list?"
+    confirm-label="Delete"
+    cancel-label="Cancel"
+    :item-label="listPendingDelete?.name || ''"
+    message="Deleting a list moves all of its tasks back into My Tasks."
+    @confirm="handleConfirmDeleteList"
+    @cancel="handleCancelDeleteList"
+  />
 </template>
 
 <style scoped lang="scss">
@@ -446,6 +534,37 @@ onUnmounted(() => {
   gap: 0.5rem;
 }
 
+.layout__list-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.layout__list-delete {
+  border: none;
+  background: transparent;
+  color: theme.$color-text-muted;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    color: theme.$color-text-heading;
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
+}
+
 .layout__link {
   border: 1px solid transparent;
   border-radius: 0.75rem;
@@ -535,6 +654,15 @@ onUnmounted(() => {
   .layout__list-nav {
     grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
     gap: 0.5rem;
+  }
+
+  .layout__list-item {
+    grid-template-columns: 1fr auto;
+  }
+
+  .layout__list-delete {
+    font-size: 0.85rem;
+    padding: 0.2rem;
   }
 
   .layout__link {
