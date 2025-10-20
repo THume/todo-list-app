@@ -1,9 +1,10 @@
 import { ref, computed, watch } from 'vue';
 import { useTaskNotifications } from '../composables/useTaskNotifications';
+import { readJsonFile, writeJsonFile } from '../services/jsonStorage';
 
-const STORAGE_KEY = 'todo-list-app/tasks';
-const COMPLETED_STORAGE_KEY = 'todo-list-app/completed-tasks';
-const LISTS_STORAGE_KEY = 'todo-list-app/lists';
+const TASKS_FILE_NAME = 'tasks.json';
+const COMPLETED_TASKS_FILE_NAME = 'completed-tasks.json';
+const LISTS_FILE_NAME = 'lists.json';
 const DEFAULT_LIST_ID = 'default';
 const DEFAULT_LIST_NAME = 'My Tasks';
 const DEFAULT_LIST = Object.freeze({
@@ -98,27 +99,27 @@ const normalizeRecurrence = (value) => {
   return VALID_RECURRENCE.has(normalized) ? normalized : null;
 };
 
-const persistTasks = (value) => {
+const persistTasks = async (value) => {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    await writeJsonFile(TASKS_FILE_NAME, value);
   } catch (error) {
-    console.error('Failed to persist tasks to localStorage', error);
+    console.error('Failed to persist tasks to JSON file', error);
   }
 };
 
-const persistCompletedTasks = (value) => {
+const persistCompletedTasks = async (value) => {
   try {
-    window.localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(value));
+    await writeJsonFile(COMPLETED_TASKS_FILE_NAME, value);
   } catch (error) {
-    console.error('Failed to persist completed tasks', error);
+    console.error('Failed to persist completed tasks to JSON file', error);
   }
 };
 
-const persistLists = (value) => {
+const persistLists = async (value) => {
   try {
-    window.localStorage.setItem(LISTS_STORAGE_KEY, JSON.stringify(value));
+    await writeJsonFile(LISTS_FILE_NAME, value);
   } catch (error) {
-    console.error('Failed to persist lists', error);
+    console.error('Failed to persist lists to JSON file', error);
   }
 };
 
@@ -698,80 +699,75 @@ const sortedCompletedTasks = computed(() => {
   });
 });
 
-const loadFromStorage = () => {
+const loadFromStorage = async () => {
   try {
-    const rawLists = window.localStorage.getItem(LISTS_STORAGE_KEY);
-    if (rawLists) {
-      const parsedLists = JSON.parse(rawLists);
-      if (Array.isArray(parsedLists)) {
-        const sanitized = parsedLists
-          .map((entry, index) => {
-            const id =
-              typeof entry?.id === 'string' && entry.id.trim().length > 0
-                ? entry.id.trim()
-                : `list-${index + 1}`;
-            const name =
-              typeof entry?.name === 'string' && entry.name.trim().length > 0
-                ? entry.name.trim()
-                : `List ${index + 1}`;
-            return { id, name };
-          })
-          .filter(
-            (item, index, array) => array.findIndex((other) => other.id === item.id) === index
-          );
-        if (sanitized.length > 0) {
-          lists.value = sanitized;
-        }
-      }
+    const parsedLists = await readJsonFile(LISTS_FILE_NAME, null);
+    if (Array.isArray(parsedLists)) {
+      const sanitized = parsedLists
+        .map((entry, index) => {
+          const id =
+            typeof entry?.id === 'string' && entry.id.trim().length > 0
+              ? entry.id.trim()
+              : `list-${index + 1}`;
+          const name =
+            typeof entry?.name === 'string' && entry.name.trim().length > 0
+              ? entry.name.trim()
+              : `List ${index + 1}`;
+          return { id, name };
+        })
+        .filter(
+          (item, index, array) => array.findIndex((other) => other.id === item.id) === index
+        );
+      lists.value = sanitized.length > 0 ? sanitized : [DEFAULT_LIST];
+    } else {
+      lists.value = [DEFAULT_LIST];
     }
   } catch (error) {
-    console.error('Failed to load lists from localStorage', error);
+    console.error('Failed to load lists from JSON storage', error);
     lists.value = [DEFAULT_LIST];
   }
 
   ensureDefaultList();
 
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
+    const parsed = await readJsonFile(TASKS_FILE_NAME, []);
 
-      if (Array.isArray(parsed)) {
-        tasks.value = parsed.map((task, index) => ({
-          id: task.id ?? index + 1,
-          title: typeof task.title === 'string' ? task.title : 'Untitled task',
-          description: typeof task.description === 'string' ? task.description : '',
-          completed: Boolean(task.completed),
-          due: task.due ?? null,
-          recurrence: normalizeRecurrence(task.recurrence),
-          listId: normalizeListId(task.listId),
-        }));
-      }
+    if (Array.isArray(parsed)) {
+      tasks.value = parsed.map((task, index) => ({
+        id: task.id ?? index + 1,
+        title: typeof task.title === 'string' ? task.title : 'Untitled task',
+        description: typeof task.description === 'string' ? task.description : '',
+        completed: Boolean(task.completed),
+        due: task.due ?? null,
+        recurrence: normalizeRecurrence(task.recurrence),
+        listId: normalizeListId(task.listId),
+      }));
+    } else {
+      tasks.value = [];
     }
   } catch (error) {
-    console.error('Failed to load tasks from localStorage', error);
+    console.error('Failed to load tasks from JSON storage', error);
     tasks.value = [];
   }
 
   try {
-    const completedRaw = window.localStorage.getItem(COMPLETED_STORAGE_KEY);
-    if (completedRaw) {
-      const parsedCompleted = JSON.parse(completedRaw);
+    const parsedCompleted = await readJsonFile(COMPLETED_TASKS_FILE_NAME, []);
 
-      if (Array.isArray(parsedCompleted)) {
-        completedTasks.value = parsedCompleted.map((entry) => ({
-          taskId: entry.taskId,
-          title: entry.title ?? 'Untitled task',
-          description: entry.description ?? '',
-          due: entry.due ?? null,
-          completedAt: entry.completedAt ?? new Date().toISOString(),
-          recurrence: normalizeRecurrence(entry.recurrence),
-          listId: normalizeListId(entry.listId),
-        }));
-      }
+    if (Array.isArray(parsedCompleted)) {
+      completedTasks.value = parsedCompleted.map((entry) => ({
+        taskId: entry.taskId,
+        title: entry.title ?? 'Untitled task',
+        description: entry.description ?? '',
+        due: entry.due ?? null,
+        completedAt: entry.completedAt ?? new Date().toISOString(),
+        recurrence: normalizeRecurrence(entry.recurrence),
+        listId: normalizeListId(entry.listId),
+      }));
+    } else {
+      completedTasks.value = [];
     }
   } catch (error) {
-    console.error('Failed to load completed tasks', error);
+    console.error('Failed to load completed tasks from JSON storage', error);
     completedTasks.value = [];
   }
 
@@ -836,16 +832,18 @@ watch(
   { deep: false }
 );
 
-const initialize = () => {
+const initialize = async () => {
   if (isInitialized) {
     return;
   }
 
   startCurrentTimeTicker();
-  loadFromStorage();
-  persistTasks(tasks.value);
-  persistCompletedTasks(completedTasks.value);
-  persistLists(lists.value);
+  await loadFromStorage();
+  await Promise.all([
+    persistTasks(tasks.value),
+    persistCompletedTasks(completedTasks.value),
+    persistLists(lists.value),
+  ]);
   checkDueTasks();
   startDueWatcher();
   watchersReady = true;
@@ -858,7 +856,9 @@ const teardown = () => {
 };
 
 export const useTaskStore = () => {
-  initialize();
+  initialize().catch((error) => {
+    console.error('Failed to initialize task store', error);
+  });
 
   return {
     tasks,
