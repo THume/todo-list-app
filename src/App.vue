@@ -22,9 +22,26 @@ const {
 
 const showForm = ref(false);
 const isSidebarCollapsed = ref(false);
+const DEFAULT_SIDEBAR_WIDTH = 320;
+const MIN_SIDEBAR_WIDTH = 256;
+const MAX_SIDEBAR_WIDTH = 480;
+const sidebarWidth = ref(DEFAULT_SIDEBAR_WIDTH);
+const lastExpandedWidth = ref(DEFAULT_SIDEBAR_WIDTH);
+const isResizingSidebar = ref(false);
+const pointerStartX = ref(0);
+const pointerStartWidth = ref(DEFAULT_SIDEBAR_WIDTH);
+const layoutStyle = computed(() => {
+  if (isSidebarCollapsed.value) {
+    return {};
+  }
+  return { '--sidebar-width': `${Math.round(sidebarWidth.value)}px` };
+});
 let hasInitializedVisibility = false;
 const route = useRoute();
 const router = useRouter();
+
+const clampSidebarWidth = (value) =>
+  Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, value));
 
 const defaultDueDate = computed(() => {
   if (route.path !== '/today') {
@@ -96,9 +113,64 @@ const toggleSidebar = () => {
   isSidebarCollapsed.value = !isSidebarCollapsed.value;
 };
 
+const onSidebarResizePointerMove = (event) => {
+  if (!isResizingSidebar.value) {
+    return;
+  }
+  const delta = event.clientX - pointerStartX.value;
+  sidebarWidth.value = clampSidebarWidth(pointerStartWidth.value + delta);
+};
+
+const stopSidebarResize = () => {
+  if (!isResizingSidebar.value) {
+    return;
+  }
+  isResizingSidebar.value = false;
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('pointermove', onSidebarResizePointerMove);
+    window.removeEventListener('pointerup', stopSidebarResize);
+    window.removeEventListener('pointercancel', stopSidebarResize);
+  }
+  if (!isSidebarCollapsed.value) {
+    sidebarWidth.value = clampSidebarWidth(sidebarWidth.value);
+    lastExpandedWidth.value = sidebarWidth.value;
+  }
+};
+
+const beginSidebarResize = (event) => {
+  if (isSidebarCollapsed.value) {
+    return;
+  }
+  if (event.pointerType === 'mouse' && event.button !== 0) {
+    return;
+  }
+  if (typeof window === 'undefined') {
+    return;
+  }
+  isResizingSidebar.value = true;
+  pointerStartX.value = event.clientX;
+  pointerStartWidth.value = sidebarWidth.value;
+  window.addEventListener('pointermove', onSidebarResizePointerMove);
+  window.addEventListener('pointerup', stopSidebarResize);
+  window.addEventListener('pointercancel', stopSidebarResize);
+  if (typeof event.target?.setPointerCapture === 'function') {
+    event.target.setPointerCapture(event.pointerId);
+  }
+  event.preventDefault();
+};
+
 const handleAddTask = (payload) => {
   addTask(payload);
 };
+
+watch(isSidebarCollapsed, (collapsed) => {
+  if (collapsed) {
+    lastExpandedWidth.value = sidebarWidth.value;
+    stopSidebarResize();
+    return;
+  }
+  sidebarWidth.value = clampSidebarWidth(lastExpandedWidth.value);
+});
 
 watch(
   tasks,
@@ -115,13 +187,14 @@ watch(
 );
 
 onUnmounted(() => {
+  stopSidebarResize();
   teardown();
 });
 </script>
 
 <template>
   <TaskNotifications :notifications="notifications" @dismiss="dismissNotification" />
-  <div class="layout" :class="{ 'layout--collapsed': isSidebarCollapsed }">
+  <div class="layout" :class="{ 'layout--collapsed': isSidebarCollapsed }" :style="layoutStyle">
     <aside
       :class="['layout__sidebar', { 'layout__sidebar--collapsed': isSidebarCollapsed }]"
       :aria-expanded="!isSidebarCollapsed"
@@ -184,6 +257,18 @@ onUnmounted(() => {
           @submit="handleAddTask"
         />
       </div>
+      <div
+        v-show="!isSidebarCollapsed"
+        class="layout__resize-handle"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar"
+        :aria-valuemin="MIN_SIDEBAR_WIDTH"
+        :aria-valuemax="MAX_SIDEBAR_WIDTH"
+        :aria-valuenow="Math.round(sidebarWidth)"
+        @pointerdown.stop="beginSidebarResize"
+        :class="{ 'layout__resize-handle--active': isResizingSidebar }"
+      />
     </aside>
     <main class="layout__content">
       <RouterView />
@@ -195,8 +280,9 @@ onUnmounted(() => {
 @use './styles/theme' as theme;
 
 .layout {
+  --sidebar-width: minmax(16rem, 20rem);
   display: grid;
-  grid-template-columns: minmax(16rem, 20rem) 1fr;
+  grid-template-columns: var(--sidebar-width) 1fr;
   color: theme.$color-text-heading;
   background: theme.$color-app-background;
   min-height: 100vh;
@@ -206,7 +292,7 @@ onUnmounted(() => {
 }
 
 .layout--collapsed {
-  grid-template-columns: 4.75rem 1fr;
+  --sidebar-width: 4.75rem;
 }
 
 .layout__sidebar {
@@ -220,6 +306,7 @@ onUnmounted(() => {
   min-height: 0;
   box-sizing: border-box;
   overflow-y: auto;
+  position: relative;
 }
 
 .layout__sidebar-content {
@@ -239,6 +326,33 @@ onUnmounted(() => {
 .layout__sidebar-top {
   display: grid;
   gap: 2rem;
+}
+
+.layout__resize-handle {
+  position: absolute;
+  top: 0;
+  right: -0.5rem;
+  width: 1rem;
+  height: 100%;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+
+.layout__resize-handle::before {
+  content: '';
+  width: 0.25rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+  transition: background 0.2s ease;
+}
+
+.layout__resize-handle:hover::before,
+.layout__resize-handle--active::before {
+  background: theme.$color-accent;
 }
 
 .layout__collapse-toggle {
@@ -403,6 +517,10 @@ onUnmounted(() => {
 
   .layout__sidebar-top {
     gap: 1.25rem;
+  }
+
+  .layout__resize-handle {
+    display: none;
   }
 
   .layout__nav {
