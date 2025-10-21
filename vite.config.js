@@ -133,4 +133,12 @@ const jsonStoragePlugin = () => ({
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue(), jsonStoragePlugin()],
+  server: {
+    port: 4173,
+    strictPort: true,
+  },
+  preview: {
+    port: 4173,
+    strictPort: true,
+  },
 });
