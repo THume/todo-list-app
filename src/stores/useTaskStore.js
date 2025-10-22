@@ -722,6 +722,84 @@ const tasksDueTomorrow = computed(() => {
   });
 });
 
+const tasksCompletedYesterday = computed(() => {
+  const entries = Array.isArray(completedTasks.value) ? completedTasks.value : [];
+  const todayStartDate = getStartOfDay(currentTime.value);
+
+  if (!(todayStartDate instanceof Date) || Number.isNaN(todayStartDate.valueOf())) {
+    return [];
+  }
+
+  const yesterdayStartDate = new Date(todayStartDate);
+  yesterdayStartDate.setDate(todayStartDate.getDate() - 1);
+
+  const startTimestamp = yesterdayStartDate.getTime();
+  const endTimestamp = todayStartDate.getTime();
+
+  return entries
+    .filter((entry) => {
+      const completedTimestamp = Date.parse(entry?.completedAt ?? '');
+      if (Number.isNaN(completedTimestamp)) {
+        return false;
+      }
+      return completedTimestamp >= startTimestamp && completedTimestamp < endTimestamp;
+    })
+    .sort((a, b) => {
+      const aTime = Date.parse(a?.completedAt ?? '');
+      const bTime = Date.parse(b?.completedAt ?? '');
+
+      if (Number.isNaN(aTime) && Number.isNaN(bTime)) {
+        return 0;
+      }
+      if (Number.isNaN(aTime)) {
+        return 1;
+      }
+      if (Number.isNaN(bTime)) {
+      return -1;
+    }
+    return bTime - aTime;
+  });
+});
+
+const tasksCompletedToday = computed(() => {
+  const entries = Array.isArray(completedTasks.value) ? completedTasks.value : [];
+  const todayStartDate = getStartOfDay(currentTime.value);
+
+  if (!(todayStartDate instanceof Date) || Number.isNaN(todayStartDate.valueOf())) {
+    return [];
+  }
+
+  const tomorrowStartDate = new Date(todayStartDate);
+  tomorrowStartDate.setDate(todayStartDate.getDate() + 1);
+
+  const startTimestamp = todayStartDate.getTime();
+  const endTimestamp = tomorrowStartDate.getTime();
+
+  return entries
+    .filter((entry) => {
+      const completedTimestamp = Date.parse(entry?.completedAt ?? '');
+      if (Number.isNaN(completedTimestamp)) {
+        return false;
+      }
+      return completedTimestamp >= startTimestamp && completedTimestamp < endTimestamp;
+    })
+    .sort((a, b) => {
+      const aTime = Date.parse(a?.completedAt ?? '');
+      const bTime = Date.parse(b?.completedAt ?? '');
+
+      if (Number.isNaN(aTime) && Number.isNaN(bTime)) {
+        return 0;
+      }
+      if (Number.isNaN(aTime)) {
+        return 1;
+      }
+      if (Number.isNaN(bTime)) {
+        return -1;
+      }
+      return bTime - aTime;
+    });
+});
+
 const sortedCompletedTasks = computed(() => {
   return [...completedTasks.value].sort((a, b) => {
     const aTime = Date.parse(a.completedAt ?? '');
@@ -903,6 +981,8 @@ export const useTaskStore = () => {
     tasksOverdue,
     tasksDueToday,
     tasksDueTomorrow,
+    tasksCompletedYesterday,
+    tasksCompletedToday,
     activeTasks,
     activeCountsByList,
     sortedCompletedTasks,

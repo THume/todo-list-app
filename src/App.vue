@@ -270,6 +270,9 @@ onUnmounted(() => {
         <div class="layout__sidebar-top">
           <h1 class="layout__title">Todo List</h1>
           <nav class="layout__nav">
+            <RouterLink to="/standup" class="layout__link" active-class="layout__link--active">
+              Standup
+            </RouterLink>
             <RouterLink to="/today" class="layout__link" active-class="layout__link--active">
               <span class="layout__nav-label">{{ todayLabel }}</span>
               <span class="layout__list-count layout__nav-count">{{ todayCount }}</span>

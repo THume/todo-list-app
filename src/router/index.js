@@ -5,6 +5,7 @@ import AllTasksView from '../views/AllTasksView.vue';
 import TaskListView from '../views/TaskListView.vue';
 import OverdueTasksView from '../views/OverdueTasksView.vue';
 import CompletedTasksView from '../views/CompletedTasksView.vue';
+import StandupView from '../views/StandupView.vue';
 
 const routes = [
   {
@@ -26,6 +27,10 @@ const routes = [
   {
     path: '/overdue',
     component: OverdueTasksView,
+  },
+  {
+    path: '/standup',
+    component: StandupView,
   },
   {
     path: '/all',
