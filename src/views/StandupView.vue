@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
 const {
@@ -71,12 +71,75 @@ const todayTasks = computed(() => {
   });
 });
 
-const completedCount = computed(() => completedYesterday.value.length);
-const scheduledTodayCount = computed(() => todayTasks.value.length);
-const completedTodayCount = computed(() => completedToday.value.length);
-const todayTotalCount = computed(
-  () => scheduledTodayCount.value + completedTodayCount.value
+const hiddenTaskIds = ref(new Set());
+const showAll = ref(false);
+
+const hiddenCount = computed(() => hiddenTaskIds.value.size);
+
+const buildYesterdayKey = (entry) => `yesterday:${entry?.taskId ?? entry?.id ?? ''}`;
+const buildCompletedTodayKey = (entry) => `completed-today:${entry?.taskId ?? entry?.id ?? ''}`;
+const buildScheduledKey = (task) => `scheduled:${task?.id ?? ''}`;
+
+const isHidden = (key) => hiddenTaskIds.value.has(key);
+
+const updateHiddenSet = (updater) => {
+  const next = new Set(hiddenTaskIds.value);
+  updater(next);
+  hiddenTaskIds.value = next;
+};
+
+const hideTask = (key) => {
+  if (!key) {
+    return;
+  }
+  updateHiddenSet((set) => set.add(key));
+};
+
+const showTask = (key) => {
+  if (!key) {
+    return;
+  }
+  updateHiddenSet((set) => {
+    set.delete(key);
+  });
+};
+
+const displayedCompletedYesterday = computed(() => {
+  const entries = completedYesterday.value;
+  if (showAll.value) {
+    return entries;
+  }
+  return entries.filter((entry) => !isHidden(buildYesterdayKey(entry)));
+});
+
+const displayedCompletedToday = computed(() => {
+  const entries = completedToday.value;
+  if (showAll.value) {
+    return entries;
+  }
+  return entries.filter((entry) => !isHidden(buildCompletedTodayKey(entry)));
+});
+
+const displayedScheduledToday = computed(() => {
+  const tasks = todayTasks.value;
+  if (showAll.value) {
+    return tasks;
+  }
+  return tasks.filter((task) => !isHidden(buildScheduledKey(task)));
+});
+
+const completedYesterdayCount = computed(() => displayedCompletedYesterday.value.length);
+const completedTodayCount = computed(() => displayedCompletedToday.value.length);
+const scheduledTodayCount = computed(() => displayedScheduledToday.value.length);
+const todayVisibleCount = computed(
+  () => completedTodayCount.value + scheduledTodayCount.value
 );
+
+const totalCompletedYesterday = computed(() => completedYesterday.value.length);
+const totalCompletedToday = computed(() => completedToday.value.length);
+const totalScheduledToday = computed(() => todayTasks.value.length);
+const hasCompletedToday = computed(() => totalCompletedToday.value > 0);
+const hasScheduledToday = computed(() => totalScheduledToday.value > 0);
 
 const formatTimestamp = (value) => {
   if (!value) {
@@ -116,17 +179,40 @@ const formatTimeOnly = (value) => {
         </p>
       </div>
     </header>
+    <div class="standup__toolbar">
+      <label class="standup__toggle">
+        <input v-model="showAll" type="checkbox" class="standup__toggle-input" />
+        <span>Show all tasks</span>
+      </label>
+      <span v-if="showAll && hiddenCount > 0" class="standup__hint">
+        Hidden tasks are highlighted. Use Show to unhide them.
+      </span>
+    </div>
     <div class="standup__grid">
       <article class="standup__section">
         <header class="standup__section-header">
           <h2>Completed Yesterday</h2>
-          <span class="standup__count">{{ completedCount }}</span>
+          <span class="standup__count">
+            {{ completedYesterdayCount }}
+            <template v-if="totalCompletedYesterday > completedYesterdayCount">
+              / {{ totalCompletedYesterday }}
+            </template>
+          </span>
         </header>
-        <p v-if="completedCount === 0" class="standup__empty">
-          No completed tasks logged yesterday.
+        <p v-if="completedYesterdayCount === 0" class="standup__empty">
+          <span v-if="totalCompletedYesterday === 0">
+            No completed tasks logged yesterday.
+          </span>
+          <span v-else>
+            All completed tasks are hidden. Enable Show all to review them.
+          </span>
         </p>
         <ul v-else class="standup__list">
-          <li v-for="entry in completedYesterday" :key="entry.taskId" class="standup__item">
+          <li
+            v-for="entry in displayedCompletedYesterday"
+            :key="entry.taskId"
+            :class="['standup__item', { 'standup__item--hidden': showAll && isHidden(buildYesterdayKey(entry)) }]"
+          >
             <div class="standup__item-header">
               <span class="standup__item-title">{{ entry.title }}</span>
               <time class="standup__item-meta" :datetime="entry.completedAt">
@@ -144,22 +230,66 @@ const formatTimeOnly = (value) => {
               Originally due {{ formatTimestamp(entry.due) }}
             </time>
             <span class="standup__badge">List: {{ resolveListName(entry.listId) }}</span>
+            <div class="standup__item-actions">
+              <button
+                v-if="!showAll"
+                type="button"
+                class="standup__item-toggle"
+                @click="hideTask(buildYesterdayKey(entry))"
+              >
+                Hide
+              </button>
+              <button
+                v-else-if="isHidden(buildYesterdayKey(entry))"
+                type="button"
+                class="standup__item-toggle standup__item-toggle--show"
+                @click="showTask(buildYesterdayKey(entry))"
+              >
+                Show
+              </button>
+            </div>
           </li>
         </ul>
       </article>
       <article class="standup__section">
         <header class="standup__section-header">
           <h2>Today&rsquo;s Focus</h2>
-          <span class="standup__count">{{ todayTotalCount }}</span>
+          <span class="standup__count">
+            {{ todayVisibleCount }}
+            <template v-if="totalCompletedToday + totalScheduledToday > todayVisibleCount">
+              / {{ totalCompletedToday + totalScheduledToday }}
+            </template>
+          </span>
         </header>
-        <p v-if="todayTotalCount === 0" class="standup__empty">
-          No tasks scheduled or completed yet today. Great job staying ahead!
+        <p v-if="todayVisibleCount === 0" class="standup__empty">
+          <span v-if="totalCompletedToday + totalScheduledToday === 0">
+            No tasks scheduled or completed yet today. Great job staying ahead!
+          </span>
+          <span v-else>
+            All of today's tasks are hidden. Enable Show all to review them.
+          </span>
         </p>
         <div v-else class="standup__focus">
-          <section v-if="completedTodayCount > 0" class="standup__focus-group">
+          <section
+            v-if="hasCompletedToday"
+            class="standup__focus-group"
+          >
             <h3 class="standup__subheading">Completed Today</h3>
-            <ul class="standup__list">
-              <li v-for="entry in completedToday" :key="entry.taskId" class="standup__item">
+            <p
+              v-if="completedTodayCount === 0"
+              class="standup__empty standup__empty--sub"
+            >
+              All completed tasks are hidden. Enable Show all to review them.
+            </p>
+            <ul
+              v-else
+              class="standup__list"
+            >
+              <li
+                v-for="entry in displayedCompletedToday"
+                :key="entry.taskId"
+                :class="['standup__item', { 'standup__item--hidden': showAll && isHidden(buildCompletedTodayKey(entry)) }]"
+              >
                 <div class="standup__item-header">
                   <span class="standup__item-title">{{ entry.title }}</span>
                   <time class="standup__item-meta" :datetime="entry.completedAt">
@@ -182,13 +312,47 @@ const formatTimeOnly = (value) => {
                     Repeats: {{ entry.recurrence }}
                   </span>
                 </div>
+                <div class="standup__item-actions">
+                  <button
+                    v-if="!showAll"
+                    type="button"
+                    class="standup__item-toggle"
+                    @click="hideTask(buildCompletedTodayKey(entry))"
+                  >
+                    Hide
+                  </button>
+                  <button
+                    v-else-if="isHidden(buildCompletedTodayKey(entry))"
+                    type="button"
+                    class="standup__item-toggle standup__item-toggle--show"
+                    @click="showTask(buildCompletedTodayKey(entry))"
+                  >
+                    Show
+                  </button>
+                </div>
               </li>
             </ul>
           </section>
-          <section v-if="scheduledTodayCount > 0" class="standup__focus-group">
+          <section
+            v-if="hasScheduledToday"
+            class="standup__focus-group"
+          >
             <h3 class="standup__subheading">Scheduled</h3>
-            <ul class="standup__list">
-              <li v-for="task in todayTasks" :key="task.id" class="standup__item">
+            <p
+              v-if="scheduledTodayCount === 0"
+              class="standup__empty standup__empty--sub"
+            >
+              All scheduled tasks are hidden. Enable Show all to review them.
+            </p>
+            <ul
+              v-else
+              class="standup__list"
+            >
+              <li
+                v-for="task in displayedScheduledToday"
+                :key="task.id"
+                :class="['standup__item', { 'standup__item--hidden': showAll && isHidden(buildScheduledKey(task)) }]"
+              >
                 <div class="standup__item-header">
                   <span class="standup__item-title">{{ task.title }}</span>
                   <time class="standup__item-meta" :datetime="task.due">
@@ -203,6 +367,24 @@ const formatTimeOnly = (value) => {
                   <span v-if="task.recurrence" class="standup__badge standup__badge--info">
                     Repeats: {{ task.recurrence }}
                   </span>
+                </div>
+                <div class="standup__item-actions">
+                  <button
+                    v-if="!showAll"
+                    type="button"
+                    class="standup__item-toggle"
+                    @click="hideTask(buildScheduledKey(task))"
+                  >
+                    Hide
+                  </button>
+                  <button
+                    v-else-if="isHidden(buildScheduledKey(task))"
+                    type="button"
+                    class="standup__item-toggle standup__item-toggle--show"
+                    @click="showTask(buildScheduledKey(task))"
+                  >
+                    Show
+                  </button>
                 </div>
               </li>
             </ul>
@@ -238,6 +420,34 @@ const formatTimeOnly = (value) => {
 
 .standup__subtitle {
   margin: 0.2rem 0 0;
+  color: theme.$color-text-muted;
+}
+
+.standup__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.standup__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: theme.$color-text-heading;
+  user-select: none;
+}
+
+.standup__toggle-input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: theme.$color-accent;
+}
+
+.standup__hint {
+  font-size: 0.85rem;
   color: theme.$color-text-muted;
 }
 
@@ -368,5 +578,50 @@ const formatTimeOnly = (value) => {
 .standup__badge--info {
   background: rgba(16, 185, 129, 0.18);
   color: #6ee7b7;
+}
+
+.standup__item-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.25rem;
+}
+
+.standup__item-toggle {
+  border: 1px solid theme.$color-border-input;
+  background: transparent;
+  color: theme.$color-text-primary;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    color: theme.$color-text-heading;
+    border-color: theme.$color-accent;
+    background: rgba(34, 197, 94, 0.15);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
+}
+
+.standup__item-toggle--show {
+  border-color: rgba(34, 197, 94, 0.6);
+  color: rgba(134, 239, 172, 0.95);
+
+  &:hover {
+    background: rgba(34, 197, 94, 0.2);
+    color: #ffffff;
+  }
+}
+
+.standup__item--hidden {
+  opacity: 0.65;
+  border-style: dashed;
 }
 </style>
