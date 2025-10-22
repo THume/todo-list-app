@@ -48,13 +48,12 @@ const handleAction = (id, action) => {
 @use '../styles/theme' as theme;
 .notifications {
   position: fixed;
-  top: 1.25rem;
-  left: 0;
-  right: 0;
+  inset: auto 1.25rem 1.25rem auto;
   margin: 0;
-  padding: 0 clamp(1.25rem, 5vw, 3rem);
+  padding: 0;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
+  width: min(26rem, calc(100vw - 2.5rem));
   box-sizing: border-box;
   pointer-events: none;
   z-index: 1000;
@@ -66,7 +65,7 @@ const handleAction = (id, action) => {
   padding: 0;
   display: grid;
   gap: 0.75rem;
-  width: min(64rem, 100%);
+  width: 100%;
   pointer-events: auto;
 }
 
