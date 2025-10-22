@@ -95,6 +95,10 @@ const recurrenceLabel = computed(() => {
       return 'Repeats weekly';
     case 'monthly':
       return 'Repeats monthly';
+    case 'quarterly':
+      return 'Repeats every 3 months';
+    case 'yearly':
+      return 'Repeats yearly';
     default:
       return '';
   }

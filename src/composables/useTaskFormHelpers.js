@@ -4,6 +4,8 @@ const recurrenceOptions = Object.freeze([
   { value: 'weekdays', label: 'Weekdays' },
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Every 3 Months' },
+  { value: 'yearly', label: 'Yearly' },
 ]);
 
 export const getTodayDateString = () => {

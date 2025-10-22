@@ -35,7 +35,7 @@ let listInitialId = 1;
 const completionNotificationIds = new Map();
 const spawnedRecurringTaskIds = new Map();
 
-const VALID_RECURRENCE = new Set(['daily', 'weekdays', 'weekly', 'monthly']);
+const VALID_RECURRENCE = new Set(['daily', 'weekdays', 'weekly', 'monthly', 'quarterly', 'yearly']);
 
 const createListId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -160,6 +160,12 @@ const advanceDateByRecurrence = (date, recurrence) => {
     case 'monthly':
       date.setMonth(date.getMonth() + 1);
       break;
+    case 'quarterly':
+      date.setMonth(date.getMonth() + 3);
+      break;
+    case 'yearly':
+      date.setFullYear(date.getFullYear() + 1);
+      break;
     default:
       break;
   }
@@ -235,6 +241,36 @@ const recordCompletion = (task) => {
 
 const removeCompletion = (taskId) => {
   completedTasks.value = completedTasks.value.filter((entry) => entry.taskId !== taskId);
+};
+
+const updateCompletedTaskTimestamp = (taskId, completedAt) => {
+  const entryIndex = completedTasks.value.findIndex((entry) => entry.taskId === taskId);
+  if (entryIndex < 0) {
+    return false;
+  }
+
+  let resolvedDate = null;
+
+  if (completedAt instanceof Date) {
+    resolvedDate = completedAt;
+  } else if (typeof completedAt === 'number') {
+    resolvedDate = new Date(completedAt);
+  } else if (typeof completedAt === 'string') {
+    resolvedDate = new Date(completedAt);
+  }
+
+  if (!(resolvedDate instanceof Date) || Number.isNaN(resolvedDate.valueOf())) {
+    return false;
+  }
+
+  const updatedEntries = [...completedTasks.value];
+  updatedEntries[entryIndex] = {
+    ...updatedEntries[entryIndex],
+    completedAt: resolvedDate.toISOString(),
+  };
+  completedTasks.value = updatedEntries;
+
+  return true;
 };
 
 const getStartOfDay = (timestamp) => {
@@ -877,6 +913,7 @@ export const useTaskStore = () => {
     addTask,
     reviveCompletedTask,
     deleteCompletedTask,
+    updateCompletedTaskTimestamp,
     duplicateTask,
     updateTask,
     reorderTask,
