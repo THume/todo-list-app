@@ -50,13 +50,22 @@ const clampSidebarWidth = (value) =>
   Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, value));
 
 const defaultDueDate = computed(() => {
-  if (route.path !== '/today') {
+  const currentPath = typeof route.path === 'string' ? route.path : '';
+  const isTodayRoute = currentPath.startsWith('/today');
+  const isTomorrowRoute = currentPath.startsWith('/tomorrow');
+
+  if (!isTodayRoute && !isTomorrowRoute) {
     return null;
   }
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
+
+  const target = new Date();
+  if (isTomorrowRoute) {
+    target.setDate(target.getDate() + 1);
+  }
+
+  const year = target.getFullYear();
+  const month = String(target.getMonth() + 1).padStart(2, '0');
+  const day = String(target.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 });
 const shortDateFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
