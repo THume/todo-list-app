@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
 const {
@@ -40,19 +40,19 @@ const standupDateLabel = computed(() => {
   }).format(new Date());
 });
 
-const completedYesterday = computed(() => {
+const rawCompletedYesterday = computed(() => {
   return Array.isArray(tasksCompletedYesterday.value)
     ? tasksCompletedYesterday.value
     : [];
 });
 
-const completedToday = computed(() => {
+const rawCompletedToday = computed(() => {
   return Array.isArray(tasksCompletedToday.value)
     ? tasksCompletedToday.value
     : [];
 });
 
-const todayTasks = computed(() => {
+const rawTodayTasks = computed(() => {
   const tasks = Array.isArray(tasksDueToday.value) ? [...tasksDueToday.value] : [];
   return tasks.sort((a, b) => {
     const aTime = Date.parse(a?.due ?? '');
@@ -80,7 +80,57 @@ const buildYesterdayKey = (entry) => `yesterday:${entry?.taskId ?? entry?.id ?? 
 const buildCompletedTodayKey = (entry) => `completed-today:${entry?.taskId ?? entry?.id ?? ''}`;
 const buildScheduledKey = (task) => `scheduled:${task?.id ?? ''}`;
 
+const orderCompletedYesterday = ref([]);
+const orderCompletedToday = ref([]);
+const orderScheduledToday = ref([]);
+
 const isHidden = (key) => hiddenTaskIds.value.has(key);
+
+const syncOrder = (source, orderRef, keyFn) => {
+  watch(
+    source,
+    (items) => {
+      const keys = (Array.isArray(items) ? items : []).map(keyFn);
+      const existing = orderRef.value.filter((key) => keys.includes(key));
+      keys.forEach((key) => {
+        if (key && !existing.includes(key)) {
+          existing.push(key);
+        }
+      });
+      orderRef.value = existing;
+    },
+    { immediate: true, deep: false }
+  );
+};
+
+syncOrder(rawCompletedYesterday, orderCompletedYesterday, buildYesterdayKey);
+syncOrder(rawCompletedToday, orderCompletedToday, buildCompletedTodayKey);
+syncOrder(rawTodayTasks, orderScheduledToday, buildScheduledKey);
+
+const orderItems = (items, orderRef, keyFn) => {
+  const orderMap = new Map(orderRef.value.map((key, index) => [key, index]));
+  return [...(Array.isArray(items) ? items : [])].sort((a, b) => {
+    const aKey = keyFn(a);
+    const bKey = keyFn(b);
+    const aIndex = orderMap.has(aKey) ? orderMap.get(aKey) : Number.MAX_SAFE_INTEGER;
+    const bIndex = orderMap.has(bKey) ? orderMap.get(bKey) : Number.MAX_SAFE_INTEGER;
+    if (aIndex !== bIndex) {
+      return aIndex - bIndex;
+    }
+    // fallback to stable ordering
+    return 0;
+  });
+};
+
+const orderedCompletedYesterday = computed(() =>
+  orderItems(rawCompletedYesterday.value, orderCompletedYesterday, buildYesterdayKey)
+);
+const orderedCompletedToday = computed(() =>
+  orderItems(rawCompletedToday.value, orderCompletedToday, buildCompletedTodayKey)
+);
+const orderedScheduledToday = computed(() =>
+  orderItems(rawTodayTasks.value, orderScheduledToday, buildScheduledKey)
+);
 
 const updateHiddenSet = (updater) => {
   const next = new Set(hiddenTaskIds.value);
@@ -105,7 +155,7 @@ const showTask = (key) => {
 };
 
 const displayedCompletedYesterday = computed(() => {
-  const entries = completedYesterday.value;
+  const entries = orderedCompletedYesterday.value;
   if (showAll.value) {
     return entries;
   }
@@ -113,7 +163,7 @@ const displayedCompletedYesterday = computed(() => {
 });
 
 const displayedCompletedToday = computed(() => {
-  const entries = completedToday.value;
+  const entries = orderedCompletedToday.value;
   if (showAll.value) {
     return entries;
   }
@@ -121,7 +171,7 @@ const displayedCompletedToday = computed(() => {
 });
 
 const displayedScheduledToday = computed(() => {
-  const tasks = todayTasks.value;
+  const tasks = orderedScheduledToday.value;
   if (showAll.value) {
     return tasks;
   }
@@ -135,11 +185,145 @@ const todayVisibleCount = computed(
   () => completedTodayCount.value + scheduledTodayCount.value
 );
 
-const totalCompletedYesterday = computed(() => completedYesterday.value.length);
-const totalCompletedToday = computed(() => completedToday.value.length);
-const totalScheduledToday = computed(() => todayTasks.value.length);
+const totalCompletedYesterday = computed(() => rawCompletedYesterday.value.length);
+const totalCompletedToday = computed(() => rawCompletedToday.value.length);
+const totalScheduledToday = computed(() => rawTodayTasks.value.length);
 const hasCompletedToday = computed(() => totalCompletedToday.value > 0);
 const hasScheduledToday = computed(() => totalScheduledToday.value > 0);
+
+const getOrderRef = (section) => {
+  switch (section) {
+    case 'yesterday':
+      return orderCompletedYesterday;
+    case 'completedToday':
+      return orderCompletedToday;
+    case 'scheduled':
+      return orderScheduledToday;
+    default:
+      return null;
+  }
+};
+
+const reorderWithinSection = (section, sourceKey, targetKey) => {
+  const orderRef = getOrderRef(section);
+  if (!orderRef) {
+    return;
+  }
+  const current = [...orderRef.value];
+  const sourceIndex = current.indexOf(sourceKey);
+  if (sourceIndex < 0) {
+    return;
+  }
+  current.splice(sourceIndex, 1);
+  if (targetKey === null) {
+    current.push(sourceKey);
+  } else {
+    const targetIndex = current.indexOf(targetKey);
+    if (targetIndex < 0) {
+      current.push(sourceKey);
+    } else {
+      current.splice(targetIndex, 0, sourceKey);
+    }
+  }
+  orderRef.value = current;
+};
+
+const draggingSection = ref(null);
+const draggingKey = ref(null);
+const dragOverKey = ref(null);
+const dragOverIsEnd = ref(false);
+
+const handleDragStart = (section, key, event) => {
+  if (!key) {
+    return;
+  }
+  draggingSection.value = section;
+  draggingKey.value = key;
+  dragOverKey.value = null;
+  dragOverIsEnd.value = false;
+  if (event?.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    try {
+      event.dataTransfer.setData('text/plain', key);
+    } catch (error) {
+      // ignore – some browsers disallow setting data
+    }
+  }
+};
+
+const handleDragEnter = (section, key) => {
+  if (
+    !draggingKey.value
+    || draggingSection.value !== section
+    || draggingKey.value === key
+  ) {
+    return;
+  }
+  dragOverKey.value = key;
+  dragOverIsEnd.value = false;
+};
+
+const handleDragLeave = (section, key) => {
+  if (draggingSection.value !== section) {
+    return;
+  }
+  if (dragOverKey.value === key) {
+    dragOverKey.value = null;
+  }
+};
+
+const handleDropOnItem = (section, key) => {
+  if (
+    !draggingKey.value
+    || draggingSection.value !== section
+    || draggingKey.value === key
+  ) {
+    handleDragEnd();
+    return;
+  }
+  reorderWithinSection(section, draggingKey.value, key);
+  handleDragEnd();
+};
+
+const handleDropZoneEnter = (section) => {
+  if (draggingSection.value !== section) {
+    return;
+  }
+  dragOverKey.value = null;
+  dragOverIsEnd.value = true;
+};
+
+const handleDropZoneLeave = (section) => {
+  if (draggingSection.value !== section) {
+    return;
+  }
+  dragOverIsEnd.value = false;
+};
+
+const handleDropOnEnd = (section) => {
+  if (!draggingKey.value || draggingSection.value !== section) {
+    handleDragEnd();
+    return;
+  }
+  reorderWithinSection(section, draggingKey.value, null);
+  handleDragEnd();
+};
+
+const handleDragEnd = () => {
+  draggingSection.value = null;
+  draggingKey.value = null;
+  dragOverKey.value = null;
+  dragOverIsEnd.value = false;
+};
+
+const isDragOverItem = (section, key) =>
+  draggingSection.value === section && dragOverKey.value === key;
+
+const isDraggingItem = (section, key) =>
+  draggingSection.value === section && draggingKey.value === key;
+
+const isDropZoneActive = (section) =>
+  draggingSection.value === section && dragOverIsEnd.value;
 
 const formatTimestamp = (value) => {
   if (!value) {
@@ -211,7 +395,21 @@ const formatTimeOnly = (value) => {
           <li
             v-for="entry in displayedCompletedYesterday"
             :key="entry.taskId"
-            :class="['standup__item', { 'standup__item--hidden': showAll && isHidden(buildYesterdayKey(entry)) }]"
+            :class="[
+              'standup__item',
+              {
+                'standup__item--hidden': showAll && isHidden(buildYesterdayKey(entry)),
+                'standup__item--drag-over': isDragOverItem('yesterday', buildYesterdayKey(entry)),
+                'standup__item--dragging': isDraggingItem('yesterday', buildYesterdayKey(entry)),
+              },
+            ]"
+            :draggable="displayedCompletedYesterday.length > 1"
+            @dragstart="handleDragStart('yesterday', buildYesterdayKey(entry), $event)"
+            @dragend="handleDragEnd"
+            @dragenter.prevent="handleDragEnter('yesterday', buildYesterdayKey(entry))"
+            @dragover.prevent
+            @dragleave="handleDragLeave('yesterday', buildYesterdayKey(entry))"
+            @drop.prevent="handleDropOnItem('yesterday', buildYesterdayKey(entry))"
           >
             <div class="standup__item-header">
               <span class="standup__item-title">{{ entry.title }}</span>
@@ -249,6 +447,15 @@ const formatTimeOnly = (value) => {
               </button>
             </div>
           </li>
+          <li
+            v-if="draggingSection === 'yesterday'"
+            class="standup__drop-zone"
+            :class="{ 'standup__drop-zone--active': isDropZoneActive('yesterday') }"
+            @dragenter.prevent="handleDropZoneEnter('yesterday')"
+            @dragover.prevent
+            @dragleave="handleDropZoneLeave('yesterday')"
+            @drop.prevent="handleDropOnEnd('yesterday')"
+          ></li>
         </ul>
       </article>
       <article class="standup__section">
@@ -288,7 +495,21 @@ const formatTimeOnly = (value) => {
               <li
                 v-for="entry in displayedCompletedToday"
                 :key="entry.taskId"
-                :class="['standup__item', { 'standup__item--hidden': showAll && isHidden(buildCompletedTodayKey(entry)) }]"
+                :class="[
+                  'standup__item',
+                  {
+                    'standup__item--hidden': showAll && isHidden(buildCompletedTodayKey(entry)),
+                    'standup__item--drag-over': isDragOverItem('completedToday', buildCompletedTodayKey(entry)),
+                    'standup__item--dragging': isDraggingItem('completedToday', buildCompletedTodayKey(entry)),
+                  },
+                ]"
+                :draggable="displayedCompletedToday.length > 1"
+                @dragstart="handleDragStart('completedToday', buildCompletedTodayKey(entry), $event)"
+                @dragend="handleDragEnd"
+                @dragenter.prevent="handleDragEnter('completedToday', buildCompletedTodayKey(entry))"
+                @dragover.prevent
+                @dragleave="handleDragLeave('completedToday', buildCompletedTodayKey(entry))"
+                @drop.prevent="handleDropOnItem('completedToday', buildCompletedTodayKey(entry))"
               >
                 <div class="standup__item-header">
                   <span class="standup__item-title">{{ entry.title }}</span>
@@ -331,6 +552,15 @@ const formatTimeOnly = (value) => {
                   </button>
                 </div>
               </li>
+              <li
+                v-if="draggingSection === 'completedToday'"
+                class="standup__drop-zone"
+                :class="{ 'standup__drop-zone--active': isDropZoneActive('completedToday') }"
+                @dragenter.prevent="handleDropZoneEnter('completedToday')"
+                @dragover.prevent
+                @dragleave="handleDropZoneLeave('completedToday')"
+                @drop.prevent="handleDropOnEnd('completedToday')"
+              ></li>
             </ul>
           </section>
           <section
@@ -351,7 +581,21 @@ const formatTimeOnly = (value) => {
               <li
                 v-for="task in displayedScheduledToday"
                 :key="task.id"
-                :class="['standup__item', { 'standup__item--hidden': showAll && isHidden(buildScheduledKey(task)) }]"
+                :class="[
+                  'standup__item',
+                  {
+                    'standup__item--hidden': showAll && isHidden(buildScheduledKey(task)),
+                    'standup__item--drag-over': isDragOverItem('scheduled', buildScheduledKey(task)),
+                    'standup__item--dragging': isDraggingItem('scheduled', buildScheduledKey(task)),
+                  },
+                ]"
+                :draggable="displayedScheduledToday.length > 1"
+                @dragstart="handleDragStart('scheduled', buildScheduledKey(task), $event)"
+                @dragend="handleDragEnd"
+                @dragenter.prevent="handleDragEnter('scheduled', buildScheduledKey(task))"
+                @dragover.prevent
+                @dragleave="handleDragLeave('scheduled', buildScheduledKey(task))"
+                @drop.prevent="handleDropOnItem('scheduled', buildScheduledKey(task))"
               >
                 <div class="standup__item-header">
                   <span class="standup__item-title">{{ task.title }}</span>
@@ -387,6 +631,15 @@ const formatTimeOnly = (value) => {
                   </button>
                 </div>
               </li>
+              <li
+                v-if="draggingSection === 'scheduled'"
+                class="standup__drop-zone"
+                :class="{ 'standup__drop-zone--active': isDropZoneActive('scheduled') }"
+                @dragenter.prevent="handleDropZoneEnter('scheduled')"
+                @dragover.prevent
+                @dragleave="handleDropZoneLeave('scheduled')"
+                @drop.prevent="handleDropOnEnd('scheduled')"
+              ></li>
             </ul>
           </section>
         </div>
@@ -623,5 +876,25 @@ const formatTimeOnly = (value) => {
 .standup__item--hidden {
   opacity: 0.65;
   border-style: dashed;
+}
+
+.standup__item--dragging {
+  opacity: 0.4;
+}
+
+.standup__item--drag-over {
+  border-color: theme.$color-accent;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+}
+
+.standup__drop-zone {
+  height: 0;
+  border-top: 2px dashed theme.$color-border-input;
+  margin: 0.4rem 0;
+  transition: border-color 0.2s ease;
+}
+
+.standup__drop-zone--active {
+  border-color: theme.$color-accent;
 }
 </style>
