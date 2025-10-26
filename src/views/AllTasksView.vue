@@ -15,6 +15,7 @@ const {
   duplicateTask,
   moveTaskToToday,
   moveTaskToTomorrow,
+  postponeTasksUntil,
   lists,
 } = useTaskStore();
 
@@ -102,6 +103,68 @@ const handleMoveToToday = (task) => {
 
 const handleMoveToTomorrow = (task) => {
   moveTaskToTomorrow(task.id);
+};
+
+const postponeDate = ref('');
+const postponeMessage = ref('');
+const postponeMessageType = ref('info');
+const isPostponePending = ref(false);
+
+const canPostpone = computed(() => typeof postponeDate.value === 'string' && postponeDate.value.length > 0);
+
+const todayIso = computed(() => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+});
+
+const formatPostponeDate = (value) => {
+  if (!value) {
+    return '';
+  }
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.valueOf())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(parsed);
+};
+
+const resetPostponeMessage = () => {
+  postponeMessage.value = '';
+  postponeMessageType.value = 'info';
+};
+
+watch(postponeDate, () => {
+  resetPostponeMessage();
+});
+
+const handlePostponeAll = () => {
+  if (isPostponePending.value) {
+    return;
+  }
+  if (!canPostpone.value) {
+    postponeMessage.value = 'Select a date to postpone tasks.';
+    postponeMessageType.value = 'error';
+    return;
+  }
+
+  isPostponePending.value = true;
+  try {
+    const { updatedCount } = postponeTasksUntil(postponeDate.value);
+    if (updatedCount > 0) {
+      postponeMessage.value = `Moved ${updatedCount} task${updatedCount === 1 ? '' : 's'} to ${formatPostponeDate(
+        postponeDate.value
+      )}.`;
+      postponeMessageType.value = 'success';
+    } else {
+      postponeMessage.value = 'No tasks were due before the selected date.';
+      postponeMessageType.value = 'info';
+    }
+  } finally {
+    isPostponePending.value = false;
+  }
 };
 
 const handleDragStart = (task) => {
@@ -225,6 +288,38 @@ watch(showEditDialog, (isOpen) => {
       <h2>All Tasks</h2>
       <span class="task-panel__count">{{ activeTasks.length }} active</span>
     </header>
+    <div class="task-panel__controls">
+      <div class="postpone-control">
+        <label class="postpone-control__label" for="postpone-date-input">
+          Postpone tasks until
+        </label>
+        <div class="postpone-control__inputs">
+          <input
+            id="postpone-date-input"
+            v-model="postponeDate"
+            type="date"
+            class="postpone-control__date"
+            :min="todayIso"
+            name="postpone-date"
+          />
+          <button
+            type="button"
+            class="postpone-control__button"
+            :disabled="!canPostpone || isPostponePending"
+            @click="handlePostponeAll"
+          >
+            {{ isPostponePending ? 'Postponing...' : 'Postpone' }}
+          </button>
+        </div>
+      </div>
+      <p
+        v-if="postponeMessage"
+        class="postpone-control__status"
+        :class="`postpone-control__status--${postponeMessageType}`"
+      >
+        {{ postponeMessage }}
+      </p>
+    </div>
     <p v-if="activeTasks.length === 0" class="task-panel__empty">
       No active tasks right now.
     </p>
@@ -322,6 +417,86 @@ watch(showEditDialog, (isOpen) => {
 .task-panel__count {
   color: theme.$color-text-muted;
   font-size: 0.95rem;
+}
+
+.task-panel__controls {
+  border: 1px solid theme.$color-border-input;
+  border-radius: 0.85rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.postpone-control {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.postpone-control__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: theme.$color-text-muted;
+}
+
+.postpone-control__inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.postpone-control__date {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid theme.$color-border-input;
+  border-radius: 0.6rem;
+  color: theme.$color-text-primary;
+  padding: 0.45rem 0.75rem;
+  min-width: 11rem;
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
+}
+
+.postpone-control__button {
+  border: none;
+  border-radius: 0.6rem;
+  padding: 0.5rem 1.35rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, theme.$color-accent, theme.$color-accent-hover);
+  color: theme.$color-text-inverted;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.postpone-control__status {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: theme.$color-text-muted;
+}
+
+.postpone-control__status--success {
+  color: #4ade80;
+}
+
+.postpone-control__status--info {
+  color: theme.$color-text-muted;
+}
+
+.postpone-control__status--error {
+  color: theme.$color-accent;
 }
 
 .task-panel__empty {

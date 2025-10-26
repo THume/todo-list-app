@@ -341,6 +341,43 @@ const moveTaskToTomorrow = (taskId) => {
   return moveTaskToDate(taskId, tomorrowStart);
 };
 
+const postponeTasksUntil = (dateValue) => {
+  const targetDate = dateValue instanceof Date ? new Date(dateValue) : new Date(dateValue ?? '');
+  if (Number.isNaN(targetDate.valueOf())) {
+    return { updatedCount: 0 };
+  }
+
+  const targetStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+  const updatedTasks = Array.isArray(tasks.value) ? [...tasks.value] : [];
+  let updatedCount = 0;
+
+  updatedTasks.forEach((task, index) => {
+    if (!task || task.completed || !task.due) {
+      return;
+    }
+
+    const currentDue = new Date(task.due);
+    if (Number.isNaN(currentDue.valueOf()) || currentDue >= targetStart) {
+      return;
+    }
+
+    const newDue = new Date(targetStart);
+    newDue.setHours(currentDue.getHours(), currentDue.getMinutes(), currentDue.getSeconds(), 0);
+
+    updatedTasks[index] = {
+      ...task,
+      due: newDue.toISOString(),
+    };
+    updatedCount += 1;
+  });
+
+  if (updatedCount > 0) {
+    tasks.value = updatedTasks;
+  }
+
+  return { updatedCount };
+};
+
 const skipTaskRecurrence = (taskId) => {
   const targetIndex = tasks.value.findIndex((item) => item.id === taskId);
   if (targetIndex < 0) {
@@ -1031,6 +1068,7 @@ export const useTaskStore = () => {
     removeTask,
     moveTaskToToday,
     moveTaskToTomorrow,
+    postponeTasksUntil,
     skipTaskRecurrence,
     initialize,
     teardown,
