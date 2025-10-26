@@ -8,6 +8,7 @@ const emit = defineEmits([
   'duplicate',
   'move-to-today',
   'move-to-tomorrow',
+  'skip-recurrence',
 ]);
 
 const props = defineProps({
@@ -23,6 +24,10 @@ const props = defineProps({
   listName: {
     type: String,
     default: '',
+  },
+  showSkipRecurrenceAction: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -131,6 +136,9 @@ const isDueToday = computed(() => {
 
 const showMoveToTomorrow = computed(() => isDueToday.value);
 const showMoveToToday = computed(() => !isDueToday.value);
+const canSkipRecurrence = computed(
+  () => props.showSkipRecurrenceAction && Boolean(props.task.recurrence) && !props.task.completed
+);
 
 const closeMenu = () => {
   menuOpen.value = false;
@@ -204,6 +212,11 @@ const handleMoveToTomorrow = () => {
   emit('move-to-tomorrow', props.task);
   closeMenu();
 };
+
+const handleSkipRecurrence = () => {
+  emit('skip-recurrence', props.task);
+  closeMenu();
+};
 </script>
 
 <template>
@@ -257,6 +270,16 @@ const handleMoveToTomorrow = () => {
                   @click="handleMoveToTomorrow"
                 >
                   Move to Tomorrow
+                </button>
+              </li>
+              <li v-if="canSkipRecurrence" role="none">
+                <button
+                  type="button"
+                  class="task__menu-item"
+                  role="menuitem"
+                  @click="handleSkipRecurrence"
+                >
+                  Skip Recurrence
                 </button>
               </li>
               <li role="none">

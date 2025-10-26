@@ -341,6 +341,36 @@ const moveTaskToTomorrow = (taskId) => {
   return moveTaskToDate(taskId, tomorrowStart);
 };
 
+const skipTaskRecurrence = (taskId) => {
+  const targetIndex = tasks.value.findIndex((item) => item.id === taskId);
+  if (targetIndex < 0) {
+    return false;
+  }
+
+  const targetTask = tasks.value[targetIndex];
+  if (!targetTask || targetTask.completed) {
+    return false;
+  }
+
+  const recurrence = normalizeRecurrence(targetTask.recurrence);
+  if (!recurrence || !targetTask.due) {
+    return false;
+  }
+
+  const nextDue = computeNextDueDate(targetTask.due, recurrence);
+  if (!nextDue) {
+    return false;
+  }
+
+  const updated = [...tasks.value];
+  updated[targetIndex] = {
+    ...targetTask,
+    due: nextDue,
+  };
+  tasks.value = updated;
+  return true;
+};
+
 const addTask = ({ title, description, dueDate, dueTime, recurrence, listId }) => {
   const due = buildDueDate(dueDate, dueTime);
   const recurrenceValue = normalizeRecurrence(recurrence);
@@ -1001,6 +1031,7 @@ export const useTaskStore = () => {
     removeTask,
     moveTaskToToday,
     moveTaskToTomorrow,
+    skipTaskRecurrence,
     initialize,
     teardown,
     buildDueDate,

@@ -16,6 +16,7 @@ const {
   moveTaskToToday,
   moveTaskToTomorrow,
   lists,
+  skipTaskRecurrence,
 } = useTaskStore();
 
 const showDeleteDialog = ref(false);
@@ -99,6 +100,13 @@ const handleMoveToToday = (task) => {
 
 const handleMoveToTomorrow = (task) => {
   moveTaskToTomorrow(task.id);
+};
+
+const handleSkipRecurrence = (task) => {
+  if (!task?.id) {
+    return;
+  }
+  skipTaskRecurrence(task.id);
 };
 
 const handleDragStart = (task) => {
@@ -249,12 +257,14 @@ watch(showEditDialog, (isOpen) => {
           <Task
             :task="task"
             :list-name="resolveListName(task)"
+            show-skip-recurrence-action
             @toggle="handleToggle"
             @remove="requestDelete"
             @edit="startEdit"
             @duplicate="handleDuplicate"
             @move-to-today="handleMoveToToday"
             @move-to-tomorrow="handleMoveToTomorrow"
+            @skip-recurrence="handleSkipRecurrence"
           />
         </li>
       </template>
