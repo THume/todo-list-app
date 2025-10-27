@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import AddTaskForm from './components/AddTaskForm.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import TaskNotifications from './components/TaskNotifications.vue';
+import IconGlyph from './components/IconGlyph.vue';
 import { useTaskStore } from './stores/useTaskStore';
 
 const {
@@ -99,6 +100,45 @@ const tomorrowLabel = computed(() => {
   tomorrow.setDate(tomorrow.getDate() + 1);
   return `Tomorrow (${shortDateFormatter.format(tomorrow)})`;
 });
+
+const primaryNavLinks = computed(() => [
+  {
+    to: '/standup',
+    label: 'Standup',
+    icon: 'person',
+    count: null,
+  },
+  {
+    to: '/today',
+    label: todayLabel.value,
+    icon: 'sun',
+    count: todayCount.value,
+  },
+  {
+    to: '/tomorrow',
+    label: tomorrowLabel.value,
+    icon: 'sunrise',
+    count: tomorrowCount.value,
+  },
+  {
+    to: '/overdue',
+    label: 'Overdue',
+    icon: 'exclamation',
+    count: overdueCount.value,
+  },
+  {
+    to: '/all',
+    label: 'All Tasks',
+    icon: 'layers',
+    count: allCount.value,
+  },
+  {
+    to: '/completed',
+    label: 'Completed',
+    icon: 'check',
+    count: null,
+  },
+]);
 
 const handleCreateList = () => {
   if (typeof window === 'undefined') {
@@ -270,42 +310,44 @@ onUnmounted(() => {
         type="button"
         class="layout__collapse-toggle"
         :aria-expanded="!isSidebarCollapsed"
+        :aria-label="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
         @click="toggleSidebar"
       >
-        <span v-if="isSidebarCollapsed">Expand</span>
-        <span v-else>Collapse</span>
+        <IconGlyph
+          :name="isSidebarCollapsed ? 'chevron-right' : 'chevron-left'"
+          size="22"
+          class="layout__collapse-icon"
+          aria-hidden="true"
+        />
       </button>
       <div v-show="!isSidebarCollapsed" class="layout__sidebar-content">
         <div class="layout__sidebar-top">
-          <h1 class="layout__title">Todo List</h1>
+          <h1 class="layout__title">TODOs</h1>
           <nav class="layout__nav">
-            <RouterLink to="/standup" class="layout__link" active-class="layout__link--active">
-              Standup
-            </RouterLink>
-            <RouterLink to="/today" class="layout__link" active-class="layout__link--active">
-              <span class="layout__nav-label">{{ todayLabel }}</span>
-              <span class="layout__list-count layout__nav-count">{{ todayCount }}</span>
-            </RouterLink>
-            <RouterLink to="/tomorrow" class="layout__link" active-class="layout__link--active">
-              <span class="layout__nav-label">{{ tomorrowLabel }}</span>
-              <span class="layout__list-count layout__nav-count">{{ tomorrowCount }}</span>
-            </RouterLink>
-            <RouterLink to="/overdue" class="layout__link" active-class="layout__link--active">
-              <span class="layout__nav-label">Overdue</span>
-              <span class="layout__list-count layout__nav-count">{{ overdueCount }}</span>
-            </RouterLink>
-            <RouterLink to="/all" class="layout__link" active-class="layout__link--active">
-              <span class="layout__nav-label">All Tasks</span>
-              <span class="layout__list-count layout__nav-count">{{ allCount }}</span>
-            </RouterLink>
-            <RouterLink to="/completed" class="layout__link" active-class="layout__link--active">
-              Completed
+            <RouterLink
+              v-for="link in primaryNavLinks"
+              :key="link.to"
+              :to="link.to"
+              class="layout__link"
+              active-class="layout__link--active"
+            >
+              <span class="layout__nav-icon" aria-hidden="true">
+                <IconGlyph :name="link.icon" size="22" />
+              </span>
+              <span class="layout__nav-label">{{ link.label }}</span>
+              <span
+                v-if="link.count !== null"
+                class="layout__list-count layout__nav-count"
+              >
+                {{ link.count }}
+              </span>
             </RouterLink>
           </nav>
           <section class="layout__lists">
             <header class="layout__lists-header">
               <span class="layout__lists-title">Lists</span>
               <button type="button" class="layout__add-list" @click="handleCreateList">
+                <IconGlyph name="plus" size="14" class="layout__add-list-icon" aria-hidden="true" />
                 New List
               </button>
             </header>
@@ -316,6 +358,9 @@ onUnmounted(() => {
                   class="layout__link layout__link--list"
                   active-class="layout__link--active"
                 >
+                  <span class="layout__list-icon" aria-hidden="true">
+                    <IconGlyph name="folder" size="16" />
+                  </span>
                   <span class="layout__list-name">{{ list.name }}</span>
                   <span class="layout__list-count">{{ listCounts[list.id] ?? 0 }}</span>
                 </RouterLink>
@@ -387,7 +432,7 @@ onUnmounted(() => {
 }
 
 .layout--collapsed {
-  --sidebar-width: 4.75rem;
+  --sidebar-width: 5.5rem;
 }
 
 .layout__sidebar {
@@ -413,7 +458,7 @@ onUnmounted(() => {
 }
 
 .layout__sidebar--collapsed {
-  padding: 1.25rem 1rem;
+  padding: 1.25rem 0.75rem;
   align-items: center;
   overflow: visible;
 }
@@ -452,18 +497,21 @@ onUnmounted(() => {
 
 .layout__collapse-toggle {
   border: 1px solid theme.$color-border-muted;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   color: theme.$color-text-heading;
-  font-size: 0.8rem;
-  font-weight: 600;
   border-radius: 999px;
-  padding: 0.4rem 0.9rem;
   cursor: pointer;
   align-self: flex-end;
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
 
   &:hover {
-    background: rgba(239, 68, 68, 0.18);
+    background: rgba(239, 68, 68, 0.2);
     border-color: theme.$color-accent;
     color: #1b1b1d;
     transform: translateY(-1px);
@@ -473,6 +521,10 @@ onUnmounted(() => {
     outline: 2px solid theme.$color-accent;
     outline-offset: 2px;
   }
+}
+
+.layout__collapse-icon {
+  color: currentColor;
 }
 
 .layout__sidebar--collapsed .layout__collapse-toggle {
@@ -631,6 +683,40 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.layout__nav-icon {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.85rem;
+  background: rgba(239, 68, 68, 0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.75rem;
+  color: theme.$color-accent;
+}
+
+.layout__link--active .layout__nav-icon {
+  color: #1b1b1d;
+}
+
+.layout__list-icon {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.5rem;
+  color: theme.$color-text-muted;
+}
+
+.layout__add-list-icon {
+  margin-right: 0.4rem;
 }
 
 .layout__nav-count {

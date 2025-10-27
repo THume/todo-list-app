@@ -6,6 +6,7 @@ import {
   resolveListId,
   recurrenceOptions,
 } from '../composables/useTaskFormHelpers';
+import IconGlyph from './IconGlyph.vue';
 
 const props = defineProps({
   visible: {
@@ -156,39 +157,57 @@ watch(
 <template>
   <section class="add-task">
     <header class="add-task__header">
-      <h1 class="add-task__title">Add a Task</h1>
+      <h1 class="add-task__title">
+        <IconGlyph name="plus" size="18" class="add-task__title-icon" aria-hidden="true" />
+        Add a Task
+      </h1>
       <button
         type="button"
         class="add-task__toggle"
         :aria-expanded="visible"
         @click="toggleVisibility"
       >
+        <IconGlyph
+          :name="visible ? 'layers' : 'plus'"
+          size="14"
+          class="add-task__toggle-icon"
+          aria-hidden="true"
+        />
         {{ visible ? 'Hide form' : 'Show form' }}
       </button>
     </header>
     <form v-show="visible" class="add-task__form" @submit.prevent="handleSubmit">
       <div class="add-task__fields">
-        <input
-          ref="titleField"
-          v-model="title"
-          type="text"
-          class="add-task__input"
-          name="title"
-          autocomplete="off"
-          placeholder="Task title"
-          aria-label="Task title"
-          required
-        />
-        <textarea
-          v-model="description"
-          class="add-task__textarea"
-          name="description"
-          placeholder="Description (optional)"
-          aria-label="Task description"
-          rows="2"
-        />
+        <div class="add-task__input-shell">
+          <IconGlyph name="text" size="16" class="add-task__field-icon" aria-hidden="true" />
+          <input
+            ref="titleField"
+            v-model="title"
+            type="text"
+            class="add-task__input add-task__input--with-icon"
+            name="title"
+            autocomplete="off"
+            placeholder="Task title"
+            aria-label="Task title"
+            required
+          />
+        </div>
+        <div class="add-task__input-shell add-task__input-shell--textarea">
+          <IconGlyph name="pencil" size="16" class="add-task__field-icon" aria-hidden="true" />
+          <textarea
+            v-model="description"
+            class="add-task__textarea add-task__textarea--with-icon"
+            name="description"
+            placeholder="Description (optional)"
+            aria-label="Task description"
+            rows="2"
+          />
+        </div>
         <label class="add-task__due-label add-task__list">
-          <span>List</span>
+          <span class="add-task__label-heading">
+            <IconGlyph name="folder" size="14" class="add-task__label-icon" aria-hidden="true" />
+            <span>List</span>
+          </span>
           <select
             v-model="selectedListId"
             class="add-task__select"
@@ -203,7 +222,10 @@ watch(
         </label>
         <div class="add-task__due-row">
           <label class="add-task__due-label">
-            <span>Due date</span>
+            <span class="add-task__label-heading">
+              <IconGlyph name="calendar" size="14" class="add-task__label-icon" aria-hidden="true" />
+              <span>Due date</span>
+            </span>
             <div class="add-task__due-input-wrapper">
               <input
                 v-model="dueDate"
@@ -217,12 +239,16 @@ watch(
                 class="add-task__today-button"
                 @click="setDueDateToToday"
               >
+                <IconGlyph name="sun" size="14" class="add-task__chip-icon" aria-hidden="true" />
                 Today
               </button>
             </div>
           </label>
           <label class="add-task__due-label">
-            <span>Due time</span>
+            <span class="add-task__label-heading">
+              <IconGlyph name="clock" size="14" class="add-task__label-icon" aria-hidden="true" />
+              <span>Due time</span>
+            </span>
             <input
               v-model="dueTime"
               type="time"
@@ -233,8 +259,11 @@ watch(
             />
           </label>
         </div>
-        <label class="add-task__due-label add-task__recurrence">
-          <span>Repeats</span>
+          <label class="add-task__due-label add-task__recurrence">
+            <span class="add-task__label-heading">
+              <IconGlyph name="repeat" size="14" class="add-task__label-icon" aria-hidden="true" />
+              <span>Repeats</span>
+            </span>
           <select
             v-model="recurrence"
             name="recurrence"
@@ -251,7 +280,10 @@ watch(
           </select>
         </label>
       </div>
-      <button type="submit" class="add-task__submit" :disabled="!canSubmit">Add Task</button>
+      <button type="submit" class="add-task__submit" :disabled="!canSubmit">
+        <IconGlyph name="plus" size="16" class="add-task__submit-icon" aria-hidden="true" />
+        Add Task
+      </button>
     </form>
   </section>
 </template>
@@ -299,6 +331,9 @@ $button-bg-hover: theme.$color-accent-hover;
     font-size: 1rem;
     font-weight: 700;
     color: $input-text;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
   }
 
   &__form {
@@ -309,6 +344,23 @@ $button-bg-hover: theme.$color-accent-hover;
   &__fields {
     display: grid;
     gap: 0.75rem;
+  }
+
+  &__input-shell {
+    position: relative;
+  }
+
+  &__field-icon {
+    position: absolute;
+    left: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: $muted-text;
+    pointer-events: none;
+  }
+
+  &__input-shell--textarea &__field-icon {
+    top: 1.25rem;
   }
 
   &__due-row {
@@ -344,6 +396,11 @@ $button-bg-hover: theme.$color-accent-hover;
     min-height: 3.5rem;
   }
 
+  &__input--with-icon,
+  &__textarea--with-icon {
+    padding-left: 2.6rem;
+  }
+
   &__due-input {
     flex: 1 1 auto;
     min-width: 0;
@@ -355,6 +412,18 @@ $button-bg-hover: theme.$color-accent-hover;
     gap: 0.35rem;
     font-size: 0.9rem;
     color: $muted-text;
+  }
+
+  &__label-heading {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+    color: $input-text;
+  }
+
+  &__label-icon {
+    color: theme.$color-accent;
   }
 
   &__due-input-wrapper {
@@ -415,6 +484,11 @@ $button-bg-hover: theme.$color-accent-hover;
     }
   }
 
+  &__chip-icon {
+    margin-right: 0.35rem;
+    color: theme.$color-accent;
+  }
+
   &__toggle {
     border: 1px solid $panel-border;
     background: $input-bg;
@@ -425,6 +499,8 @@ $button-bg-hover: theme.$color-accent-hover;
     border-radius: 999px;
     cursor: pointer;
     transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    display: inline-flex;
+    align-items: center;
 
     &:hover {
       background: $input-bg-focus;
@@ -436,6 +512,11 @@ $button-bg-hover: theme.$color-accent-hover;
       outline: 2px solid $focus-outline;
       outline-offset: 2px;
     }
+  }
+
+  &__toggle-icon {
+    margin-right: 0.4rem;
+    color: theme.$color-accent;
   }
 
   &__submit {
@@ -450,6 +531,9 @@ $button-bg-hover: theme.$color-accent-hover;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     box-shadow: 0 12px 20px -18px rgba(239, 68, 68, 0.7);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
 
     &:disabled {
       cursor: not-allowed;
@@ -469,6 +553,14 @@ $button-bg-hover: theme.$color-accent-hover;
       justify-self: stretch;
       text-align: center;
     }
+  }
+
+  &__title-icon {
+    color: theme.$color-accent;
+  }
+
+  &__submit-icon {
+    margin-right: 0.5rem;
   }
 }
 </style>

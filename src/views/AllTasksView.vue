@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import Task from '../components/Task.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import TaskEditorDialog from '../components/TaskEditorDialog.vue';
+import IconGlyph from '../components/IconGlyph.vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
 const {
@@ -291,6 +292,7 @@ watch(showEditDialog, (isOpen) => {
     <div class="task-panel__controls">
       <div class="postpone-control">
         <label class="postpone-control__label" for="postpone-date-input">
+          <IconGlyph name="calendar" size="16" class="postpone-control__label-icon" aria-hidden="true" />
           Postpone tasks until
         </label>
         <div class="postpone-control__inputs">
@@ -308,6 +310,7 @@ watch(showEditDialog, (isOpen) => {
             :disabled="!canPostpone || isPostponePending"
             @click="handlePostponeAll"
           >
+            <IconGlyph name="repeat" size="16" class="postpone-control__button-icon" aria-hidden="true" />
             {{ isPostponePending ? 'Postponing...' : 'Postpone' }}
           </button>
         </div>
@@ -437,6 +440,13 @@ watch(showEditDialog, (isOpen) => {
   font-size: 0.9rem;
   font-weight: 600;
   color: theme.$color-text-muted;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.postpone-control__label-icon {
+  color: theme.$color-accent;
 }
 
 .postpone-control__inputs {
@@ -469,6 +479,9 @@ watch(showEditDialog, (isOpen) => {
   color: theme.$color-text-inverted;
   cursor: pointer;
   transition: transform 0.2s ease, opacity 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
@@ -478,6 +491,10 @@ watch(showEditDialog, (isOpen) => {
     opacity: 0.6;
     cursor: not-allowed;
   }
+}
+
+.postpone-control__button-icon {
+  color: theme.$color-text-inverted;
 }
 
 .postpone-control__status {
