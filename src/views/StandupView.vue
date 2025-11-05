@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, ref, watch } from 'vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
@@ -826,6 +826,7 @@ const formatTimeOnly = (value) => {
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  width: max-content;
 }
 
 .standup__badge--info {

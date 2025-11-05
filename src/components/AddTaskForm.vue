@@ -158,7 +158,12 @@ watch(
   <section class="add-task">
     <header class="add-task__header">
       <h1 class="add-task__title">
-        <IconGlyph name="plus" size="18" class="add-task__title-icon" aria-hidden="true" />
+        <IconGlyph
+          name="plus"
+          size="18"
+          class="add-task__title-icon"
+          aria-hidden="true"
+        />
         Add a Task
       </h1>
       <button
@@ -179,7 +184,12 @@ watch(
     <form v-show="visible" class="add-task__form" @submit.prevent="handleSubmit">
       <div class="add-task__fields">
         <div class="add-task__input-shell">
-          <IconGlyph name="text" size="16" class="add-task__field-icon" aria-hidden="true" />
+          <IconGlyph
+            name="text"
+            size="16"
+            class="add-task__field-icon"
+            aria-hidden="true"
+          />
           <input
             ref="titleField"
             v-model="title"
@@ -193,7 +203,12 @@ watch(
           />
         </div>
         <div class="add-task__input-shell add-task__input-shell--textarea">
-          <IconGlyph name="pencil" size="16" class="add-task__field-icon" aria-hidden="true" />
+          <IconGlyph
+            name="pencil"
+            size="16"
+            class="add-task__field-icon"
+            aria-hidden="true"
+          />
           <textarea
             v-model="description"
             class="add-task__textarea add-task__textarea--with-icon"
@@ -205,7 +220,12 @@ watch(
         </div>
         <label class="add-task__due-label add-task__list">
           <span class="add-task__label-heading">
-            <IconGlyph name="folder" size="14" class="add-task__label-icon" aria-hidden="true" />
+            <IconGlyph
+              name="folder"
+              size="14"
+              class="add-task__label-icon"
+              aria-hidden="true"
+            />
             <span>List</span>
           </span>
           <select
@@ -223,7 +243,12 @@ watch(
         <div class="add-task__due-row">
           <label class="add-task__due-label">
             <span class="add-task__label-heading">
-              <IconGlyph name="calendar" size="14" class="add-task__label-icon" aria-hidden="true" />
+              <IconGlyph
+                name="calendar"
+                size="14"
+                class="add-task__label-icon"
+                aria-hidden="true"
+              />
               <span>Due date</span>
             </span>
             <div class="add-task__due-input-wrapper">
@@ -239,14 +264,18 @@ watch(
                 class="add-task__today-button"
                 @click="setDueDateToToday"
               >
-                <IconGlyph name="sun" size="14" class="add-task__chip-icon" aria-hidden="true" />
                 Today
               </button>
             </div>
           </label>
           <label class="add-task__due-label">
             <span class="add-task__label-heading">
-              <IconGlyph name="clock" size="14" class="add-task__label-icon" aria-hidden="true" />
+              <IconGlyph
+                name="clock"
+                size="14"
+                class="add-task__label-icon"
+                aria-hidden="true"
+              />
               <span>Due time</span>
             </span>
             <input
@@ -259,11 +288,16 @@ watch(
             />
           </label>
         </div>
-          <label class="add-task__due-label add-task__recurrence">
-            <span class="add-task__label-heading">
-              <IconGlyph name="repeat" size="14" class="add-task__label-icon" aria-hidden="true" />
-              <span>Repeats</span>
-            </span>
+        <label class="add-task__due-label add-task__recurrence">
+          <span class="add-task__label-heading">
+            <IconGlyph
+              name="repeat"
+              size="14"
+              class="add-task__label-icon"
+              aria-hidden="true"
+            />
+            <span>Repeats</span>
+          </span>
           <select
             v-model="recurrence"
             name="recurrence"
@@ -281,7 +315,12 @@ watch(
         </label>
       </div>
       <button type="submit" class="add-task__submit" :disabled="!canSubmit">
-        <IconGlyph name="plus" size="16" class="add-task__submit-icon" aria-hidden="true" />
+        <IconGlyph
+          name="plus"
+          size="16"
+          class="add-task__submit-icon"
+          aria-hidden="true"
+        />
         Add Task
       </button>
     </form>

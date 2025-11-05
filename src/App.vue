@@ -347,7 +347,12 @@ onUnmounted(() => {
             <header class="layout__lists-header">
               <span class="layout__lists-title">Lists</span>
               <button type="button" class="layout__add-list" @click="handleCreateList">
-                <IconGlyph name="plus" size="14" class="layout__add-list-icon" aria-hidden="true" />
+                <IconGlyph
+                  name="plus"
+                  size="14"
+                  class="layout__add-list-icon"
+                  aria-hidden="true"
+                />
                 New List
               </button>
             </header>
@@ -396,8 +401,8 @@ onUnmounted(() => {
         :aria-valuemin="MIN_SIDEBAR_WIDTH"
         :aria-valuemax="MAX_SIDEBAR_WIDTH"
         :aria-valuenow="Math.round(sidebarWidth)"
-        @pointerdown.stop="beginSidebarResize"
         :class="{ 'layout__resize-handle--active': isResizingSidebar }"
+        @pointerdown.stop="beginSidebarResize"
       />
     </aside>
     <main class="layout__content">
@@ -438,7 +443,7 @@ onUnmounted(() => {
 .layout__sidebar {
   background: theme.$color-sidebar-background;
   border-right: 1px solid theme.$color-border-muted;
-  padding: 2.5rem 2rem;
+  padding: 1.25rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
