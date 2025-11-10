@@ -109,6 +109,12 @@ const primaryNavLinks = computed(() => [
     count: null,
   },
   {
+    to: '/overdue',
+    label: 'Overdue',
+    icon: 'exclamation',
+    count: overdueCount.value,
+  },
+  {
     to: '/today',
     label: todayLabel.value,
     icon: 'sun',
@@ -119,12 +125,6 @@ const primaryNavLinks = computed(() => [
     label: tomorrowLabel.value,
     icon: 'sunrise',
     count: tomorrowCount.value,
-  },
-  {
-    to: '/overdue',
-    label: 'Overdue',
-    icon: 'exclamation',
-    count: overdueCount.value,
   },
   {
     to: '/all',
