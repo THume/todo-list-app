@@ -7,6 +7,7 @@ import { useTaskStore } from '../stores/useTaskStore';
 
 const {
   tasks,
+  tasksOverdue,
   tasksDueToday,
   toggleTaskCompletion,
   removeTask,
@@ -25,6 +26,10 @@ const taskPendingEdit = ref(null);
 const draggedTaskId = ref(null);
 const dragOverTaskId = ref(null);
 const dropIndicatorIndex = ref(-1);
+const overdueCount = computed(() =>
+  Array.isArray(tasksOverdue.value) ? tasksOverdue.value.length : 0
+);
+const hasOverdueTasks = computed(() => overdueCount.value > 0);
 
 const listNameById = computed(() => {
   const result = {};
@@ -214,9 +219,41 @@ watch(showEditDialog, (isOpen) => {
 </script>
 
 <template>
-  <section class="task-panel">
+  <section v-if="hasOverdueTasks" class="task-panel task-panel--overdue" aria-live="polite">
     <header class="task-panel__header">
-      <h2>Due Today</h2>
+      <div>
+        <h2>Overdue</h2>
+        <p class="task-panel__note">
+          Tasks that slipped past their due time stay here until you reschedule or complete them.
+        </p>
+      </div>
+      <span class="task-panel__count">{{ overdueCount }} overdue</span>
+    </header>
+    <ul class="task-panel__list">
+      <li
+        v-for="task in tasksOverdue"
+        :key="task.id"
+        class="task-panel__item task-panel__item--overdue"
+      >
+        <Task
+          :task="task"
+          :list-name="resolveListName(task)"
+          @toggle="handleToggle"
+          @remove="requestDelete"
+          @edit="startEdit"
+          @duplicate="handleDuplicate"
+          @move-to-today="handleMoveToToday"
+          @move-to-tomorrow="handleMoveToTomorrow"
+        />
+      </li>
+    </ul>
+  </section>
+  <section class="task-panel" aria-live="polite">
+    <header class="task-panel__header">
+      <div>
+        <h2>Today</h2>
+        <p class="task-panel__note">This list covers everything due before midnight.</p>
+      </div>
       <span class="task-panel__count">{{ tasksDueToday.length }} due</span>
     </header>
     <p v-if="tasksDueToday.length === 0" class="task-panel__empty">
@@ -317,6 +354,12 @@ watch(showEditDialog, (isOpen) => {
   font-size: 0.95rem;
 }
 
+.task-panel__note {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  color: theme.$color-text-muted;
+}
+
 .task-panel__empty {
   margin: 0;
   padding: 1.5rem;
@@ -356,5 +399,16 @@ watch(showEditDialog, (isOpen) => {
 
 .task-panel__drop-indicator--end {
   margin-bottom: 0;
+}
+
+.task-panel--overdue {
+  border-color: rgba(239, 68, 68, 0.65);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.task-panel__item--overdue {
+  border-radius: 1rem;
+  background: rgba(239, 68, 68, 0.04);
+  padding: 0.35rem;
 }
 </style>
