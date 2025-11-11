@@ -4,9 +4,9 @@ import { useTaskStore } from '../stores/useTaskStore';
 
 const {
   tasksDueToday,
-  tasksCompletedYesterday,
   tasksCompletedToday,
   lists,
+  completedTasks,
 } = useTaskStore();
 
 const listNameById = computed(() => {
@@ -40,10 +40,109 @@ const standupDateLabel = computed(() => {
   }).format(new Date());
 });
 
+const toDateInputValue = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.valueOf())) {
+    return '';
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseDateInputValue = (value) => {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+  const [year, month, day] = value.split('-').map((part) => Number(part));
+  if (
+    Number.isNaN(year)
+    || Number.isNaN(month)
+    || Number.isNaN(day)
+    || month < 1
+    || month > 12
+    || day < 1
+    || day > 31
+  ) {
+    return null;
+  }
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.valueOf())) {
+    return null;
+  }
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const getDefaultCompletedDate = () => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() - 1);
+  return date;
+};
+
+const selectedCompletedDate = ref(toDateInputValue(getDefaultCompletedDate()));
+
+const completedDateBounds = computed(() => {
+  const baseDate = parseDateInputValue(selectedCompletedDate.value);
+  if (!baseDate) {
+    return { start: null, end: null, date: null };
+  }
+  const start = new Date(baseDate);
+  const end = new Date(baseDate);
+  end.setDate(end.getDate() + 1);
+  return {
+    start: start.getTime(),
+    end: end.getTime(),
+    date: baseDate,
+  };
+});
+
+const selectedCompletedDateDisplay = computed(() => {
+  const { date } = completedDateBounds.value;
+  if (!(date instanceof Date) || Number.isNaN(date.valueOf())) {
+    return '';
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'full',
+  }).format(date);
+});
+
+const selectedCompletedDateMessageLabel = computed(
+  () => selectedCompletedDateDisplay.value || 'the selected date'
+);
+
+const completedDateMax = computed(() => toDateInputValue(new Date()));
+
 const rawCompletedYesterday = computed(() => {
-  return Array.isArray(tasksCompletedYesterday.value)
-    ? tasksCompletedYesterday.value
-    : [];
+  const entries = Array.isArray(completedTasks.value) ? completedTasks.value : [];
+  const { start, end } = completedDateBounds.value;
+  if (typeof start !== 'number' || typeof end !== 'number') {
+    return [];
+  }
+  return entries
+    .filter((entry) => {
+      const completedTimestamp = Date.parse(entry?.completedAt ?? '');
+      if (Number.isNaN(completedTimestamp)) {
+        return false;
+      }
+      return completedTimestamp >= start && completedTimestamp < end;
+    })
+    .sort((a, b) => {
+      const aTime = Date.parse(a?.completedAt ?? '');
+      const bTime = Date.parse(b?.completedAt ?? '');
+
+      if (Number.isNaN(aTime) && Number.isNaN(bTime)) {
+        return 0;
+      }
+      if (Number.isNaN(aTime)) {
+        return 1;
+      }
+      if (Number.isNaN(bTime)) {
+        return -1;
+      }
+      return bTime - aTime;
+    });
 });
 
 const rawCompletedToday = computed(() => {
@@ -383,9 +482,23 @@ const formatTimeOnly = (value) => {
             </template>
           </span>
         </header>
+        <div class="standup__date-filter" aria-live="polite">
+          <label class="standup__date-filter-field">
+            <span class="standup__date-filter-label">Show completions for</span>
+            <input
+              v-model="selectedCompletedDate"
+              type="date"
+              class="standup__date-filter-input"
+              :max="completedDateMax"
+            />
+          </label>
+          <span class="standup__date-filter-hint">
+            {{ selectedCompletedDateDisplay || 'Select a date' }}
+          </span>
+        </div>
         <p v-if="completedYesterdayCount === 0" class="standup__empty">
           <span v-if="totalCompletedYesterday === 0">
-            No completed tasks logged yesterday.
+            No completed tasks logged for {{ selectedCompletedDateMessageLabel }}.
           </span>
           <span v-else>
             All completed tasks are hidden. Enable Show all to review them.
@@ -718,7 +831,7 @@ const formatTimeOnly = (value) => {
   padding: 1.25rem;
   display: grid;
   gap: 1rem;
-  grid-template-rows: min-content auto;
+  grid-template-rows: repeat(3, min-content);
 }
 
 .standup__section-header {
@@ -738,6 +851,48 @@ const formatTimeOnly = (value) => {
 .standup__count {
   color: theme.$color-text-muted;
   font-size: 0.95rem;
+}
+
+.standup__date-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.standup__date-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: theme.$color-text-heading;
+}
+
+.standup__date-filter-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: theme.$color-text-muted;
+}
+
+.standup__date-filter-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid theme.$color-border-input;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  color: theme.$color-text-primary;
+  font: inherit;
+}
+
+.standup__date-filter-input:focus-visible {
+  outline: 2px solid theme.$color-accent;
+  outline-offset: 2px;
+}
+
+.standup__date-filter-hint {
+  font-size: 0.85rem;
+  color: theme.$color-text-muted;
 }
 
 .standup__empty {
