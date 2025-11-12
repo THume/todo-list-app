@@ -9,7 +9,7 @@ A polished Vue 3 + Vite task manager focused on capturing, scheduling, and compl
 - **Standup-ready reporting**: `src/views/StandupView.vue` builds a daily snapshot that groups yesterday's completions, today's wins, and upcoming schedule. You can hide or reorder individual cards to tailor what you share with your team.
 - **Timely nudges**: `useTaskNotifications` watches due dates, surfaces in-app banners, desktop notifications, and a subtle audio cue, and self-cleans once alerts are dismissed.
 - **History made clear**: Completed items are archived with their completion timestamp, due metadata, and recurrence context so you can trace when and why something shipped.
-- **Durable storage**: Tasks, completions, and lists are persisted as JSON files inside `/data` through a small Vite middleware, so reloads or browser restarts do not lose your work.
+- **Durable storage**: Tasks, completions, and lists are persisted as JSON files inside `/data` through a small Vite middleware, so reloads or browser restarts do not lose your work. A BroadcastChannel keeps every open tab in sync, so updates in one window appear everywhere within a second without manual refreshes.
 
 ## Requirements
 
@@ -64,7 +64,7 @@ A polished Vue 3 + Vite task manager focused on capturing, scheduling, and compl
 - `src/App.vue` - shell with the capture form, sidebar list manager, and routed content.
 - `src/components/` - shared UI (task cards, dialogs, notifications, icons).
 - `src/views/` - Today, Tomorrow, Overdue, All, Completed, List-specific, and Standup views.
-- `src/stores/useTaskStore.js` - single source of truth for tasks, recurrence logic, notifications, drag ordering, and persistence.
+- `src/stores/useTaskStore.js` - single source of truth for tasks, recurrence logic, notifications, drag ordering, persistence, and BroadcastChannel-powered cross-tab syncing.
 - `src/services/jsonStorage.js` - browser-side helper that bridges to the middleware-backed JSON files.
 - `src/styles/_theme.scss` - theme tokens referenced across scoped styles.
 

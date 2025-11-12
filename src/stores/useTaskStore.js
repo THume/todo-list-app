@@ -18,6 +18,14 @@ const lists = ref([DEFAULT_LIST]);
 const currentTime = ref(Date.now());
 
 const FALLBACK_DUE_TIME = '23:59';
+const STORAGE_CHANNEL_NAME = 'todo-storage-sync';
+const createInstanceId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `instance-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+const instanceId = createInstanceId();
 const {
   notifications,
   dismissNotification,
@@ -34,6 +42,8 @@ let currentTimeTimer = null;
 let listInitialId = 1;
 const completionNotificationIds = new Map();
 const spawnedRecurringTaskIds = new Map();
+let broadcastChannel = null;
+let isApplyingRemoteUpdate = false;
 
 const VALID_RECURRENCE = new Set(['daily', 'weekdays', 'weekly', 'monthly', 'quarterly', 'yearly']);
 
@@ -99,9 +109,28 @@ const normalizeRecurrence = (value) => {
   return VALID_RECURRENCE.has(normalized) ? normalized : null;
 };
 
+const postStorageUpdate = () => {
+  if (!broadcastChannel || isApplyingRemoteUpdate) {
+    return;
+  }
+
+  try {
+    broadcastChannel.postMessage({
+      source: instanceId,
+      type: 'storage-updated',
+      timestamp: Date.now(),
+    });
+  } catch (error) {
+    console.error('Failed to broadcast storage update', error);
+  }
+};
+
 const persistTasks = async (value) => {
   try {
     await writeJsonFile(TASKS_FILE_NAME, value);
+    if (watchersReady && !isApplyingRemoteUpdate) {
+      postStorageUpdate();
+    }
   } catch (error) {
     console.error('Failed to persist tasks to JSON file', error);
   }
@@ -110,6 +139,9 @@ const persistTasks = async (value) => {
 const persistCompletedTasks = async (value) => {
   try {
     await writeJsonFile(COMPLETED_TASKS_FILE_NAME, value);
+    if (watchersReady && !isApplyingRemoteUpdate) {
+      postStorageUpdate();
+    }
   } catch (error) {
     console.error('Failed to persist completed tasks to JSON file', error);
   }
@@ -118,8 +150,61 @@ const persistCompletedTasks = async (value) => {
 const persistLists = async (value) => {
   try {
     await writeJsonFile(LISTS_FILE_NAME, value);
+    if (watchersReady && !isApplyingRemoteUpdate) {
+      postStorageUpdate();
+    }
   } catch (error) {
     console.error('Failed to persist lists to JSON file', error);
+  }
+};
+
+const handleBroadcastMessage = (event) => {
+  const data = event?.data;
+  if (!data || data.source === instanceId) {
+    return;
+  }
+
+  if (data.type === 'storage-updated') {
+    applyRemoteUpdateFromBroadcast().catch((error) => {
+      console.error('Failed to apply broadcast storage update', error);
+    });
+  }
+};
+
+const setupBroadcastChannel = () => {
+  if (
+    typeof window === 'undefined'
+    || typeof window.BroadcastChannel === 'undefined'
+    || broadcastChannel
+  ) {
+    return;
+  }
+
+  broadcastChannel = new window.BroadcastChannel(STORAGE_CHANNEL_NAME);
+  broadcastChannel.addEventListener('message', handleBroadcastMessage);
+};
+
+const teardownBroadcastChannel = () => {
+  if (!broadcastChannel) {
+    return;
+  }
+
+  broadcastChannel.removeEventListener('message', handleBroadcastMessage);
+  broadcastChannel.close();
+  broadcastChannel = null;
+};
+
+const applyRemoteUpdateFromBroadcast = async () => {
+  if (isApplyingRemoteUpdate) {
+    return;
+  }
+
+  isApplyingRemoteUpdate = true;
+  try {
+    await loadFromStorage();
+    checkDueTasks();
+  } finally {
+    isApplyingRemoteUpdate = false;
   }
 };
 
@@ -965,7 +1050,7 @@ const loadFromStorage = async () => {
 watch(
   tasks,
   () => {
-    if (!watchersReady) {
+    if (!watchersReady || isApplyingRemoteUpdate) {
       return;
     }
     persistTasks(tasks.value);
@@ -977,7 +1062,7 @@ watch(
 watch(
   completedTasks,
   () => {
-    if (!watchersReady) {
+    if (!watchersReady || isApplyingRemoteUpdate) {
       return;
     }
     persistCompletedTasks(completedTasks.value);
@@ -989,7 +1074,7 @@ watch(
   lists,
   () => {
     ensureDefaultList();
-    if (!watchersReady) {
+    if (!watchersReady || isApplyingRemoteUpdate) {
       return;
     }
     persistLists(lists.value);
@@ -1027,6 +1112,7 @@ const initialize = async () => {
   ]);
   checkDueTasks();
   startDueWatcher();
+  setupBroadcastChannel();
   watchersReady = true;
   isInitialized = true;
 };
@@ -1034,6 +1120,7 @@ const initialize = async () => {
 const teardown = () => {
   stopDueWatcher();
   stopCurrentTimeTicker();
+  teardownBroadcastChannel();
 };
 
 export const useTaskStore = () => {
