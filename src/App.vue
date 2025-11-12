@@ -383,14 +383,19 @@ onUnmounted(() => {
             </nav>
           </section>
         </div>
-        <AddTaskForm
-          v-model:visible="showForm"
-          class="layout__sidebar-form"
-          :default-due-date="defaultDueDate"
-          :lists="lists"
-          :default-list-id="defaultListIdForForm"
-          @submit="handleAddTask"
-        />
+        <button
+          type="button"
+          class="layout__add-task"
+          @click="showForm = true"
+        >
+          <IconGlyph
+            name="plus"
+            size="18"
+            class="layout__add-task-icon"
+            aria-hidden="true"
+          />
+          Add a Task
+        </button>
       </div>
       <div
         v-show="!isSidebarCollapsed"
@@ -409,6 +414,13 @@ onUnmounted(() => {
       <RouterView />
     </main>
   </div>
+  <AddTaskForm
+    v-model:visible="showForm"
+    :default-due-date="defaultDueDate"
+    :lists="lists"
+    :default-list-id="defaultListIdForForm"
+    @submit="handleAddTask"
+  />
   <ConfirmDialog
     v-model:open="showListDeleteDialog"
     title="Delete list?"
@@ -460,6 +472,39 @@ onUnmounted(() => {
   gap: 2.5rem;
   min-height: 0;
   flex: 1 1 auto;
+}
+
+.layout__add-task {
+  border: none;
+  border-radius: 1rem;
+  padding: 0.9rem 1.25rem;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(249, 115, 22, 0.85));
+  color: theme.$color-text-inverted;
+  font-size: 1rem;
+  font-weight: 700;
+  width: 100%;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  box-shadow: 0 20px 30px -26px rgba(239, 68, 68, 0.9);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 24px 40px -28px rgba(249, 115, 22, 0.85);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(248, 113, 113, 0.8);
+    outline-offset: 3px;
+  }
+}
+
+.layout__add-task-icon {
+  color: theme.$color-text-inverted;
 }
 
 .layout__sidebar--collapsed {
@@ -814,10 +859,6 @@ onUnmounted(() => {
 
   .layout__add-list {
     padding: 0.3rem 0.75rem;
-  }
-
-  .layout__sidebar-form {
-    margin-top: 1rem;
   }
 
   .layout__content {
