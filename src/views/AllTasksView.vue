@@ -292,7 +292,12 @@ watch(showEditDialog, (isOpen) => {
     <div class="task-panel__controls">
       <div class="postpone-control">
         <label class="postpone-control__label" for="postpone-date-input">
-          <IconGlyph name="calendar" size="16" class="postpone-control__label-icon" aria-hidden="true" />
+          <IconGlyph
+            name="calendar"
+            size="16"
+            class="postpone-control__label-icon"
+            aria-hidden="true"
+          />
           Postpone tasks until
         </label>
         <div class="postpone-control__inputs">
@@ -310,7 +315,12 @@ watch(showEditDialog, (isOpen) => {
             :disabled="!canPostpone || isPostponePending"
             @click="handlePostponeAll"
           >
-            <IconGlyph name="repeat" size="16" class="postpone-control__button-icon" aria-hidden="true" />
+            <IconGlyph
+              name="repeat"
+              size="16"
+              class="postpone-control__button-icon"
+              aria-hidden="true"
+            />
             {{ isPostponePending ? 'Postponing...' : 'Postpone' }}
           </button>
         </div>

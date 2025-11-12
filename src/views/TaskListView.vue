@@ -333,22 +333,22 @@ watch(listTasks, () => {
               'task-panel__item--drag-over': dragOverTaskId === task.id,
               'task-panel__item--dragging': draggedTaskId === task.id,
             }"
-          :draggable="!task.completed"
-          @dragstart="handleDragStart(task)"
-          @dragend="handleDragEnd"
-          @dragenter.prevent="handleDragEnter(task)"
-          @dragover.prevent
-          @dragleave="handleDragLeave(task)"
-          @drop.prevent.stop="handleDrop(task)"
-        >
-          <Task
-            :task="task"
-            :list-name="resolveListName(task)"
-            @toggle="handleToggle"
-            @remove="requestDelete"
-            @edit="startEdit"
-            @duplicate="handleDuplicate"
-            @move-to-today="handleMoveToToday"
+            :draggable="!task.completed"
+            @dragstart="handleDragStart(task)"
+            @dragend="handleDragEnd"
+            @dragenter.prevent="handleDragEnter(task)"
+            @dragover.prevent
+            @dragleave="handleDragLeave(task)"
+            @drop.prevent.stop="handleDrop(task)"
+          >
+            <Task
+              :task="task"
+              :list-name="resolveListName(task)"
+              @toggle="handleToggle"
+              @remove="requestDelete"
+              @edit="startEdit"
+              @duplicate="handleDuplicate"
+              @move-to-today="handleMoveToToday"
               @move-to-tomorrow="handleMoveToTomorrow"
             />
           </li>
