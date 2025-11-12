@@ -18,6 +18,9 @@ module.exports = {
     },
   ],
   rules: {
+    'at-rule-no-unknown': null,
+    'scss/at-rule-no-unknown': true,
+    'scss/dollar-variable-empty-line-before': null,
     'order/order': [
       'custom-properties',
       'dollar-variables',
