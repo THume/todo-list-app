@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import AddTaskForm from './components/AddTaskForm.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
@@ -37,6 +37,8 @@ const pointerStartX = ref(0);
 const pointerStartWidth = ref(DEFAULT_SIDEBAR_WIDTH);
 const showListDeleteDialog = ref(false);
 const listPendingDelete = ref(null);
+const showSettingsMenu = ref(false);
+const settingsMenuRef = ref(null);
 const layoutStyle = computed(() => {
   if (isSidebarCollapsed.value) {
     return {};
@@ -46,6 +48,19 @@ const layoutStyle = computed(() => {
 let hasInitializedVisibility = false;
 const route = useRoute();
 const router = useRouter();
+
+const isBrowser = typeof window !== 'undefined';
+const STANDUP_SETTING_STORAGE_KEY = 'todo-list.standup-enabled';
+const isStandupEnabled = ref(true);
+
+if (isBrowser) {
+  const storedStandupSetting = window.localStorage.getItem(STANDUP_SETTING_STORAGE_KEY);
+  if (storedStandupSetting === 'false') {
+    isStandupEnabled.value = false;
+  } else if (storedStandupSetting === 'true') {
+    isStandupEnabled.value = true;
+  }
+}
 
 const clampSidebarWidth = (value) =>
   Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, value));
@@ -101,44 +116,53 @@ const tomorrowLabel = computed(() => {
   return `Tomorrow (${shortDateFormatter.format(tomorrow)})`;
 });
 
-const primaryNavLinks = computed(() => [
-  {
-    to: '/standup',
-    label: 'Standup',
-    icon: 'person',
-    count: null,
-  },
-  {
-    to: '/overdue',
-    label: 'Overdue',
-    icon: 'exclamation',
-    count: overdueCount.value,
-  },
-  {
-    to: '/today',
-    label: todayLabel.value,
-    icon: 'sun',
-    count: todayCount.value,
-  },
-  {
-    to: '/tomorrow',
-    label: tomorrowLabel.value,
-    icon: 'sunrise',
-    count: tomorrowCount.value,
-  },
-  {
-    to: '/all',
-    label: 'All Tasks',
-    icon: 'layers',
-    count: allCount.value,
-  },
-  {
-    to: '/completed',
-    label: 'Completed',
-    icon: 'check',
-    count: null,
-  },
-]);
+const primaryNavLinks = computed(() => {
+  const links = [];
+
+  if (isStandupEnabled.value) {
+    links.push({
+      to: '/standup',
+      label: 'Standup',
+      icon: 'person',
+      count: null,
+    });
+  }
+
+  links.push(
+    {
+      to: '/overdue',
+      label: 'Overdue',
+      icon: 'exclamation',
+      count: overdueCount.value,
+    },
+    {
+      to: '/today',
+      label: todayLabel.value,
+      icon: 'sun',
+      count: todayCount.value,
+    },
+    {
+      to: '/tomorrow',
+      label: tomorrowLabel.value,
+      icon: 'sunrise',
+      count: tomorrowCount.value,
+    },
+    {
+      to: '/all',
+      label: 'All Tasks',
+      icon: 'layers',
+      count: allCount.value,
+    },
+    {
+      to: '/completed',
+      label: 'Completed',
+      icon: 'check',
+      count: null,
+    }
+  );
+
+  return links;
+});
 
 const handleCreateList = () => {
   if (typeof window === 'undefined') {
@@ -266,6 +290,65 @@ const handleNotificationAction = ({ id, action }) => {
   dismissNotification(id);
 };
 
+const closeSettingsMenu = () => {
+  showSettingsMenu.value = false;
+};
+
+const toggleSettingsMenu = () => {
+  showSettingsMenu.value = !showSettingsMenu.value;
+};
+
+const handleSettingsPointerDown = (event) => {
+  if (!showSettingsMenu.value) {
+    return;
+  }
+  const root = settingsMenuRef.value;
+  if (root && !root.contains(event.target)) {
+    closeSettingsMenu();
+  }
+};
+
+const handleSettingsKeydown = (event) => {
+  if (event.key === 'Escape') {
+    closeSettingsMenu();
+  }
+};
+
+watch(
+  isStandupEnabled,
+  (enabled) => {
+    if (isBrowser) {
+      window.localStorage.setItem(STANDUP_SETTING_STORAGE_KEY, String(enabled));
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  [isStandupEnabled, () => route.path],
+  ([enabled, currentPath]) => {
+    if (!enabled && typeof currentPath === 'string' && currentPath.startsWith('/standup')) {
+      router.replace('/today');
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  () => route.path,
+  () => {
+    closeSettingsMenu();
+  }
+);
+
+onMounted(() => {
+  if (!isBrowser) {
+    return;
+  }
+  document.addEventListener('pointerdown', handleSettingsPointerDown);
+  document.addEventListener('keydown', handleSettingsKeydown);
+});
+
 watch(isSidebarCollapsed, (collapsed) => {
   if (collapsed) {
     lastExpandedWidth.value = sidebarWidth.value;
@@ -292,6 +375,10 @@ watch(
 onUnmounted(() => {
   stopSidebarResize();
   teardown();
+  if (isBrowser) {
+    document.removeEventListener('pointerdown', handleSettingsPointerDown);
+    document.removeEventListener('keydown', handleSettingsKeydown);
+  }
 });
 </script>
 
@@ -411,6 +498,42 @@ onUnmounted(() => {
       />
     </aside>
     <main class="layout__content">
+      <div class="layout__content-header">
+        <div class="settings-menu" ref="settingsMenuRef">
+          <button
+            type="button"
+            class="settings-menu__trigger"
+            :aria-expanded="showSettingsMenu"
+            aria-haspopup="menu"
+            :aria-label="showSettingsMenu ? 'Close settings menu' : 'Open settings menu'"
+            @click="toggleSettingsMenu"
+          >
+            <IconGlyph name="settings" size="22" aria-hidden="true" />
+          </button>
+          <div
+            v-if="showSettingsMenu"
+            class="settings-menu__dropdown"
+            role="menu"
+          >
+            <p class="settings-menu__heading">Settings</p>
+            <label class="settings-menu__option">
+              <div class="settings-menu__option-text">
+                <span class="settings-menu__option-title">Standup page</span>
+                <span class="settings-menu__option-hint">
+                  {{ isStandupEnabled ? 'Enabled' : 'Hidden' }}
+                </span>
+              </div>
+              <input
+                v-model="isStandupEnabled"
+                type="checkbox"
+                class="settings-menu__toggle-input"
+                aria-label="Toggle Standup page visibility"
+              />
+              <span class="settings-menu__toggle" aria-hidden="true"></span>
+            </label>
+          </div>
+        </div>
+      </div>
       <RouterView />
     </main>
   </div>
@@ -781,6 +904,126 @@ onUnmounted(() => {
   min-height: 0;
   box-sizing: border-box;
   overflow-y: auto;
+}
+
+.layout__content-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.settings-menu {
+  position: relative;
+}
+
+.settings-menu__trigger {
+  border-radius: 999px;
+  border: 1px solid theme.$color-border-input;
+  background: rgba(255, 255, 255, 0.04);
+  color: theme.$color-text-primary;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.settings-menu__trigger:hover,
+.settings-menu__trigger:focus-visible {
+  color: theme.$color-text-heading;
+  border-color: theme.$color-accent;
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.settings-menu__trigger:focus-visible {
+  outline: 2px solid theme.$color-accent;
+  outline-offset: 2px;
+}
+
+.settings-menu__dropdown {
+  position: absolute;
+  right: 0;
+  margin-top: 0.5rem;
+  background: rgba(19, 21, 24, 0.98);
+  border: 1px solid theme.$color-border-strong;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  min-width: 15rem;
+  box-shadow: 0 20px 40px -24px rgba(0, 0, 0, 0.9);
+  display: grid;
+  gap: 0.75rem;
+  z-index: 5;
+}
+
+.settings-menu__heading {
+  margin: 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: theme.$color-text-muted;
+}
+
+.settings-menu__option {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  font-weight: 600;
+  color: theme.$color-text-primary;
+  cursor: pointer;
+}
+
+.settings-menu__option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.settings-menu__option-title {
+  font-size: 0.95rem;
+}
+
+.settings-menu__option-hint {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: theme.$color-text-muted;
+}
+
+.settings-menu__toggle-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settings-menu__toggle {
+  width: 2.75rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.settings-menu__toggle::after {
+  content: '';
+  position: absolute;
+  top: 0.2rem;
+  left: 0.2rem;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.settings-menu__option input:checked + .settings-menu__toggle {
+  background: rgba(34, 197, 94, 0.4);
+}
+
+.settings-menu__option input:checked + .settings-menu__toggle::after {
+  transform: translateX(1.35rem);
+  background: #ecfccb;
 }
 
 @media (max-width: 960px) {
