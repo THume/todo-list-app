@@ -78,38 +78,57 @@ const getDefaultCompletedDate = () => {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
   date.setDate(date.getDate() - 1);
+  while (date.getDay() === 0 || date.getDay() === 6) {
+    // Skip weekends so we land on the previous workday (Mon-Fri)
+    date.setDate(date.getDate() - 1);
+  }
   return date;
 };
 
-const selectedCompletedDate = ref(toDateInputValue(getDefaultCompletedDate()));
+const selectedCompletedStartDate = ref(toDateInputValue(getDefaultCompletedDate()));
+const selectedCompletedEndDate = ref(toDateInputValue(getDefaultCompletedDate()));
 
 const completedDateBounds = computed(() => {
-  const baseDate = parseDateInputValue(selectedCompletedDate.value);
-  if (!baseDate) {
-    return { start: null, end: null, date: null };
+  const startValue = parseDateInputValue(selectedCompletedStartDate.value);
+  const endValue = parseDateInputValue(selectedCompletedEndDate.value);
+  if (!startValue || !endValue) {
+    return { start: null, end: null, startDate: null, endDate: null };
   }
-  const start = new Date(baseDate);
-  const end = new Date(baseDate);
-  end.setDate(end.getDate() + 1);
+  const [rangeStart, rangeEnd] =
+    startValue.getTime() <= endValue.getTime()
+      ? [startValue, endValue]
+      : [endValue, startValue];
+  const exclusiveEnd = new Date(rangeEnd);
+  exclusiveEnd.setDate(exclusiveEnd.getDate() + 1);
   return {
-    start: start.getTime(),
-    end: end.getTime(),
-    date: baseDate,
+    start: rangeStart.getTime(),
+    end: exclusiveEnd.getTime(),
+    startDate: rangeStart,
+    endDate: rangeEnd,
   };
 });
 
 const selectedCompletedDateDisplay = computed(() => {
-  const { date } = completedDateBounds.value;
-  if (!(date instanceof Date) || Number.isNaN(date.valueOf())) {
+  const { startDate, endDate } = completedDateBounds.value;
+  if (
+    !(startDate instanceof Date)
+    || !(endDate instanceof Date)
+    || Number.isNaN(startDate.valueOf())
+    || Number.isNaN(endDate.valueOf())
+  ) {
     return '';
   }
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'full',
-  }).format(date);
+  const formatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'full' });
+  const startLabel = formatter.format(startDate);
+  const endLabel = formatter.format(endDate);
+  if (startLabel === endLabel) {
+    return startLabel;
+  }
+  return `${startLabel} - ${endLabel}`;
 });
 
 const selectedCompletedDateMessageLabel = computed(
-  () => selectedCompletedDateDisplay.value || 'the selected date'
+  () => selectedCompletedDateDisplay.value || 'the selected date range'
 );
 
 const completedDateMax = computed(() => toDateInputValue(new Date()));
@@ -253,12 +272,52 @@ const showTask = (key) => {
   });
 };
 
+const normalizeCompletedDateKey = (value) => {
+  const timestamp = Date.parse(value ?? '');
+  if (Number.isNaN(timestamp)) {
+    return null;
+  }
+  const date = new Date(timestamp);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+};
+
 const displayedCompletedYesterday = computed(() => {
   const entries = orderedCompletedYesterday.value;
   if (showAll.value) {
     return entries;
   }
   return entries.filter((entry) => !isHidden(buildYesterdayKey(entry)));
+});
+
+const completedYesterdayGroups = computed(() => {
+  const formatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'full' });
+  const groups = new Map();
+  displayedCompletedYesterday.value.forEach((entry) => {
+    const key = normalizeCompletedDateKey(entry?.completedAt) ?? 'undated';
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(entry);
+  });
+
+  return Array.from(groups.entries())
+    .map(([key, items]) => {
+      const timestamp = key === 'undated' ? null : Number(key);
+      const dateLabel =
+        typeof timestamp === 'number'
+          ? formatter.format(new Date(timestamp))
+          : 'Date unavailable';
+      const sortValue =
+        typeof timestamp === 'number' ? timestamp : Number.MAX_SAFE_INTEGER;
+      return {
+        key: typeof timestamp === 'number' ? `date:${timestamp}` : 'date:undated',
+        label: dateLabel,
+        items,
+        sortValue,
+      };
+    })
+    .sort((a, b) => a.sortValue - b.sortValue);
 });
 
 const displayedCompletedToday = computed(() => {
@@ -450,6 +509,12 @@ const formatTimeOnly = (value) => {
     timeStyle: 'short',
   }).format(date);
 };
+
+const showDateAdjustments = ref(false);
+
+const toggleDateAdjustments = () => {
+  showDateAdjustments.value = !showDateAdjustments.value;
+};
 </script>
 
 <template>
@@ -483,18 +548,38 @@ const formatTimeOnly = (value) => {
           </span>
         </header>
         <div class="standup__date-filter" aria-live="polite">
-          <label class="standup__date-filter-field">
-            <span class="standup__date-filter-label">Show completions for</span>
-            <input
-              v-model="selectedCompletedDate"
-              type="date"
-              class="standup__date-filter-input"
-              :max="completedDateMax"
-            />
-          </label>
-          <span class="standup__date-filter-hint">
-            {{ selectedCompletedDateDisplay || 'Select a date' }}
-          </span>
+          <div class="standup__date-filter-summary">
+            <span class="standup__date-filter-hint">
+              {{ selectedCompletedDateDisplay || 'Select a date range' }}
+            </span>
+            <button
+              type="button"
+              class="standup__date-filter-toggle"
+              @click="toggleDateAdjustments"
+            >
+              {{ showDateAdjustments ? 'Hide Date Controls' : 'Adjust Date' }}
+            </button>
+          </div>
+          <div v-if="showDateAdjustments" class="standup__date-filter-fields">
+            <label class="standup__date-filter-field">
+              <span class="standup__date-filter-label">From</span>
+              <input
+                v-model="selectedCompletedStartDate"
+                type="date"
+                class="standup__date-filter-input"
+                :max="completedDateMax"
+              />
+            </label>
+            <label class="standup__date-filter-field">
+              <span class="standup__date-filter-label">To</span>
+              <input
+                v-model="selectedCompletedEndDate"
+                type="date"
+                class="standup__date-filter-input"
+                :max="completedDateMax"
+              />
+            </label>
+          </div>
         </div>
         <p v-if="completedYesterdayCount === 0" class="standup__empty">
           <span v-if="totalCompletedYesterday === 0">
@@ -504,63 +589,75 @@ const formatTimeOnly = (value) => {
             All completed tasks are hidden. Enable Show all to review them.
           </span>
         </p>
-        <ul v-else class="standup__list">
-          <li
-            v-for="entry in displayedCompletedYesterday"
-            :key="entry.taskId"
-            :class="[
-              'standup__item',
-              {
-                'standup__item--hidden': showAll && isHidden(buildYesterdayKey(entry)),
-                'standup__item--drag-over': isDragOverItem('yesterday', buildYesterdayKey(entry)),
-                'standup__item--dragging': isDraggingItem('yesterday', buildYesterdayKey(entry)),
-              },
-            ]"
-            :draggable="displayedCompletedYesterday.length > 1"
-            @dragstart="handleDragStart('yesterday', buildYesterdayKey(entry), $event)"
-            @dragend="handleDragEnd"
-            @dragenter.prevent="handleDragEnter('yesterday', buildYesterdayKey(entry))"
-            @dragover.prevent
-            @dragleave="handleDragLeave('yesterday', buildYesterdayKey(entry))"
-            @drop.prevent="handleDropOnItem('yesterday', buildYesterdayKey(entry))"
+        <div v-else class="standup__groups">
+          <section
+            v-for="group in completedYesterdayGroups"
+            :key="group.key"
+            class="standup__group"
           >
-            <div class="standup__item-header">
-              <span class="standup__item-title">{{ entry.title }}</span>
-              <time class="standup__item-meta" :datetime="entry.completedAt">
-                Completed {{ formatTimestamp(entry.completedAt) }}
-              </time>
-            </div>
-            <p v-if="entry.description" class="standup__item-description">
-              {{ entry.description }}
-            </p>
-            <time
-              v-if="entry.due"
-              class="standup__item-meta"
-              :datetime="entry.due"
-            >
-              Originally due {{ formatTimestamp(entry.due) }}
-            </time>
-            <span class="standup__badge">List: {{ resolveListName(entry.listId) }}</span>
-            <div class="standup__item-actions">
-              <button
-                v-if="!showAll"
-                type="button"
-                class="standup__item-toggle"
-                @click="hideTask(buildYesterdayKey(entry))"
+            <header class="standup__group-header">
+              <h3 class="standup__subheading standup__subheading--date">{{ group.label }}</h3>
+              <span class="standup__count standup__count--inline">{{ group.items.length }}</span>
+            </header>
+            <ul class="standup__list">
+              <li
+                v-for="entry in group.items"
+                :key="entry.taskId"
+                :class="[
+                  'standup__item',
+                  {
+                    'standup__item--hidden': showAll && isHidden(buildYesterdayKey(entry)),
+                    'standup__item--drag-over': isDragOverItem('yesterday', buildYesterdayKey(entry)),
+                    'standup__item--dragging': isDraggingItem('yesterday', buildYesterdayKey(entry)),
+                  },
+                ]"
+                :draggable="displayedCompletedYesterday.length > 1"
+                @dragstart="handleDragStart('yesterday', buildYesterdayKey(entry), $event)"
+                @dragend="handleDragEnd"
+                @dragenter.prevent="handleDragEnter('yesterday', buildYesterdayKey(entry))"
+                @dragover.prevent
+                @dragleave="handleDragLeave('yesterday', buildYesterdayKey(entry))"
+                @drop.prevent="handleDropOnItem('yesterday', buildYesterdayKey(entry))"
               >
-                Hide
-              </button>
-              <button
-                v-else-if="isHidden(buildYesterdayKey(entry))"
-                type="button"
-                class="standup__item-toggle standup__item-toggle--show"
-                @click="showTask(buildYesterdayKey(entry))"
-              >
-                Show
-              </button>
-            </div>
-          </li>
-          <li
+                <div class="standup__item-header">
+                  <span class="standup__item-title">{{ entry.title }}</span>
+                  <time class="standup__item-meta" :datetime="entry.completedAt">
+                    Completed {{ formatTimestamp(entry.completedAt) }}
+                  </time>
+                </div>
+                <p v-if="entry.description" class="standup__item-description">
+                  {{ entry.description }}
+                </p>
+                <time
+                  v-if="entry.due"
+                  class="standup__item-meta"
+                  :datetime="entry.due"
+                >
+                  Originally due {{ formatTimestamp(entry.due) }}
+                </time>
+                <span class="standup__badge">List: {{ resolveListName(entry.listId) }}</span>
+                <div class="standup__item-actions">
+                  <button
+                    v-if="!showAll"
+                    type="button"
+                    class="standup__item-toggle"
+                    @click="hideTask(buildYesterdayKey(entry))"
+                  >
+                    Hide
+                  </button>
+                  <button
+                    v-else-if="isHidden(buildYesterdayKey(entry))"
+                    type="button"
+                    class="standup__item-toggle standup__item-toggle--show"
+                    @click="showTask(buildYesterdayKey(entry))"
+                  >
+                    Show
+                  </button>
+                </div>
+              </li>
+            </ul>
+          </section>
+          <div
             v-if="draggingSection === 'yesterday'"
             class="standup__drop-zone"
             :class="{ 'standup__drop-zone--active': isDropZoneActive('yesterday') }"
@@ -568,8 +665,8 @@ const formatTimeOnly = (value) => {
             @dragover.prevent
             @dragleave="handleDropZoneLeave('yesterday')"
             @drop.prevent="handleDropOnEnd('yesterday')"
-          ></li>
-        </ul>
+          ></div>
+        </div>
       </article>
       <article class="standup__section">
         <header class="standup__section-header">
@@ -854,11 +951,22 @@ const formatTimeOnly = (value) => {
 }
 
 .standup__date-filter {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.standup__date-filter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.standup__date-filter-fields {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  align-items: center;
-  justify-content: space-between;
 }
 
 .standup__date-filter-field {
@@ -895,6 +1003,29 @@ const formatTimeOnly = (value) => {
   color: theme.$color-text-muted;
 }
 
+.standup__date-filter-toggle {
+  align-self: center;
+  border: 1px solid theme.$color-border-input;
+  background: transparent;
+  color: theme.$color-text-primary;
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    color: theme.$color-text-heading;
+    border-color: theme.$color-accent;
+    background: rgba(34, 197, 94, 0.15);
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
+}
+
 .standup__empty {
   margin: 0;
   padding: 1.25rem;
@@ -912,6 +1043,33 @@ const formatTimeOnly = (value) => {
   display: grid;
   gap: 0.75rem;
   grid-auto-rows: min-content;
+}
+
+.standup__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.standup__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.standup__group-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.standup__subheading--date {
+  margin: 0;
+}
+
+.standup__count--inline {
+  font-size: 0.9rem;
 }
 
 .standup__focus {
