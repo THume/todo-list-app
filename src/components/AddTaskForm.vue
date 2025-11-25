@@ -398,7 +398,7 @@ $remove-hover: #f87171;
   align-items: flex-start;
   justify-content: center;
   overflow-y: auto;
-  z-index: 50;
+  z-index: 1000;
 
   @media (max-width: 640px) {
     padding: 1.5rem 0.75rem;
@@ -471,11 +471,49 @@ $remove-hover: #f87171;
 
   &__input-shell {
     display: grid;
-    gap: 0.4rem;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid $input-border;
+    border-radius: 1rem;
+    background: $input-bg;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+    &:focus-within {
+      border-color: $button-bg;
+      box-shadow: 0 0 0 3px $focus-outline;
+      background: $input-bg-focus;
+    }
   }
 
   &__input-shell--textarea {
-    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  &__field-icon {
+    color: theme.$color-accent;
+    margin-top: 0.05rem;
+  }
+
+  &__input,
+  &__textarea {
+    border: none;
+    background: transparent;
+    color: $input-text;
+    font-size: 1rem;
+    font-family: inherit;
+    padding: 0;
+    min-width: 0;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  &__textarea {
+    resize: vertical;
+    min-height: 4.25rem;
   }
 
   &__field-label {
@@ -536,6 +574,78 @@ $remove-hover: #f87171;
 
   &__input-shell--list .add-task__select {
     max-width: 16rem;
+  }
+
+  &__label-heading {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: $input-text;
+  }
+
+  &__label-icon {
+    color: theme.$color-text-muted;
+  }
+
+  &__list,
+  &__recurrence,
+  &__due-label {
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid $input-border;
+    border-radius: 1rem;
+    background: $input-bg;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+    &:focus-within {
+      border-color: $button-bg;
+      box-shadow: 0 0 0 3px $focus-outline;
+      background: $input-bg-focus;
+    }
+  }
+
+  &__due-row {
+    display: grid;
+    gap: 0.75rem;
+
+    @media (min-width: 640px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  &__due-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  &__due-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 1px solid $input-border;
+    border-radius: 0.75rem;
+    padding: 0.65rem 0.8rem;
+    font-size: 1rem;
+    font-family: inherit;
+    background: $input-bg;
+    color: $input-text;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+    &:focus {
+      outline: none;
+      border-color: $button-bg;
+      box-shadow: 0 0 0 3px $focus-outline;
+      background: $input-bg-focus;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
   }
 
   &__select {
