@@ -426,6 +426,22 @@ const moveTaskToTomorrow = (taskId) => {
   return moveTaskToDate(taskId, tomorrowStart);
 };
 
+const moveOverdueTasksToToday = () => {
+  const overdueList = Array.isArray(tasksOverdue.value) ? [...tasksOverdue.value] : [];
+  let updatedCount = 0;
+
+  overdueList.forEach((task) => {
+    if (!task?.id) {
+      return;
+    }
+    if (moveTaskToToday(task.id)) {
+      updatedCount += 1;
+    }
+  });
+
+  return { updatedCount };
+};
+
 const postponeTasksUntil = (dateValue) => {
   const targetDate = dateValue instanceof Date ? new Date(dateValue) : new Date(dateValue ?? '');
   if (Number.isNaN(targetDate.valueOf())) {
@@ -1155,6 +1171,7 @@ export const useTaskStore = () => {
     removeTask,
     moveTaskToToday,
     moveTaskToTomorrow,
+    moveOverdueTasksToToday,
     postponeTasksUntil,
     skipTaskRecurrence,
     initialize,

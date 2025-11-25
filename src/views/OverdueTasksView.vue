@@ -15,6 +15,7 @@ const {
   duplicateTask,
   moveTaskToToday,
   moveTaskToTomorrow,
+  moveOverdueTasksToToday,
   lists,
   skipTaskRecurrence,
 } = useTaskStore();
@@ -100,6 +101,13 @@ const handleMoveToToday = (task) => {
 
 const handleMoveToTomorrow = (task) => {
   moveTaskToTomorrow(task.id);
+};
+
+const handleMoveAllToToday = () => {
+  if (!tasksOverdue.value?.length) {
+    return;
+  }
+  moveOverdueTasksToToday();
 };
 
 const handleSkipRecurrence = (task) => {
@@ -224,7 +232,17 @@ watch(showEditDialog, (isOpen) => {
   <section class="task-panel">
     <header class="task-panel__header">
       <h2>Overdue</h2>
-      <span class="task-panel__count">{{ tasksOverdue.length }} overdue</span>
+      <div class="task-panel__actions">
+        <button
+          type="button"
+          class="task-panel__action"
+          :disabled="tasksOverdue.length === 0"
+          @click="handleMoveAllToToday"
+        >
+          Move all to Today
+        </button>
+        <span class="task-panel__count">{{ tasksOverdue.length }} overdue</span>
+      </div>
     </header>
     <p v-if="tasksOverdue.length === 0" class="task-panel__empty">
       All caught up—no overdue tasks.
@@ -318,6 +336,42 @@ watch(showEditDialog, (isOpen) => {
     margin: 0;
     font-size: 1.5rem;
     font-weight: 700;
+  }
+}
+
+.task-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.task-panel__action {
+  border: 1px solid theme.$color-border-input;
+  background: rgba(239, 68, 68, 0.15);
+  color: theme.$color-text-primary;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.8rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 12px 22px -20px rgba(239, 68, 68, 0.7);
+
+  &:hover:enabled {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: theme.$color-accent;
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    box-shadow: none;
   }
 }
 
