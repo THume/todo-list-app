@@ -800,7 +800,13 @@ const duplicateTask = (taskId) => {
 
 const tasksOverdue = computed(() => {
   const currentTasks = Array.isArray(tasks.value) ? tasks.value : [];
-  const now = currentTime.value;
+  const todayStart = getStartOfDay(currentTime.value);
+
+  if (!(todayStart instanceof Date) || Number.isNaN(todayStart.valueOf())) {
+    return [];
+  }
+
+  const todayStartTimestamp = todayStart.getTime();
 
   return currentTasks.filter((task) => {
     if (!task || task.completed || !task.due) {
@@ -813,34 +819,54 @@ const tasksOverdue = computed(() => {
       return false;
     }
 
-    return dueTime < now;
+    return dueTime < todayStartTimestamp;
   });
 });
 
 const tasksDueToday = computed(() => {
   const currentTasks = Array.isArray(tasks.value) ? tasks.value : [];
-  const now = currentTime.value;
-  const today = new Date(now);
+  const todayStart = getStartOfDay(currentTime.value);
+
+  if (!(todayStart instanceof Date) || Number.isNaN(todayStart.valueOf())) {
+    return [];
+  }
+
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(todayStart.getDate() + 1);
+
+  const todayStartTimestamp = todayStart.getTime();
+  const tomorrowStartTimestamp = tomorrowStart.getTime();
 
   return currentTasks.filter((task) => {
     if (!task || task.completed || !task.due) {
       return false;
     }
 
-    const dueDate = new Date(task.due);
-    const dueTimestamp = dueDate.getTime();
+    const dueTimestamp = Date.parse(task.due);
 
     if (Number.isNaN(dueTimestamp)) {
       return false;
     }
 
-    if (dueTimestamp < now) {
-      return false;
-    }
+    return dueTimestamp >= todayStartTimestamp && dueTimestamp < tomorrowStartTimestamp;
+  });
+});
 
-    return dueDate.getFullYear() === today.getFullYear()
-      && dueDate.getMonth() === today.getMonth()
-      && dueDate.getDate() === today.getDate();
+const tasksDueTodayPastDue = computed(() => {
+  const now = currentTime.value;
+  const todayTasks = Array.isArray(tasksDueToday.value) ? tasksDueToday.value : [];
+  return todayTasks.filter((task) => {
+    const dueTimestamp = Date.parse(task?.due ?? '');
+    return !Number.isNaN(dueTimestamp) && dueTimestamp < now;
+  });
+});
+
+const tasksDueTodayUpcoming = computed(() => {
+  const now = currentTime.value;
+  const todayTasks = Array.isArray(tasksDueToday.value) ? tasksDueToday.value : [];
+  return todayTasks.filter((task) => {
+    const dueTimestamp = Date.parse(task?.due ?? '');
+    return !Number.isNaN(dueTimestamp) && dueTimestamp >= now;
   });
 });
 
@@ -1150,6 +1176,8 @@ export const useTaskStore = () => {
     lists,
     tasksOverdue,
     tasksDueToday,
+    tasksDueTodayPastDue,
+    tasksDueTodayUpcoming,
     tasksDueTomorrow,
     tasksCompletedYesterday,
     tasksCompletedToday,

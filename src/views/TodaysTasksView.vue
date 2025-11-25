@@ -7,8 +7,9 @@ import { useTaskStore } from '../stores/useTaskStore';
 
 const {
   tasks,
-  tasksOverdue,
   tasksDueToday,
+  tasksDueTodayPastDue,
+  tasksDueTodayUpcoming,
   toggleTaskCompletion,
   removeTask,
   updateTask,
@@ -26,10 +27,33 @@ const taskPendingEdit = ref(null);
 const draggedTaskId = ref(null);
 const dragOverTaskId = ref(null);
 const dropIndicatorIndex = ref(-1);
-const overdueCount = computed(() =>
-  Array.isArray(tasksOverdue.value) ? tasksOverdue.value.length : 0
+const todayTasksLength = computed(() =>
+  Array.isArray(tasksDueToday.value) ? tasksDueToday.value.length : 0
 );
-const hasOverdueTasks = computed(() => overdueCount.value > 0);
+const dueCount = computed(() =>
+  Array.isArray(tasksDueTodayPastDue.value) ? tasksDueTodayPastDue.value.length : 0
+);
+const upcomingCount = computed(() =>
+  Array.isArray(tasksDueTodayUpcoming.value) ? tasksDueTodayUpcoming.value.length : 0
+);
+const hasDueTasks = computed(() => dueCount.value > 0);
+const todayIndexById = computed(() => {
+  const map = {};
+  const todayList = Array.isArray(tasksDueToday.value) ? tasksDueToday.value : [];
+  todayList.forEach((task, index) => {
+    if (task?.id !== undefined && task?.id !== null) {
+      map[task.id] = index;
+    }
+  });
+  return map;
+});
+const getTodayIndex = (task) => {
+  if (!task || task.id === undefined || task.id === null) {
+    return -1;
+  }
+  return todayIndexById.value[task.id] ?? -1;
+};
+const shouldShowDropIndicator = (task) => dropIndicatorIndex.value === getTodayIndex(task);
 
 const listNameById = computed(() => {
   const result = {};
@@ -207,7 +231,7 @@ const handleListDragOver = (event) => {
   if (event?.target !== event?.currentTarget) {
     return;
   }
-  dropIndicatorIndex.value = (tasksDueToday.value ?? []).length;
+  dropIndicatorIndex.value = todayTasksLength.value;
   dragOverTaskId.value = null;
 };
 
@@ -219,45 +243,65 @@ watch(showEditDialog, (isOpen) => {
 </script>
 
 <template>
-  <section v-if="hasOverdueTasks" class="task-panel task-panel--overdue" aria-live="polite">
+  <section v-if="hasDueTasks" class="task-panel task-panel--due" aria-live="polite">
     <header class="task-panel__header">
       <div>
-        <h2>Overdue</h2>
+        <h2>Due</h2>
         <p class="task-panel__note">
-          Tasks that slipped past their due time stay here until you reschedule or complete them.
+          These tasks were scheduled for earlier today. Complete or reschedule them to clear this list.
         </p>
       </div>
-      <span class="task-panel__count">{{ overdueCount }} overdue</span>
+      <span class="task-panel__count">{{ dueCount }} due</span>
     </header>
     <ul class="task-panel__list">
-      <li
-        v-for="task in tasksOverdue"
-        :key="task.id"
-        class="task-panel__item task-panel__item--overdue"
-      >
-        <Task
-          :task="task"
-          :list-name="resolveListName(task)"
-          @toggle="handleToggle"
-          @remove="requestDelete"
-          @edit="startEdit"
-          @duplicate="handleDuplicate"
-          @move-to-today="handleMoveToToday"
-          @move-to-tomorrow="handleMoveToTomorrow"
+      <template v-for="task in tasksDueTodayPastDue" :key="task.id">
+        <li
+          v-if="shouldShowDropIndicator(task)"
+          class="task-panel__drop-indicator"
         />
-      </li>
+        <li
+          class="task-panel__item task-panel__item--due"
+          :class="{
+            'task-panel__item--drag-over': dragOverTaskId === task.id,
+            'task-panel__item--dragging': draggedTaskId === task.id,
+          }"
+          :draggable="!task.completed"
+          @dragstart="handleDragStart(task)"
+          @dragend="handleDragEnd"
+          @dragenter.prevent="handleDragEnter(task)"
+          @dragover.prevent
+          @dragleave="handleDragLeave(task)"
+          @drop.prevent.stop="handleDrop(task)"
+        >
+          <Task
+            :task="task"
+            :list-name="resolveListName(task)"
+            @toggle="handleToggle"
+            @remove="requestDelete"
+            @edit="startEdit"
+            @duplicate="handleDuplicate"
+            @move-to-today="handleMoveToToday"
+            @move-to-tomorrow="handleMoveToTomorrow"
+          />
+        </li>
+      </template>
     </ul>
   </section>
   <section class="task-panel" aria-live="polite">
     <header class="task-panel__header">
       <div>
         <h2>Today</h2>
-        <p class="task-panel__note">This list covers everything due before midnight.</p>
+        <p class="task-panel__note">
+          Everything scheduled for today before midnight. Due tasks are listed above.
+        </p>
       </div>
-      <span class="task-panel__count">{{ tasksDueToday.length }} due</span>
+      <span class="task-panel__count">{{ todayTasksLength }} today</span>
     </header>
-    <p v-if="tasksDueToday.length === 0" class="task-panel__empty">
+    <p v-if="todayTasksLength === 0" class="task-panel__empty">
       No tasks are due today.
+    </p>
+    <p v-else-if="upcomingCount === 0" class="task-panel__empty">
+      Nothing scheduled for the rest of today.
     </p>
     <ul
       v-else
@@ -265,9 +309,9 @@ watch(showEditDialog, (isOpen) => {
       @dragover.prevent="handleListDragOver($event)"
       @drop.prevent="handleDropAtListEnd"
     >
-      <template v-for="(task, index) in tasksDueToday" :key="task.id">
+      <template v-for="task in tasksDueTodayUpcoming" :key="task.id">
         <li
-          v-if="dropIndicatorIndex === index"
+          v-if="shouldShowDropIndicator(task)"
           class="task-panel__drop-indicator"
         />
         <li
@@ -297,7 +341,7 @@ watch(showEditDialog, (isOpen) => {
         </li>
       </template>
       <li
-        v-if="dropIndicatorIndex === tasksDueToday.length"
+        v-if="dropIndicatorIndex === todayTasksLength"
         class="task-panel__drop-indicator task-panel__drop-indicator--end"
       />
     </ul>
@@ -401,12 +445,12 @@ watch(showEditDialog, (isOpen) => {
   margin-bottom: 0;
 }
 
-.task-panel--overdue {
+.task-panel--due {
   border-color: rgba(239, 68, 68, 0.65);
   background: rgba(239, 68, 68, 0.08);
 }
 
-.task-panel__item--overdue {
+.task-panel__item--due {
   border-radius: 1rem;
   background: rgba(239, 68, 68, 0.04);
   padding: 0.35rem;

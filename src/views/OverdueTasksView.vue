@@ -245,7 +245,7 @@ watch(showEditDialog, (isOpen) => {
       </div>
     </header>
     <p v-if="tasksOverdue.length === 0" class="task-panel__empty">
-      All caught up—no overdue tasks.
+      All caught up—no overdue tasks from previous days.
     </p>
     <ul
       v-else

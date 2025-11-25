@@ -15,6 +15,7 @@ const {
   addTask,
   toggleTaskCompletion,
   tasksDueToday,
+  tasksDueTodayPastDue,
   tasksDueTomorrow,
   tasksOverdue,
   activeTasks,
@@ -27,7 +28,7 @@ const {
 const showForm = ref(false);
 const isSidebarCollapsed = ref(false);
 const DEFAULT_LIST_ID = 'default';
-const DEFAULT_SIDEBAR_WIDTH = 320;
+const DEFAULT_SIDEBAR_WIDTH = 380;
 const MIN_SIDEBAR_WIDTH = 256;
 const MAX_SIDEBAR_WIDTH = 480;
 const sidebarWidth = ref(DEFAULT_SIDEBAR_WIDTH);
@@ -105,6 +106,7 @@ const defaultListIdForForm = computed(() => {
 });
 
 const todayCount = computed(() => tasksDueToday.value?.length ?? 0);
+const todayDueCount = computed(() => tasksDueTodayPastDue.value?.length ?? 0);
 const tomorrowCount = computed(() => tasksDueTomorrow.value?.length ?? 0);
 const overdueCount = computed(() => tasksOverdue.value?.length ?? 0);
 const allCount = computed(() => activeTasks.value?.length ?? 0);
@@ -140,6 +142,7 @@ const primaryNavLinks = computed(() => {
       label: todayLabel.value,
       icon: 'sun',
       count: todayCount.value,
+      secondaryCount: todayDueCount.value,
     },
     {
       to: '/tomorrow',
@@ -423,10 +426,22 @@ onUnmounted(() => {
               </span>
               <span class="layout__nav-label">{{ link.label }}</span>
               <span
-                v-if="link.count !== null"
-                class="layout__list-count layout__nav-count"
+                v-if="link.secondaryCount !== undefined || link.count !== null"
+                class="layout__nav-counts"
               >
-                {{ link.count }}
+                <span
+                  v-if="link.secondaryCount !== undefined"
+                  class="layout__nav-count layout__nav-count--due"
+                  :aria-label="`${link.secondaryCount} due tasks today`"
+                >
+                  {{ link.secondaryCount }} due
+                </span>
+                <span
+                  v-if="link.count !== null"
+                  class="layout__list-count layout__nav-count"
+                >
+                  {{ link.count }}
+                </span>
               </span>
             </RouterLink>
           </nav>
@@ -858,6 +873,13 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
+.layout__nav-counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
 .layout__nav-icon {
   flex: 0 0 auto;
   width: 2rem;
@@ -894,6 +916,17 @@ onUnmounted(() => {
 
 .layout__nav-count {
   min-width: 2rem;
+}
+
+.layout__nav-count--due {
+  min-width: 0;
+  padding: 0.15rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fecaca;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .layout__content {
