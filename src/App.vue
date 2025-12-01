@@ -52,7 +52,20 @@ const router = useRouter();
 
 const isBrowser = typeof window !== 'undefined';
 const STANDUP_SETTING_STORAGE_KEY = 'todo-list.standup-enabled';
+const FONT_SIZE_SETTING_STORAGE_KEY = 'todo-list.font-size';
 const isStandupEnabled = ref(true);
+const fontSizeSetting = ref('large');
+
+const applyFontSizeSetting = (value) => {
+  if (!isBrowser || typeof document === 'undefined') {
+    return;
+  }
+  const root = document.documentElement;
+  if (!root) {
+    return;
+  }
+  root.style.fontSize = value === 'small' ? '80%' : '100%';
+};
 
 if (isBrowser) {
   const storedStandupSetting = window.localStorage.getItem(STANDUP_SETTING_STORAGE_KEY);
@@ -60,6 +73,11 @@ if (isBrowser) {
     isStandupEnabled.value = false;
   } else if (storedStandupSetting === 'true') {
     isStandupEnabled.value = true;
+  }
+
+  const storedFontSize = window.localStorage.getItem(FONT_SIZE_SETTING_STORAGE_KEY);
+  if (storedFontSize === 'small' || storedFontSize === 'large') {
+    fontSizeSetting.value = storedFontSize;
   }
 }
 
@@ -375,6 +393,18 @@ watch(
   { immediate: true }
 );
 
+watch(
+  fontSizeSetting,
+  (value) => {
+    if (!isBrowser) {
+      return;
+    }
+    window.localStorage.setItem(FONT_SIZE_SETTING_STORAGE_KEY, value);
+    applyFontSizeSetting(value);
+  },
+  { immediate: true }
+);
+
 onUnmounted(() => {
   stopSidebarResize();
   teardown();
@@ -546,6 +576,37 @@ onUnmounted(() => {
               />
               <span class="settings-menu__toggle" aria-hidden="true"></span>
             </label>
+            <div class="settings-menu__section">
+              <p class="settings-menu__section-title">Font size</p>
+              <div class="settings-menu__radio-group" role="group" aria-label="Font size">
+                <label class="settings-menu__radio">
+                  <input
+                    v-model="fontSizeSetting"
+                    type="radio"
+                    class="settings-menu__radio-input"
+                    value="large"
+                    aria-label="Use large font size"
+                  />
+                  <span class="settings-menu__radio-label">
+                    <span class="settings-menu__radio-title">Large</span>
+                    <span class="settings-menu__radio-hint">Current sizing (100%)</span>
+                  </span>
+                </label>
+                <label class="settings-menu__radio">
+                  <input
+                    v-model="fontSizeSetting"
+                    type="radio"
+                    class="settings-menu__radio-input"
+                    value="small"
+                    aria-label="Use small font size"
+                  />
+                  <span class="settings-menu__radio-label">
+                    <span class="settings-menu__radio-title">Small</span>
+                    <span class="settings-menu__radio-hint">Reduced sizing (80%)</span>
+                  </span>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1057,6 +1118,62 @@ onUnmounted(() => {
 .settings-menu__option input:checked + .settings-menu__toggle::after {
   transform: translateX(1.35rem);
   background: #ecfccb;
+}
+
+.settings-menu__section {
+  border-top: 1px solid theme.$color-border-muted;
+  padding-top: 0.75rem;
+  margin-top: 0.25rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.settings-menu__section-title {
+  margin: 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: theme.$color-text-muted;
+}
+
+.settings-menu__radio-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.settings-menu__radio {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.35rem 0.2rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.settings-menu__radio:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.settings-menu__radio-input {
+  accent-color: theme.$color-accent;
+}
+
+.settings-menu__radio-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.settings-menu__radio-title {
+  font-size: 0.95rem;
+  color: theme.$color-text-primary;
+}
+
+.settings-menu__radio-hint {
+  font-size: 0.8rem;
+  color: theme.$color-text-muted;
 }
 
 @media (max-width: 960px) {
