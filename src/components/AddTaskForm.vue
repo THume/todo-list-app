@@ -35,6 +35,7 @@ const dueDate = ref('');
 const dueTime = ref('');
 const recurrence = ref('none');
 const selectedListId = ref('');
+const markCompleted = ref(false);
 const titleField = ref(null);
 const appliedDefaultDueDate = ref(null);
 let isApplyingDefaultDueDate = false;
@@ -52,6 +53,7 @@ const resetForm = () => {
   description.value = '';
   dueTime.value = '';
   recurrence.value = 'none';
+  markCompleted.value = false;
   if (props.defaultDueDate) {
     isApplyingDefaultDueDate = true;
     dueDate.value = props.defaultDueDate;
@@ -79,6 +81,7 @@ const handleSubmit = () => {
     dueTime: dueTime.value || null,
     recurrence: recurrence.value,
     listId: selectedListId.value || null,
+    completed: markCompleted.value,
   });
 
   resetForm();
@@ -350,6 +353,29 @@ watch(
                 </option>
               </select>
             </label>
+            <div class="add-task__completion">
+              <label class="add-task__checkbox">
+                <input
+                  v-model="markCompleted"
+                  type="checkbox"
+                  class="add-task__checkbox-input"
+                  name="completed"
+                  aria-label="Mark task as completed"
+                />
+                <span class="add-task__checkbox-box" aria-hidden="true">
+                  <IconGlyph
+                    v-if="markCompleted"
+                    name="check"
+                    size="14"
+                    class="add-task__checkbox-icon"
+                  />
+                </span>
+                <span class="add-task__checkbox-label">Mark as completed</span>
+              </label>
+              <p class="add-task__checkbox-hint">
+                Saves this task directly to completed history.
+              </p>
+            </div>
           </div>
           <button type="submit" class="add-task__submit" :disabled="!canSubmit">
             <IconGlyph
@@ -614,6 +640,68 @@ $remove-hover: #f87171;
     @media (min-width: 640px) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+  }
+
+  &__completion {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.8rem 0.95rem;
+    border: 1px solid $input-border;
+    border-radius: 1rem;
+    background: $input-bg;
+  }
+
+  &__checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    user-select: none;
+    color: $input-text;
+    font-weight: 600;
+  }
+
+  &__checkbox-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &__checkbox-box {
+    width: 1.15rem;
+    height: 1.15rem;
+    border-radius: 0.4rem;
+    border: 2px solid $checkbox-border;
+    background: $checkbox-bg;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  &__checkbox-icon {
+    color: $checkbox-icon;
+  }
+
+  &__checkbox-input:focus-visible + &__checkbox-box {
+    outline: 2px solid $focus-outline;
+    outline-offset: 3px;
+  }
+
+  &__checkbox-input:checked + &__checkbox-box {
+    background: $checkbox-checked-bg;
+    border-color: $checkbox-checked-border;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+  }
+
+  &__checkbox-label {
+    font-size: 0.95rem;
+  }
+
+  &__checkbox-hint {
+    margin: 0;
+    color: theme.$color-text-muted;
+    font-size: 0.85rem;
   }
 
   &__due-input-wrapper {

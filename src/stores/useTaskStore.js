@@ -509,20 +509,41 @@ const skipTaskRecurrence = (taskId) => {
   return true;
 };
 
-const addTask = ({ title, description, dueDate, dueTime, recurrence, listId }) => {
+const addTask = ({
+  title,
+  description,
+  dueDate,
+  dueTime,
+  recurrence,
+  listId,
+  completed = false,
+}) => {
   const due = buildDueDate(dueDate, dueTime);
   const recurrenceValue = normalizeRecurrence(recurrence);
+  const isCompleted = Boolean(completed);
   const newTask = {
     id: initialId++,
     title,
     description,
-    completed: false,
+    completed: isCompleted,
     due,
     recurrence: recurrenceValue,
     listId: normalizeListId(listId),
   };
 
-  tasks.value = [...tasks.value, newTask];
+  const updatedTasks = [...tasks.value, newTask];
+
+  if (isCompleted) {
+    recordCompletion(newTask);
+    const nextTask = createRecurringTask(newTask);
+
+    if (nextTask) {
+      spawnedRecurringTaskIds.set(newTask.id, nextTask.id);
+      updatedTasks.push(nextTask);
+    }
+  }
+
+  tasks.value = updatedTasks;
 };
 
 const updateTask = ({ id, title, description, dueDate, dueTime, recurrence, listId }) => {
