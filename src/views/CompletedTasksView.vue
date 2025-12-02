@@ -10,8 +10,6 @@ const {
   updateCompletedTaskTimestamp,
 } = useTaskStore();
 
-const totalCompleted = computed(() => sortedCompletedTasks.value.length);
-
 const parseCompletedDate = (value) => {
   const timestamp = Date.parse(value ?? '');
   if (Number.isNaN(timestamp)) {
@@ -57,36 +55,6 @@ const formatGroupHeading = (date) => {
     year: 'numeric',
   }).format(date);
 };
-
-const groupedEntries = computed(() => {
-  const groups = [];
-  const groupMap = new Map();
-
-  sortedCompletedTasks.value.forEach((entry) => {
-    const day = parseCompletedDate(entry.completedAt);
-    const key = day
-      ? `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
-      : 'unknown';
-
-    let group = groupMap.get(key);
-
-    if (!group) {
-      group = {
-        key,
-        label: formatGroupHeading(day),
-        date: day,
-        items: [],
-      };
-
-      groupMap.set(key, group);
-      groups.push(group);
-    }
-
-    group.items.push(entry);
-  });
-
-  return groups;
-});
 
 const formatRecurrence = (value) => {
   switch (value) {
@@ -154,6 +122,162 @@ const toTimeInputValue = (value) => {
   return `${hours}:${minutes}`;
 };
 
+const parseDateInputValue = (value) => {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+
+  const [year, month, day] = value.split('-').map((part) => Number(part));
+
+  if (
+    Number.isNaN(year)
+    || Number.isNaN(month)
+    || Number.isNaN(day)
+    || month < 1
+    || month > 12
+    || day < 1
+    || day > 31
+  ) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.valueOf())) {
+    return null;
+  }
+
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const filterStartDate = ref('');
+const filterEndDate = ref('');
+
+const filterBounds = computed(() => {
+  const startDate = parseDateInputValue(filterStartDate.value);
+  const endDate = parseDateInputValue(filterEndDate.value);
+
+  let rangeStart = startDate;
+  let rangeEnd = endDate;
+
+  if (
+    rangeStart instanceof Date
+    && rangeEnd instanceof Date
+    && rangeStart.getTime() > rangeEnd.getTime()
+  ) {
+    [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
+  }
+
+  const start = rangeStart ? rangeStart.getTime() : null;
+  let end = null;
+
+  if (rangeEnd instanceof Date) {
+    const exclusiveEnd = new Date(rangeEnd);
+    exclusiveEnd.setDate(exclusiveEnd.getDate() + 1);
+    end = exclusiveEnd.getTime();
+  }
+
+  return {
+    start,
+    end,
+    startDate: rangeStart ?? null,
+    endDate: rangeEnd ?? null,
+    hasFilter: start !== null || end !== null,
+  };
+});
+
+const filteredCompletedEntries = computed(() => {
+  const { start, end, hasFilter } = filterBounds.value;
+
+  return sortedCompletedTasks.value.filter((entry) => {
+    const timestamp = Date.parse(entry?.completedAt ?? '');
+
+    if (Number.isNaN(timestamp)) {
+      return !hasFilter;
+    }
+
+    if (start !== null && timestamp < start) {
+      return false;
+    }
+
+    if (end !== null && timestamp >= end) {
+      return false;
+    }
+
+    return true;
+  });
+});
+
+const totalCompleted = computed(() => sortedCompletedTasks.value.length);
+const visibleCompleted = computed(() => filteredCompletedEntries.value.length);
+
+const completedCountLabel = computed(() => {
+  if (filterBounds.value.hasFilter) {
+    return `${visibleCompleted.value} of ${totalCompleted.value} saved`;
+  }
+  return `${totalCompleted.value} saved`;
+});
+
+const filterMaxDate = computed(() => toDateInputValue(new Date()));
+
+const filterDescription = computed(() => {
+  const { startDate, endDate, hasFilter } = filterBounds.value;
+  if (!hasFilter) {
+    return 'Showing all completed tasks';
+  }
+
+  const formatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
+
+  if (startDate && endDate) {
+    const startLabel = formatter.format(startDate);
+    const endLabel = formatter.format(endDate);
+    if (startLabel === endLabel) {
+      return `Showing tasks completed on ${startLabel}`;
+    }
+    return `Showing tasks completed between ${startLabel} and ${endLabel}`;
+  }
+
+  if (startDate) {
+    return `Showing tasks completed on or after ${formatter.format(startDate)}`;
+  }
+
+  if (endDate) {
+    return `Showing tasks completed on or before ${formatter.format(endDate)}`;
+  }
+
+  return 'Showing all completed tasks';
+});
+
+const groupedEntries = computed(() => {
+  const groups = [];
+  const groupMap = new Map();
+
+  filteredCompletedEntries.value.forEach((entry) => {
+    const day = parseCompletedDate(entry.completedAt);
+    const key = day
+      ? `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+      : 'unknown';
+
+    let group = groupMap.get(key);
+
+    if (!group) {
+      group = {
+        key,
+        label: formatGroupHeading(day),
+        date: day,
+        items: [],
+      };
+
+      groupMap.set(key, group);
+      groups.push(group);
+    }
+
+    group.items.push(entry);
+  });
+
+  return groups;
+});
+
 const buildIsoFromInputs = (dateInput, timeInput) => {
   if (!dateInput) {
     return null;
@@ -180,6 +304,11 @@ const resetEditState = () => {
   editDate.value = '';
   editTime.value = '';
   editError.value = '';
+};
+
+const clearFilters = () => {
+  filterStartDate.value = '';
+  filterEndDate.value = '';
 };
 
 const showDeleteDialog = ref(false);
@@ -265,11 +394,51 @@ const handleConfirmDelete = () => {
 <template>
   <section class="history">
     <header class="history__header">
-      <h2>Completed Tasks</h2>
-      <span class="history__count">{{ totalCompleted }} saved</span>
+      <div>
+        <h2>Completed Tasks</h2>
+        <p class="history__subtitle">{{ filterDescription }}</p>
+      </div>
+      <span class="history__count">{{ completedCountLabel }}</span>
     </header>
+    <div class="history__filters" aria-live="polite">
+      <div class="history__filter-fields">
+        <label class="history__filter-field">
+          <span>From</span>
+          <input
+            v-model="filterStartDate"
+            type="date"
+            name="completed-start"
+            :max="filterMaxDate"
+            aria-label="Filter completed tasks from date"
+          />
+        </label>
+        <label class="history__filter-field">
+          <span>To</span>
+          <input
+            v-model="filterEndDate"
+            type="date"
+            name="completed-end"
+            :max="filterMaxDate"
+            aria-label="Filter completed tasks to date"
+          />
+        </label>
+      </div>
+      <div class="history__filter-actions">
+        <button
+          type="button"
+          class="history__filter-button"
+          :disabled="!filterBounds.hasFilter"
+          @click="clearFilters"
+        >
+          Clear filters
+        </button>
+      </div>
+    </div>
     <p v-if="totalCompleted === 0" class="history__empty">
       No completed tasks yet. Finish a task to see it here.
+    </p>
+    <p v-else-if="visibleCompleted === 0" class="history__empty">
+      No tasks match the selected dates.
     </p>
     <ul v-else class="history__groups">
       <li v-for="group in groupedEntries" :key="group.key" class="history__group">
@@ -395,6 +564,12 @@ const handleConfirmDelete = () => {
   gap: 1rem;
 }
 
+.history__subtitle {
+  margin: 0.15rem 0 0;
+  color: theme.$color-text-muted;
+  font-size: 0.9rem;
+}
+
 .history__count {
   color: theme.$color-text-muted;
   font-size: 0.95rem;
@@ -404,6 +579,82 @@ const handleConfirmDelete = () => {
   margin: 0;
   padding: 1rem 0;
   color: theme.$color-text-muted;
+}
+
+.history__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px dashed theme.$color-border-input;
+}
+
+.history__filter-fields {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  flex: 1;
+}
+
+.history__filter-field {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: theme.$color-text-muted;
+}
+
+.history__filter-field input {
+  width: 100%;
+  border: 1px solid theme.$color-border-input;
+  background: rgba(12, 12, 13, 0.6);
+  color: theme.$color-text-primary;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.history__filter-field input:focus-visible {
+  outline: 2px solid theme.$color-accent;
+  outline-offset: 2px;
+  border-color: theme.$color-accent;
+  background: rgba(12, 12, 13, 0.85);
+}
+
+.history__filter-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.history__filter-button {
+  border: 1px solid theme.$color-border-input;
+  background: transparent;
+  color: theme.$color-text-primary;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+}
+
+.history__filter-button:hover:enabled {
+  color: theme.$color-text-heading;
+  border-color: theme.$color-accent;
+  background: rgba(34, 197, 94, 0.15);
+  transform: translateY(-1px);
+}
+
+.history__filter-button:focus-visible {
+  outline: 2px solid theme.$color-accent;
+  outline-offset: 2px;
+}
+
+.history__filter-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .history__list {
