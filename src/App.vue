@@ -456,11 +456,11 @@ onUnmounted(() => {
               </span>
               <span class="layout__nav-label">{{ link.label }}</span>
               <span
-                v-if="link.secondaryCount !== undefined || link.count !== null"
+                v-if="(link.secondaryCount ?? 0) > 0 || link.count !== null"
                 class="layout__nav-counts"
               >
                 <span
-                  v-if="link.secondaryCount !== undefined"
+                  v-if="link.secondaryCount > 0"
                   class="layout__nav-count layout__nav-count--due"
                   :aria-label="`${link.secondaryCount} due tasks today`"
                 >
