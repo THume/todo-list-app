@@ -1,5 +1,12 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue';
 
 const emit = defineEmits([
   'toggle',
@@ -120,6 +127,9 @@ const listLabel = computed(() => {
 const menuOpen = ref(false);
 const menuButton = ref(null);
 const menuPanel = ref(null);
+const isDescriptionExpanded = ref(false);
+const descriptionEl = ref(null);
+const canToggleDescription = ref(false);
 
 const isDueToday = computed(() => {
   if (!dueDate.value) {
@@ -172,6 +182,8 @@ onMounted(() => {
   if (typeof window !== 'undefined') {
     window.addEventListener('click', handleDocumentClick);
   }
+
+  measureDescriptionOverflow();
 });
 
 onBeforeUnmount(() => {
@@ -217,6 +229,40 @@ const handleSkipRecurrence = () => {
   emit('skip-recurrence', props.task);
   closeMenu();
 };
+
+const descriptionText = computed(() => (typeof props.task.description === 'string' ? props.task.description : ''));
+const toggleDescription = () => {
+  isDescriptionExpanded.value = !isDescriptionExpanded.value;
+};
+
+const measureDescriptionOverflow = async () => {
+  if (typeof window === 'undefined') {
+    canToggleDescription.value = false;
+    return;
+  }
+
+  await nextTick();
+  const el = descriptionEl.value;
+  if (!el) {
+    canToggleDescription.value = false;
+    return;
+  }
+
+  const style = window.getComputedStyle(el);
+  const lineHeight = parseFloat(style.lineHeight);
+  if (!lineHeight) {
+    canToggleDescription.value = false;
+    return;
+  }
+
+  const totalLines = Math.round(el.scrollHeight / lineHeight);
+  canToggleDescription.value = totalLines > 3;
+};
+
+watch(descriptionText, () => {
+  isDescriptionExpanded.value = false;
+  measureDescriptionOverflow();
+});
 </script>
 
 <template>
@@ -319,9 +365,24 @@ const handleSkipRecurrence = () => {
       </div>
     </header>
 
-    <p v-if="task.description" class="task__description">
-      {{ task.description }}
-    </p>
+    <div v-if="task.description" class="task__description-row">
+      <p
+        class="task__description"
+        :class="{ 'task__description--clamped': !isDescriptionExpanded }"
+        ref="descriptionEl"
+      >
+        {{ task.description }}
+      </p>
+      <button
+        v-if="canToggleDescription"
+        type="button"
+        class="task__description-toggle"
+        :aria-expanded="isDescriptionExpanded"
+        @click="toggleDescription"
+      >
+        {{ isDescriptionExpanded ? 'Show Less' : 'Show More' }}
+      </button>
+    </div>
 
     <footer class="task__meta">
       <span v-if="listLabel" class="task__list">
@@ -340,7 +401,7 @@ const handleSkipRecurrence = () => {
 $task-border: theme.$color-border-strong;
 $task-bg: #141414;
 $task-heading: theme.$color-text-heading;
-$task-description: #d4d4d8;
+$task-description: #c7d2fe;
 $task-muted: #9ca3af;
 $checkbox-accent: theme.$color-accent;
 $checkbox-bg: theme.$color-surface-ghost-soft;
@@ -395,6 +456,37 @@ $remove-hover: theme.$color-accent-hover;
   margin: 0;
   color: $task-description;
   line-height: 1.5;
+  white-space: pre-line;
+  flex: 1;
+  min-width: 0;
+}
+
+.task__description--clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.task__description-toggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: $checkbox-accent;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s ease;
+  margin-top: 0.8rem;
+
+  &:hover {
+    color: lighten($checkbox-accent, 5%);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $checkbox-accent;
+    outline-offset: 2px;
+  }
 }
 
 .task__meta {
