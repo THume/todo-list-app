@@ -441,8 +441,8 @@ onUnmounted(() => {
           aria-hidden="true"
         />
       </button>
-      <div v-show="!isSidebarCollapsed" class="layout__sidebar-content">
-        <div class="layout__sidebar-top">
+      <div class="layout__sidebar-content" :class="{ 'layout__sidebar-content--collapsed': isSidebarCollapsed }">
+        <div class="layout__sidebar-top" :class="{ 'layout__sidebar-top--hidden-title': isSidebarCollapsed }">
           <h1 class="layout__title">TODOs</h1>
           <nav class="layout__nav">
             <RouterLink
@@ -451,6 +451,7 @@ onUnmounted(() => {
               :to="link.to"
               class="layout__link"
               active-class="layout__link--active"
+              :title="isSidebarCollapsed ? link.label : undefined"
             >
               <span class="layout__nav-icon" aria-hidden="true">
                 <IconGlyph :name="link.icon" size="22" />
@@ -477,16 +478,21 @@ onUnmounted(() => {
             </RouterLink>
           </nav>
           <section class="layout__lists">
-            <header class="layout__lists-header">
+            <header class="layout__lists-header" :class="{ 'layout__lists-header--hidden': isSidebarCollapsed }">
               <span class="layout__lists-title">Lists</span>
-              <button type="button" class="layout__add-list" @click="handleCreateList">
+              <button
+                type="button"
+                class="layout__add-list"
+                :title="isSidebarCollapsed ? 'New List' : undefined"
+                @click="handleCreateList"
+              >
                 <IconGlyph
                   name="plus"
                   size="14"
                   class="layout__add-list-icon"
                   aria-hidden="true"
                 />
-                New List
+                <span class="layout__add-list-text">New List</span>
               </button>
             </header>
             <nav class="layout__list-nav">
@@ -495,6 +501,7 @@ onUnmounted(() => {
                   :to="`/lists/${list.id}`"
                   class="layout__link layout__link--list"
                   active-class="layout__link--active"
+                  :title="isSidebarCollapsed ? list.name : undefined"
                 >
                   <span class="layout__list-icon" aria-hidden="true">
                     <IconGlyph name="folder" size="16" />
@@ -509,6 +516,7 @@ onUnmounted(() => {
         <button
           type="button"
           class="layout__add-task"
+          :title="isSidebarCollapsed ? 'Add a Task' : undefined"
           @click="showForm = true"
         >
           <IconGlyph
@@ -517,7 +525,7 @@ onUnmounted(() => {
             class="layout__add-task-icon"
             aria-hidden="true"
           />
-          Add a Task
+          <span class="layout__add-task-text">Add a Task</span>
         </button>
       </div>
       <div
@@ -664,6 +672,10 @@ onUnmounted(() => {
   flex: 1 1 auto;
 }
 
+.layout__sidebar-content--collapsed {
+  align-items: center;
+}
+
 .layout__add-task {
   border: none;
   border-radius: 1rem;
@@ -695,6 +707,10 @@ onUnmounted(() => {
 
 .layout__add-task-icon {
   color: theme.$color-text-inverted;
+}
+
+.layout--collapsed .layout__add-task-text {
+  display: none;
 }
 
 .layout__sidebar--collapsed {
@@ -923,6 +939,42 @@ onUnmounted(() => {
   color: theme.$color-accent;
 }
 
+.layout--collapsed .layout__sidebar-top {
+  width: 100%;
+  align-items: center;
+}
+
+.layout--collapsed .layout__title {
+  display: none;
+}
+
+.layout--collapsed .layout__nav,
+.layout--collapsed .layout__list-nav {
+  width: 100%;
+}
+
+.layout--collapsed .layout__link {
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+.layout--collapsed .layout__nav-label,
+.layout--collapsed .layout__nav-counts,
+.layout--collapsed .layout__list-name,
+.layout--collapsed .layout__list-count {
+  display: none;
+}
+
+.layout--collapsed .layout__nav-icon {
+  margin-right: 0;
+}
+
+.layout--collapsed .layout__add-task {
+  width: 100%;
+  justify-content: center;
+  padding: 0.75rem;
+}
+
 .layout__link--active .layout__nav-icon {
   color: #1b1b1d;
 }
@@ -942,6 +994,22 @@ onUnmounted(() => {
 
 .layout__add-list-icon {
   margin-right: 0.4rem;
+}
+
+.layout--collapsed .layout__add-list {
+  display: none;
+}
+
+.layout--collapsed .layout__add-list-text {
+  display: none;
+}
+
+.layout__sidebar-top--hidden-title .layout__title {
+  display: none;
+}
+
+.layout__lists-header--hidden {
+  display: none;
 }
 
 .layout__nav-count {
