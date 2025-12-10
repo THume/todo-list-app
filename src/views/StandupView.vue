@@ -376,7 +376,7 @@ const todayVisibleCount = computed(
 const totalCompletedYesterday = computed(() => rawCompletedYesterday.value.length);
 const totalCompletedToday = computed(() => rawCompletedToday.value.length);
 const totalScheduledToday = computed(() => rawTodayTasks.value.length);
-const hasCompletedToday = computed(() => totalCompletedToday.value > 0);
+const showCompletedTodaySection = computed(() => completedTodayCount.value > 0);
 const hasScheduledToday = computed(() => totalScheduledToday.value > 0);
 
 const getOrderRef = (section) => {
@@ -741,7 +741,7 @@ watch(showAll, (value) => {
         </p>
         <div v-else class="standup__focus">
           <section
-            v-if="hasCompletedToday"
+            v-if="showCompletedTodaySection"
             class="standup__focus-group"
           >
             <h3 class="standup__subheading">Completed Today</h3>
