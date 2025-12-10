@@ -67,7 +67,7 @@ const resetForm = () => {
   }
 };
 
-const handleSubmit = () => {
+const handleSubmit = (shouldCloseModal = false) => {
   const trimmedTitle = title.value.trim();
 
   if (!trimmedTitle) {
@@ -83,6 +83,11 @@ const handleSubmit = () => {
     listId: selectedListId.value || null,
     completed: markCompleted.value,
   });
+
+  if (shouldCloseModal) {
+    emit('update:visible', false);
+    return;
+  }
 
   resetForm();
 
@@ -221,7 +226,7 @@ watch(
             &times;
           </button>
         </header>
-        <form class="add-task__form" @submit.prevent="handleSubmit">
+        <form class="add-task__form" @submit.prevent="handleSubmit(true)">
           <div class="add-task__fields">
             <div class="add-task__input-shell">
               <IconGlyph
@@ -377,15 +382,31 @@ watch(
               </p>
             </div>
           </div>
-          <button type="submit" class="add-task__submit" :disabled="!canSubmit">
-            <IconGlyph
-              name="plus"
-              size="16"
-              class="add-task__submit-icon"
-              aria-hidden="true"
-            />
-            Add Task
-          </button>
+          <div class="add-task__actions">
+            <button type="submit" class="add-task__submit" :disabled="!canSubmit">
+              <IconGlyph
+                name="plus"
+                size="16"
+                class="add-task__submit-icon"
+                aria-hidden="true"
+              />
+              Add Task
+            </button>
+            <button
+              type="button"
+              class="add-task__submit add-task__submit--secondary"
+              :disabled="!canSubmit"
+              @click="handleSubmit(false)"
+            >
+              <IconGlyph
+                name="plus"
+                size="16"
+                class="add-task__submit-icon"
+                aria-hidden="true"
+              />
+              Add and Start Another
+            </button>
+          </div>
         </form>
       </section>
     </div>
@@ -473,6 +494,9 @@ $remove-hover: #f87171;
     border-radius: 999px;
     cursor: pointer;
     transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     &:hover {
       background: rgba(255, 255, 255, 0.08);
@@ -827,6 +851,32 @@ $remove-hover: #f87171;
 
   &__submit-icon {
     margin-right: 0.5rem;
+  }
+
+  &__actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  &__submit--secondary {
+    background: transparent;
+    color: $button-bg;
+    border: 1px solid $button-bg;
+    box-shadow: none;
+
+    &:not(:disabled):hover {
+      background: rgba(239, 68, 68, 0.1);
+      color: $button-bg-hover;
+      transform: translateY(-1px);
+    }
+
+    &:disabled {
+      border-color: $disabled-bg;
+      color: $disabled-text;
+      background: transparent;
+    }
   }
 }
 </style>
