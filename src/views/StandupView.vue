@@ -2,12 +2,42 @@
 import { computed, ref, watch } from 'vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
+const isBrowser = typeof window !== 'undefined';
+const STANDUP_HIDDEN_STORAGE_KEY = 'todo-list.standup-hidden';
+const STANDUP_SHOW_ALL_STORAGE_KEY = 'todo-list.standup-show-all';
+
 const {
   tasksDueToday,
   tasksCompletedToday,
   lists,
   completedTasks,
 } = useTaskStore();
+
+const loadHiddenSet = () => {
+  if (!isBrowser) {
+    return new Set();
+  }
+  try {
+    const raw = window.localStorage.getItem(STANDUP_HIDDEN_STORAGE_KEY);
+    if (!raw) {
+      return new Set();
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return new Set();
+    }
+    return new Set(parsed.filter((value) => typeof value === 'string'));
+  } catch (error) {
+    return new Set();
+  }
+};
+
+const loadShowAll = () => {
+  if (!isBrowser) {
+    return false;
+  }
+  return window.localStorage.getItem(STANDUP_SHOW_ALL_STORAGE_KEY) === 'true';
+};
 
 const listNameById = computed(() => {
   const result = {};
@@ -189,8 +219,8 @@ const rawTodayTasks = computed(() => {
   });
 });
 
-const hiddenTaskIds = ref(new Set());
-const showAll = ref(false);
+const hiddenTaskIds = ref(loadHiddenSet());
+const showAll = ref(loadShowAll());
 
 const hiddenCount = computed(() => hiddenTaskIds.value.size);
 
@@ -515,6 +545,29 @@ const showDateAdjustments = ref(false);
 const toggleDateAdjustments = () => {
   showDateAdjustments.value = !showDateAdjustments.value;
 };
+
+watch(hiddenTaskIds, (set) => {
+  if (!isBrowser) {
+    return;
+  }
+  const values = Array.from(set);
+  try {
+    window.localStorage.setItem(STANDUP_HIDDEN_STORAGE_KEY, JSON.stringify(values));
+  } catch (error) {
+    // ignore storage errors
+  }
+});
+
+watch(showAll, (value) => {
+  if (!isBrowser) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(STANDUP_SHOW_ALL_STORAGE_KEY, value ? 'true' : 'false');
+  } catch (error) {
+    // ignore storage errors
+  }
+}, { immediate: true });
 </script>
 
 <template>
