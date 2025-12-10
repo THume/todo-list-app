@@ -7,6 +7,7 @@ import {
   ref,
   watch,
 } from 'vue';
+import IconGlyph from './IconGlyph.vue';
 
 const emit = defineEmits([
   'toggle',
@@ -304,7 +305,7 @@ watch(descriptionText, () => {
             aria-label="Task options"
             @click.stop="toggleMenu"
           >
-            ...
+            <IconGlyph name="more-vertical" size="18" aria-hidden="true" />
           </button>
           <transition name="task-menu">
             <ul
@@ -557,6 +558,7 @@ $remove-hover: theme.$color-accent-hover;
   justify-content: center;
   cursor: pointer;
   transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  padding: 0;
 
   &:hover {
     color: $task-heading;
@@ -568,6 +570,13 @@ $remove-hover: theme.$color-accent-hover;
   &:focus-visible {
     outline: 2px solid $checkbox-accent;
     outline-offset: 2px;
+  }
+
+  .icon-glyph {
+    flex: none;
+    width: 1rem;
+    height: 1rem;
+    display: block;
   }
 }
 

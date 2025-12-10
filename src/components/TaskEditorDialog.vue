@@ -7,6 +7,7 @@ import {
   resolveListId,
   recurrenceOptions,
 } from '../composables/useTaskFormHelpers';
+import IconGlyph from './IconGlyph.vue';
 
 const { lists } = useTaskStore();
 
@@ -187,141 +188,209 @@ watch(dueDate, (value) => {
       role="presentation"
       @click.self="handleCancel"
     >
-      <div
+      <section
         ref="panel"
-        class="task-editor__panel"
+        class="add-task add-task--dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="task-editor-title"
         tabindex="-1"
         @keydown.esc.prevent="handleCancel"
       >
-        <header class="task-editor__header">
-          <h2 id="task-editor-title">Edit Task</h2>
+        <header class="add-task__header">
+          <h1 id="task-editor-title" class="add-task__title">
+            <IconGlyph
+              name="pencil"
+              size="18"
+              class="add-task__title-icon"
+              aria-hidden="true"
+            />
+            Edit Task
+          </h1>
           <button
             type="button"
-            class="task-editor__close"
+            class="add-task__close"
             aria-label="Close editor"
-            @click="handleCancel"
+            @click.stop.prevent="handleCancel"
           >
-            ├ù
+            <IconGlyph name="close" size="20" aria-hidden="true" />
           </button>
         </header>
-        <form class="task-editor__form" @submit.prevent="handleSave">
-          <label class="task-editor__field">
-            <span class="task-editor__label">Title</span>
-            <input
-              ref="titleField"
-              v-model="title"
-              type="text"
-              class="task-editor__input"
-              name="title"
-              required
-              aria-required="true"
-            />
-          </label>
-          <label class="task-editor__field">
-            <span class="task-editor__label">Description</span>
-            <textarea
-              v-model="description"
-              name="description"
-              class="task-editor__textarea"
-              rows="3"
-            />
-          </label>
-          <label class="task-editor__field">
-            <span class="task-editor__label">List</span>
-            <select
-              v-model="selectedListId"
-              name="list"
-              class="task-editor__input"
-              aria-label="Task list"
-              :disabled="listOptions.length === 0"
-            >
-              <option v-for="list in listOptions" :key="list.id" :value="list.id">
-                {{ list.name }}
-              </option>
-            </select>
-          </label>
-          <div class="task-editor__row">
-            <label class="task-editor__field">
-              <span class="task-editor__label">Due date</span>
-              <div class="task-editor__date-input-wrapper">
-                <input
-                  v-model="dueDate"
-                  type="date"
-                  name="dueDate"
-                  class="task-editor__input task-editor__input--date"
-                />
-                <button
-                  type="button"
-                  class="task-editor__today-button"
-                  @click="setDueDateToToday"
-                >
-                  Today
-                </button>
-              </div>
-            </label>
-            <label class="task-editor__field">
-              <span class="task-editor__label">Due time</span>
-              <input
-                v-model="dueTime"
-                type="time"
-                name="dueTime"
-                class="task-editor__input"
-                :disabled="!dueDate"
+        <form class="add-task__form" @submit.prevent="handleSave">
+          <div class="add-task__fields">
+            <div class="add-task__input-shell">
+              <IconGlyph
+                name="text"
+                size="16"
+                class="add-task__field-icon"
+                aria-hidden="true"
               />
+              <input
+                ref="titleField"
+                v-model="title"
+                type="text"
+                class="add-task__input add-task__input--with-icon"
+                name="title"
+                autocomplete="off"
+                placeholder="Task title"
+                aria-label="Task title"
+                required
+              />
+            </div>
+            <div class="add-task__input-shell add-task__input-shell--textarea">
+              <IconGlyph
+                name="pencil"
+                size="16"
+                class="add-task__field-icon"
+                aria-hidden="true"
+              />
+              <textarea
+                v-model="description"
+                class="add-task__textarea add-task__textarea--with-icon"
+                name="description"
+                placeholder="Description (optional)"
+                aria-label="Task description"
+                rows="2"
+              />
+            </div>
+            <label class="add-task__due-label add-task__list">
+              <span class="add-task__label-heading">
+                <IconGlyph
+                  name="folder"
+                  size="14"
+                  class="add-task__label-icon"
+                  aria-hidden="true"
+                />
+                <span>List</span>
+              </span>
+              <select
+                v-model="selectedListId"
+                class="add-task__select"
+                name="list"
+                aria-label="Task list"
+                :disabled="listOptions.length === 0"
+              >
+                <option v-for="list in listOptions" :key="list.id" :value="list.id">
+                  {{ list.name }}
+                </option>
+              </select>
+            </label>
+            <div class="add-task__due-row">
+              <label class="add-task__due-label">
+                <span class="add-task__label-heading">
+                  <IconGlyph
+                    name="calendar"
+                    size="14"
+                    class="add-task__label-icon"
+                    aria-hidden="true"
+                  />
+                  <span>Due date</span>
+                </span>
+                <div class="add-task__due-input-wrapper">
+                  <input
+                    v-model="dueDate"
+                    type="date"
+                    name="dueDate"
+                    class="add-task__due-input"
+                    aria-label="Due date"
+                  />
+                  <button
+                    type="button"
+                    class="add-task__today-button"
+                    @click="setDueDateToToday"
+                  >
+                    Today
+                  </button>
+                </div>
+              </label>
+              <label class="add-task__due-label">
+                <span class="add-task__label-heading">
+                  <IconGlyph
+                    name="clock"
+                    size="14"
+                    class="add-task__label-icon"
+                    aria-hidden="true"
+                  />
+                  <span>Due time</span>
+                </span>
+                <input
+                  v-model="dueTime"
+                  type="time"
+                  name="dueTime"
+                  class="add-task__due-input"
+                  aria-label="Due time"
+                  :disabled="!dueDate"
+                />
+              </label>
+            </div>
+            <label class="add-task__due-label add-task__recurrence">
+              <span class="add-task__label-heading">
+                <IconGlyph
+                  name="repeat"
+                  size="14"
+                  class="add-task__label-icon"
+                  aria-hidden="true"
+                />
+                <span>Repeats</span>
+              </span>
+              <select
+                v-model="recurrence"
+                name="recurrence"
+                class="add-task__select"
+                aria-label="Recurrence"
+              >
+                <option
+                  v-for="option in recurrenceOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+            </label>
+            <label class="add-task__due-label add-task__reminder">
+              <span class="add-task__label-heading">
+                <IconGlyph
+                  name="alert"
+                  size="14"
+                  class="add-task__label-icon"
+                  aria-hidden="true"
+                />
+                <span>Reminder</span>
+              </span>
+              <select
+                v-model="reminderOffset"
+                name="reminder"
+                class="add-task__select"
+                aria-label="Reminder time"
+                :disabled="!dueDate"
+              >
+                <option value="none">No reminder</option>
+                <option value="5">5 minutes before</option>
+                <option value="10">10 minutes before</option>
+                <option value="15">15 minutes before</option>
+                <option value="30">30 minutes before</option>
+                <option value="60">1 hour before</option>
+                <option value="120">2 hours before</option>
+                <option value="240">4 hours before</option>
+                <option value="1440">1 day before</option>
+              </select>
             </label>
           </div>
-          <label class="task-editor__field">
-            <span class="task-editor__label">Repeats</span>
-            <select v-model="recurrence" name="recurrence" class="task-editor__input">
-              <option
-                v-for="option in recurrenceOptions"
-                :key="option.value"
-                :value="option.value"
-              >
-                {{ option.label }}
-              </option>
-            </select>
-          </label>
-          <label class="task-editor__field">
-            <span class="task-editor__label">Reminder</span>
-            <select
-              v-model="reminderOffset"
-              name="reminder"
-              class="task-editor__input"
-              :disabled="!dueDate"
-            >
-              <option value="none">No reminder</option>
-              <option value="5">5 minutes before</option>
-              <option value="10">10 minutes before</option>
-              <option value="15">15 minutes before</option>
-              <option value="30">30 minutes before</option>
-              <option value="60">1 hour before</option>
-              <option value="120">2 hours before</option>
-              <option value="240">4 hours before</option>
-              <option value="1440">1 day before</option>
-            </select>
-          </label>
-          <footer class="task-editor__actions">
+          <footer class="add-task__actions">
             <button
               type="button"
-              class="task-editor__button task-editor__button--ghost"
-              @click="handleCancel"
+              class="add-task__submit add-task__submit--secondary"
+              @click.stop.prevent="handleCancel"
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              class="task-editor__button task-editor__button--primary"
-              :disabled="!canSave"
-            >
+            <button type="submit" class="add-task__submit" :disabled="!canSave">
               Save changes
             </button>
           </footer>
         </form>
-      </div>
+      </section>
     </div>
   </transition>
 </template>
@@ -330,17 +399,23 @@ watch(dueDate, (value) => {
 @use '../styles/theme' as theme;
 
 $dialog-backdrop: theme.$color-overlay-strong;
-$dialog-panel-bg: theme.$color-surface-elevated;
-$dialog-border: theme.$color-border-strong;
-$input-border: theme.$color-border-input;
-$input-bg: theme.$color-surface-base;
-$input-bg-focus: theme.$color-surface-hover;
+$panel-bg: rgba(27, 27, 29, 0.96);
+$panel-border: rgba(255, 255, 255, 0.08);
+$input-bg: rgba(255, 255, 255, 0.06);
+$input-bg-focus: rgba(255, 255, 255, 0.1);
+$input-border: rgba(255, 255, 255, 0.12);
 $input-text: theme.$color-text-primary;
-$muted-text: theme.$color-text-muted;
-$focus-outline: theme.$color-accent-focus-strong;
-$accent: theme.$color-accent;
-$accent-hover: theme.$color-accent-hover;
-$ghost-hover: theme.$color-surface-ghost-strong;
+$button-bg: #ef4444;
+$button-bg-hover: #f87171;
+$disabled-bg: rgba(255, 255, 255, 0.15);
+$disabled-text: rgba(255, 255, 255, 0.6);
+$focus-outline: rgba(248, 113, 113, 0.35);
+$checkbox-border: rgba(255, 255, 255, 0.35);
+$checkbox-bg: rgba(255, 255, 255, 0.08);
+$checkbox-accent: #22c55e;
+$checkbox-checked-bg: rgba(34, 197, 94, 0.12);
+$checkbox-checked-border: rgba(34, 197, 94, 0.55);
+$checkbox-icon: #4ade80;
 
 .dialog-fade-enter-active,
 .dialog-fade-leave-active {
@@ -359,197 +434,307 @@ $ghost-hover: theme.$color-surface-ghost-strong;
   place-items: center;
   background: $dialog-backdrop;
   z-index: 1100;
-  padding: 1.5rem;
+  padding: 3rem 1.5rem;
   box-sizing: border-box;
 
-  &__panel {
-    width: min(100%, 34rem);
-    background: $dialog-panel-bg;
-    border-radius: 1rem;
-    border: 1px solid $dialog-border;
-    padding: 2rem;
-    box-shadow: 0 28px 40px -32px rgba(0, 0, 0, 0.8);
-    display: grid;
-    gap: 1.5rem;
+  @media (max-width: 640px) {
+    padding: 1.5rem 0.75rem;
+  }
+}
+
+.add-task--dialog {
+  border: 1px solid $panel-border;
+  border-radius: 1.5rem;
+  padding: 1.5rem;
+  background: $panel-bg;
+  display: grid;
+  gap: 1rem;
+  width: min(640px, 100%);
+  box-shadow: 0 32px 65px -40px rgba(0, 0, 0, 0.9);
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+
+  @media (max-width: 640px) {
+    border-radius: 1.25rem;
+  }
+}
+
+.add-task__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.add-task__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.add-task__title-icon {
+  color: theme.$color-accent;
+}
+
+.add-task__close {
+  border: 1px solid $panel-border;
+  background: transparent;
+  color: theme.$color-text-primary;
+  font-size: 1.5rem;
+  line-height: 1;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-outline;
+    outline-offset: 2px;
+  }
+}
+
+.add-task__form {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.add-task__fields {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.add-task__input-shell {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid $input-border;
+  border-radius: 1rem;
+  background: $input-bg;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+  &:focus-within {
+    border-color: $button-bg;
+    box-shadow: 0 0 0 3px $focus-outline;
+    background: $input-bg-focus;
+  }
+}
+
+.add-task__input-shell--textarea {
+  align-items: flex-start;
+}
+
+.add-task__field-icon {
+  color: theme.$color-accent;
+  margin-top: 0.05rem;
+}
+
+.add-task__input,
+.add-task__textarea {
+  border: none;
+  background: transparent;
+  color: $input-text;
+  font-size: 1rem;
+  font-family: inherit;
+  padding: 0;
+  min-width: 0;
+
+  &:focus {
     outline: none;
   }
+}
 
-  &__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
+.add-task__textarea {
+  resize: vertical;
+  min-height: 4.25rem;
+}
 
-    h2 {
-      margin: 0;
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: $input-text;
-    }
+.add-task__label-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: $input-text;
+}
+
+.add-task__label-icon {
+  color: theme.$color-text-muted;
+}
+
+.add-task__list,
+.add-task__recurrence,
+.add-task__due-label {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid $input-border;
+  border-radius: 1rem;
+  background: $input-bg;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+  &:focus-within {
+    border-color: $button-bg;
+    box-shadow: 0 0 0 3px $focus-outline;
+    background: $input-bg-focus;
+  }
+}
+
+.add-task__due-row {
+  display: grid;
+  gap: 0.75rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.add-task__due-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.add-task__due-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid $input-border;
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  font-size: 1rem;
+  font-family: inherit;
+  background: $input-bg;
+  color: $input-text;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: $button-bg;
+    box-shadow: 0 0 0 3px $focus-outline;
+    background: $input-bg-focus;
   }
 
-  &__close {
-    border: none;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.add-task__select {
+  width: 100%;
+  border: 1px solid $input-border;
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  font-size: 1rem;
+  font-family: inherit;
+  background: $input-bg;
+  color: $input-text;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  appearance: none;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: $button-bg;
+    box-shadow: 0 0 0 3px $focus-outline;
+    background: $input-bg-focus;
+  }
+}
+
+.add-task__today-button {
+  border: 1px solid $panel-border;
+  background: $input-bg;
+  color: $input-text;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    background: $input-bg-focus;
+    border-color: $input-border;
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-outline;
+    outline-offset: 2px;
+  }
+}
+
+.add-task__actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.add-task__submit {
+  align-self: start;
+  border: none;
+  background: $button-bg;
+  color: theme.$color-text-inverted;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: 0 12px 20px -18px rgba(239, 68, 68, 0.7);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  &:disabled {
+    cursor: not-allowed;
+    background: $disabled-bg;
+    box-shadow: none;
+    color: $disabled-text;
+  }
+
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 30px -22px rgba(248, 113, 113, 0.9);
+    background: $button-bg-hover;
+  }
+
+  @media (max-width: 640px) {
+    width: 100%;
+    justify-self: stretch;
+    text-align: center;
+  }
+}
+
+.add-task__submit--secondary {
+  background: transparent;
+  color: $button-bg;
+  border: 1px solid $button-bg;
+  box-shadow: none;
+
+  &:not(:disabled):hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: $button-bg-hover;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    border-color: $disabled-bg;
+    color: $disabled-text;
     background: transparent;
-    font-size: 1.5rem;
-    line-height: 1;
-    color: $muted-text;
-    cursor: pointer;
-    transition: color 0.2s ease, transform 0.2s ease;
-
-    &:hover {
-      color: $accent;
-      transform: rotate(90deg);
-    }
-
-    &:focus-visible {
-      outline: 2px solid $accent;
-      outline-offset: 2px;
-    }
-  }
-
-  &__form {
-    display: grid;
-    gap: 1rem;
-  }
-
-  &__field {
-    display: grid;
-    gap: 0.45rem;
-  }
-
-  &__label {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: $input-text;
-  }
-
-  &__input,
-  &__textarea {
-    border: 1px solid $input-border;
-    border-radius: 0.75rem;
-    padding: 0.75rem 0.95rem;
-    font-size: 1rem;
-    font-family: inherit;
-    background: $input-bg;
-    color: $input-text;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-
-    &:focus {
-      outline: none;
-      border-color: $accent;
-      box-shadow: 0 0 0 3px $focus-outline;
-      background: $input-bg-focus;
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  }
-
-  &__date-input-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  &__input--date {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  &__today-button {
-    border: 1px solid $dialog-border;
-    background: $input-bg;
-    color: $input-text;
-    font-size: 0.85rem;
-    font-weight: 600;
-    padding: 0.45rem 0.85rem;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
-
-    &:hover {
-      background: $ghost-hover;
-      border-color: $accent;
-      transform: translateY(-1px);
-    }
-
-    &:focus-visible {
-      outline: 2px solid $accent;
-      outline-offset: 2px;
-    }
-  }
-
-  &__textarea {
-    resize: vertical;
-    min-height: 4rem;
-  }
-
-  &__row {
-    display: grid;
-    gap: 1rem;
-
-    @media (min-width: 560px) {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  &__actions {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
-  }
-
-  &__button {
-    border-radius: 0.75rem;
-    padding: 0.65rem 1.35rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
-
-    &:hover {
-      transform: translateY(-1px);
-    }
-
-    &:focus-visible {
-      outline: 2px solid $accent;
-      outline-offset: 2px;
-    }
-
-    &:disabled {
-      cursor: not-allowed;
-      opacity: 0.6;
-      transform: none;
-      box-shadow: none;
-    }
-
-    &--ghost {
-      border: 1px solid $dialog-border;
-      background: transparent;
-      color: $input-text;
-
-      &:hover {
-        background: $ghost-hover;
-        border-color: $accent;
-      }
-    }
-
-    &--primary {
-      border: none;
-      background: $accent;
-      color: theme.$color-text-inverted;
-      box-shadow: 0 16px 28px -24px rgba(239, 68, 68, 0.85);
-
-      &:hover:not(:disabled) {
-        background: $accent-hover;
-        box-shadow: 0 18px 32px -26px rgba(248, 113, 113, 0.9);
-      }
-    }
   }
 }
 </style>
+
