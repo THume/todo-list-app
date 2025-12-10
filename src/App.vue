@@ -22,6 +22,7 @@ const {
   lists,
   addList,
   removeList,
+  reorderList,
   activeCountsByList,
 } = useTaskStore();
 
@@ -40,6 +41,8 @@ const showListDeleteDialog = ref(false);
 const listPendingDelete = ref(null);
 const showSettingsMenu = ref(false);
 const settingsMenuRef = ref(null);
+const draggedListId = ref(null);
+const dragOverListId = ref(null);
 const layoutStyle = computed(() => {
   if (isSidebarCollapsed.value) {
     return {};
@@ -245,6 +248,47 @@ const handleConfirmDeleteList = () => {
       router.push('/today');
     }
   }
+};
+
+const handleListDragStart = (list) => {
+  draggedListId.value = list?.id ?? null;
+};
+
+const handleListDragEnd = () => {
+  draggedListId.value = null;
+  dragOverListId.value = null;
+};
+
+const handleListDragEnter = (list) => {
+  if (!draggedListId.value) {
+    return;
+  }
+  if (!list) {
+    dragOverListId.value = null;
+    return;
+  }
+  if (list.id === draggedListId.value) {
+    return;
+  }
+  dragOverListId.value = list.id;
+};
+
+const handleListDrop = (list) => {
+  if (!draggedListId.value || !list || list.id === draggedListId.value) {
+    handleListDragEnd();
+    return;
+  }
+
+  reorderList({ id: draggedListId.value, beforeId: list.id });
+  handleListDragEnd();
+};
+
+const handleListDropAtEnd = () => {
+  if (!draggedListId.value) {
+    return;
+  }
+  reorderList({ id: draggedListId.value, beforeId: null });
+  handleListDragEnd();
 };
 
 const onSidebarResizePointerMove = (event) => {
@@ -495,8 +539,26 @@ onUnmounted(() => {
                 <span class="layout__add-list-text">New List</span>
               </button>
             </header>
-            <nav class="layout__list-nav">
-              <div v-for="list in lists" :key="list.id" class="layout__list-item">
+            <nav
+              class="layout__list-nav"
+              @dragover.prevent="handleListDragEnter(null)"
+              @drop.prevent="handleListDropAtEnd"
+            >
+              <div
+                v-for="list in lists"
+                :key="list.id"
+                class="layout__list-item"
+                :class="{
+                  'layout__list-item--drag-over': dragOverListId === list.id,
+                  'layout__list-item--dragging': draggedListId === list.id,
+                }"
+                draggable="true"
+                @dragstart="handleListDragStart(list)"
+                @dragend="handleListDragEnd"
+                @dragenter.prevent="handleListDragEnter(list)"
+                @dragover.prevent
+                @drop.prevent="handleListDrop(list)"
+              >
                 <RouterLink
                   :to="`/lists/${list.id}`"
                   class="layout__link layout__link--list"
@@ -854,6 +916,16 @@ onUnmounted(() => {
   grid-template-columns: 1fr;
   align-items: center;
   gap: 0.35rem;
+  cursor: grab;
+}
+
+.layout__list-item--drag-over {
+  outline: 2px dashed theme.$color-accent;
+  outline-offset: 2px;
+}
+
+.layout__list-item--dragging {
+  opacity: 0.6;
 }
 
 

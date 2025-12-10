@@ -360,6 +360,7 @@ watch(listTasks, () => {
             type="button"
             class="task-panel__control-button"
             :disabled="activeList.id === 'default'"
+            :title="activeList.id === 'default' ? 'This is the default list and cannot be deleted' : 'Delete list'"
             @click="requestDeleteList"
           >
             Delete list

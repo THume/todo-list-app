@@ -809,6 +809,31 @@ const addList = (name) => {
   return newList;
 };
 
+const reorderList = ({ id, beforeId = null }) => {
+  const current = Array.isArray(lists.value) ? [...lists.value] : [];
+  const currentIndex = current.findIndex((list) => list.id === id);
+
+  if (currentIndex < 0) {
+    return false;
+  }
+
+  const [moving] = current.splice(currentIndex, 1);
+
+  let targetIndex;
+  if (!beforeId) {
+    targetIndex = current.length;
+  } else {
+    targetIndex = current.findIndex((list) => list.id === beforeId);
+    if (targetIndex < 0) {
+      targetIndex = current.length;
+    }
+  }
+
+  current.splice(targetIndex, 0, moving);
+  lists.value = current;
+  return true;
+};
+
 const renameList = (listId, name) => {
   const targetId = typeof listId === 'string' ? listId.trim() : '';
   const trimmed = typeof name === 'string' ? name.trim() : '';
@@ -1278,7 +1303,8 @@ export const useTaskStore = () => {
     notifications,
     dismissNotification,
     addList,
-  removeList,
+    reorderList,
+    removeList,
   renameList,
     addTask,
     reviveCompletedTask,
