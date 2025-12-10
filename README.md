@@ -4,10 +4,11 @@ A polished Vue 3 + Vite task manager focused on capturing, scheduling, and compl
 
 ## Highlights
 
-- **Streamlined capture**: Add tasks from the sidebar with descriptions, list targets, due date & time, and recurrence (`daily`, `weekdays`, `weekly`, `monthly`, `quarterly`, `yearly`). The Today/Tomorrow views auto-select sensible defaults so you can add tasks in seconds.
+- **Streamlined capture**: Add tasks from the sidebar with descriptions, list targets, due date & time, and recurrence (`daily`, `weekdays`, `weekly`, `monthly`, `quarterly`, `yearly`). The Today/Tomorrow views auto-select sensible defaults so you can add tasks in seconds, and you can quickly “Add and Start Another” when entering multiple items.
 - **Flexible organisation**: Reorder active tasks with HTML5 drag-and-drop, duplicate or edit in-place, and manage unlimited custom lists with live counters.
-- **Standup-ready reporting**: `src/views/StandupView.vue` builds a daily snapshot that groups yesterday's completions, today's wins, and upcoming schedule. You can hide or reorder individual cards to tailor what you share with your team.
-- **Timely nudges**: `useTaskNotifications` watches due dates, surfaces in-app banners, desktop notifications, and a subtle audio cue, and self-cleans once alerts are dismissed.
+- **List controls where you need them**: Rename lists or delete non-default lists from the list page, and drag lists in the sidebar to resequence their order. Sidebar stays usable when collapsed with icon-only buttons + tooltips.
+- **Standup-ready reporting**: `src/views/StandupView.vue` builds a daily snapshot that groups yesterday's completions, today's wins, and upcoming schedule. You can hide or reorder individual cards to tailor what you share with your team, and Completed Today stays hidden when empty. Hide/show preferences persist.
+- **Timely nudges**: `useTaskNotifications` watches due dates, surfaces in-app banners, desktop notifications, and a subtle audio cue, and self-cleans once alerts are dismissed. Per-task reminders let you choose how long before a due time to be reminded.
 - **History made clear**: Completed items are archived with their completion timestamp, due metadata, and recurrence context so you can trace when and why something shipped.
 - **Durable storage**: Tasks, completions, and lists are persisted as JSON files inside `/data` through a small Vite middleware, so reloads or browser restarts do not lose your work. A BroadcastChannel keeps every open tab in sync, so updates in one window appear everywhere within a second without manual refreshes.
 
