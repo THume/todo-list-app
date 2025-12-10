@@ -809,6 +809,34 @@ const addList = (name) => {
   return newList;
 };
 
+const renameList = (listId, name) => {
+  const targetId = typeof listId === 'string' ? listId.trim() : '';
+  const trimmed = typeof name === 'string' ? name.trim() : '';
+
+  if (!targetId || trimmed.length === 0) {
+    return false;
+  }
+
+  const existingIndex = lists.value.findIndex((list) => list.id === targetId);
+  if (existingIndex < 0) {
+    return false;
+  }
+
+  const duplicate = lists.value.some(
+    (list, index) =>
+      index !== existingIndex && list.name.toLowerCase() === trimmed.toLowerCase()
+  );
+
+  if (duplicate) {
+    return false;
+  }
+
+  const updated = [...lists.value];
+  updated[existingIndex] = { ...updated[existingIndex], name: trimmed };
+  lists.value = updated;
+  return true;
+};
+
 const removeList = (listId) => {
   const targetId = typeof listId === 'string' ? listId.trim() : '';
   if (targetId.length === 0 || targetId === DEFAULT_LIST_ID) {
@@ -1250,7 +1278,8 @@ export const useTaskStore = () => {
     notifications,
     dismissNotification,
     addList,
-    removeList,
+  removeList,
+  renameList,
     addTask,
     reviveCompletedTask,
     deleteCompletedTask,

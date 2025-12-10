@@ -220,6 +220,7 @@ const handleCancelDeleteList = () => {
   resetDeleteListState();
 };
 
+
 const handleConfirmDeleteList = () => {
   if (!listPendingDelete.value) {
     resetDeleteListState();
@@ -501,16 +502,6 @@ onUnmounted(() => {
                   <span class="layout__list-name">{{ list.name }}</span>
                   <span class="layout__list-count">{{ listCounts[list.id] ?? 0 }}</span>
                 </RouterLink>
-                <button
-                  v-if="list.id !== DEFAULT_LIST_ID"
-                  type="button"
-                  class="layout__list-delete"
-                  :aria-label="`Delete list ${list.name}`"
-                  title="Delete list"
-                  @click.stop="requestDeleteList(list)"
-                >
-                  &times;
-                </button>
               </div>
             </nav>
           </section>
@@ -844,34 +835,12 @@ onUnmounted(() => {
 
 .layout__list-item {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   align-items: center;
   gap: 0.35rem;
 }
 
-.layout__list-delete {
-  border: none;
-  background: transparent;
-  color: theme.$color-text-muted;
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1;
-  padding: 0.25rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 
-  &:hover {
-    color: theme.$color-text-heading;
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-1px);
-  }
-
-  &:focus-visible {
-    outline: 2px solid theme.$color-accent;
-    outline-offset: 2px;
-  }
-}
 
 .layout__link {
   border: 1px solid transparent;
@@ -1231,11 +1200,6 @@ onUnmounted(() => {
 
   .layout__list-item {
     grid-template-columns: 1fr auto;
-  }
-
-  .layout__list-delete {
-    font-size: 0.85rem;
-    padding: 0.2rem;
   }
 
   .layout__list-count {

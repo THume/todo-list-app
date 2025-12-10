@@ -19,6 +19,8 @@ const {
   duplicateTask,
   moveTaskToToday,
   moveTaskToTomorrow,
+  removeList,
+  renameList,
 } = useTaskStore();
 
 const showDeleteDialog = ref(false);
@@ -28,6 +30,7 @@ const taskPendingEdit = ref(null);
 const draggedTaskId = ref(null);
 const dragOverTaskId = ref(null);
 const dropIndicatorIndex = ref(-1);
+const showDeleteListDialog = ref(false);
 
 const activeListId = computed(() => {
   const id = route.params.id;
@@ -85,6 +88,52 @@ const navigateToDefaultList = () => {
     return;
   }
   router.push(`/lists/${availableLists[0].id}`);
+};
+
+const handleRenameList = () => {
+  if (!activeList.value || typeof window === 'undefined') {
+    return;
+  }
+  const nextName = window.prompt('Rename list', activeList.value.name ?? '');
+  if (!nextName) {
+    return;
+  }
+  renameList(activeList.value.id, nextName);
+};
+
+const requestDeleteList = () => {
+  if (!activeList.value || activeList.value.id === 'default') {
+    return;
+  }
+  showDeleteListDialog.value = true;
+};
+
+const closeDeleteListDialog = () => {
+  showDeleteListDialog.value = false;
+};
+
+const confirmDeleteList = () => {
+  if (!activeList.value || activeList.value.id === 'default') {
+    closeDeleteListDialog();
+    return;
+  }
+  const targetId = activeList.value.id;
+  const removed = removeList(targetId);
+  closeDeleteListDialog();
+
+  if (!removed) {
+    return;
+  }
+
+  const remainingLists = (Array.isArray(lists.value) ? lists.value : []).filter(
+    (list) => list.id !== targetId
+  );
+
+  if (remainingLists.length > 0) {
+    router.push(`/lists/${remainingLists[0].id}`);
+  } else {
+    router.push('/today');
+  }
 };
 
 const handleToggle = (task) => {
@@ -302,9 +351,28 @@ watch(listTasks, () => {
   <section class="task-panel">
     <header class="task-panel__header">
       <h2>{{ activeList?.name ?? 'List' }}</h2>
-      <span class="task-panel__count">
-        {{ listTasks.length }} active
-      </span>
+      <div class="task-panel__header-actions">
+        <span class="task-panel__count">
+          {{ listTasks.length }} active
+        </span>
+        <div class="task-panel__controls" v-if="activeList">
+          <button
+            type="button"
+            class="task-panel__control-button"
+            :disabled="activeList.id === 'default'"
+            @click="requestDeleteList"
+          >
+            Delete list
+          </button>
+          <button
+            type="button"
+            class="task-panel__control-button"
+            @click="handleRenameList"
+          >
+            Rename list
+          </button>
+        </div>
+      </div>
     </header>
     <p v-if="!activeList" class="task-panel__empty">
       This list was not found.
@@ -369,6 +437,16 @@ watch(listTasks, () => {
     @confirm="confirmDelete"
     @cancel="closeDialog"
   />
+  <ConfirmDialog
+    v-model:open="showDeleteListDialog"
+    title="Delete list?"
+    confirm-label="Delete"
+    cancel-label="Cancel"
+    :item-label="activeList?.name || ''"
+    message="Deleting a list moves all of its tasks back into My Tasks."
+    @confirm="confirmDeleteList"
+    @cancel="closeDeleteListDialog"
+  />
   <TaskEditorDialog
     v-model:open="showEditDialog"
     :task="taskPendingEdit"
@@ -404,6 +482,47 @@ watch(listTasks, () => {
     margin: 0;
     font-size: 1.5rem;
     font-weight: 700;
+  }
+}
+
+.task-panel__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.task-panel__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.task-panel__control-button {
+  border: 1px solid theme.$color-border-input;
+  background: rgba(255, 255, 255, 0.04);
+  color: theme.$color-text-primary;
+  border-radius: 0.65rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+
+  &:hover:not(:disabled) {
+    color: theme.$color-text-heading;
+    border-color: theme.$color-accent;
+    background: rgba(239, 68, 68, 0.12);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 
