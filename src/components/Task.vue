@@ -285,15 +285,16 @@ watch(descriptionText, () => {
 <template>
   <article class="task" :class="{ 'task--completed': task.completed }">
     <header class="task__header">
-      <label class="task__checkbox">
+      <div class="task__checkbox">
         <input
           type="checkbox"
           class="task__checkbox-input"
           :checked="task.completed"
-          @change="handleToggle"
+          :aria-label="`Mark ${task.title} as ${task.completed ? 'pending' : 'completed'}`"
+          @change.stop="handleToggle"
         />
         <span class="task__title">{{ task.title }}</span>
-      </label>
+      </div>
       <div class="task__actions">
         <div class="task__menu" @keydown.esc.stop="closeMenu">
           <button
