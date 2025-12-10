@@ -396,6 +396,7 @@ watch(descriptionText, () => {
 </template>
 
 <style scoped lang="scss">
+@use 'sass:color';
 @use '../styles/theme' as theme;
 
 $task-border: theme.$color-border-strong;
@@ -480,7 +481,7 @@ $remove-hover: theme.$color-accent-hover;
   margin-top: 0.8rem;
 
   &:hover {
-    color: lighten($checkbox-accent, 5%);
+    color: color.adjust($checkbox-accent, $lightness: 5%);
   }
 
   &:focus-visible {

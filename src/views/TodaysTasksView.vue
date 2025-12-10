@@ -380,6 +380,10 @@ watch(showEditDialog, (isOpen) => {
   }
 }
 
+.task-panel + .task-panel {
+  margin-top: 2rem;
+}
+
 .task-panel__header {
   display: flex;
   align-items: baseline;
