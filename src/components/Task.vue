@@ -116,6 +116,22 @@ const recurrenceLabel = computed(() => {
   }
 });
 
+const reminderLabel = computed(() => {
+  const minutes = Number(props.task?.reminderOffsetMinutes);
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return '';
+  }
+  if (minutes % 1440 === 0) {
+    const days = Math.round(minutes / 1440);
+    return `${days} day${days === 1 ? '' : 's'} before`;
+  }
+  if (minutes % 60 === 0 && minutes >= 60) {
+    const hours = Math.round(minutes / 60);
+    return `${hours} hour${hours === 1 ? '' : 's'} before`;
+  }
+  return `${minutes} minutes before`;
+});
+
 const listLabel = computed(() => {
   const raw = props.listName;
   if (typeof raw !== 'string') {
@@ -390,6 +406,7 @@ watch(descriptionText, () => {
       </span>
       <span class="task__status">{{ statusLabel }}</span>
       <span v-if="recurrenceLabel" class="task__recurrence">{{ recurrenceLabel }}</span>
+      <span v-if="reminderLabel" class="task__reminder">Reminder {{ reminderLabel }}</span>
       <time v-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">Due {{ formattedDueLabel }}</time>
     </footer>
   </article>
@@ -621,6 +638,17 @@ $remove-hover: theme.$color-accent-hover;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.task__reminder {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.7rem;
+  border-radius: 0.75rem;
+  background: rgba(59, 130, 246, 0.16);
+  color: #bfdbfe;
+  font-weight: 600;
+  font-size: 0.8rem;
 }
 
 .task__due {

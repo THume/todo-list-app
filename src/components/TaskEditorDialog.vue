@@ -32,6 +32,7 @@ const dueTime = ref('');
 const recurrence = ref('none');
 const lastTaskId = ref(null);
 const selectedListId = ref('');
+const reminderOffset = ref('none');
 const setDueDateToToday = () => {
   dueDate.value = getTodayDateString();
 };
@@ -86,19 +87,27 @@ const applyTask = (task) => {
     description.value = '';
     dueDate.value = '';
     dueTime.value = '';
-    recurrence.value = 'none';
-    lastTaskId.value = null;
-    selectedListId.value = resolveListId(listOptions.value, null);
-    return;
-  }
+  recurrence.value = 'none';
+  lastTaskId.value = null;
+  selectedListId.value = resolveListId(listOptions.value, null);
+  reminderOffset.value = 'none';
+  return;
+}
 
-  title.value = task.title ?? '';
-  description.value = task.description ?? '';
-  dueDate.value = formatDateInput(task.due);
-  dueTime.value = formatTimeInput(task.due);
-  recurrence.value = task.recurrence ?? 'none';
-  lastTaskId.value = task.id ?? null;
-  selectedListId.value = resolveListId(listOptions.value, task.listId);
+title.value = task.title ?? '';
+description.value = task.description ?? '';
+dueDate.value = formatDateInput(task.due);
+dueTime.value = formatTimeInput(task.due);
+recurrence.value = task.recurrence ?? 'none';
+lastTaskId.value = task.id ?? null;
+selectedListId.value = resolveListId(listOptions.value, task.listId);
+
+  const minutes = Number(task.reminderOffsetMinutes);
+  if (Number.isFinite(minutes) && minutes > 0 && task.due) {
+    reminderOffset.value = String(minutes);
+  } else {
+    reminderOffset.value = 'none';
+  }
 };
 
 const handleSave = () => {
@@ -115,6 +124,7 @@ const handleSave = () => {
     dueTime: dueTime.value || null,
     recurrence: recurrence.value,
     listId: selectedListId.value || null,
+    reminderOffsetMinutes: reminderOffset.value === 'none' ? null : Number(reminderOffset.value),
   });
 
   close();
@@ -164,6 +174,7 @@ watch(
 watch(dueDate, (value) => {
   if (!value) {
     dueTime.value = '';
+    reminderOffset.value = 'none';
   }
 });
 </script>
@@ -272,6 +283,25 @@ watch(dueDate, (value) => {
               >
                 {{ option.label }}
               </option>
+            </select>
+          </label>
+          <label class="task-editor__field">
+            <span class="task-editor__label">Reminder</span>
+            <select
+              v-model="reminderOffset"
+              name="reminder"
+              class="task-editor__input"
+              :disabled="!dueDate"
+            >
+              <option value="none">No reminder</option>
+              <option value="5">5 minutes before</option>
+              <option value="10">10 minutes before</option>
+              <option value="15">15 minutes before</option>
+              <option value="30">30 minutes before</option>
+              <option value="60">1 hour before</option>
+              <option value="120">2 hours before</option>
+              <option value="240">4 hours before</option>
+              <option value="1440">1 day before</option>
             </select>
           </label>
           <footer class="task-editor__actions">

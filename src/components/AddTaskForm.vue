@@ -36,6 +36,7 @@ const dueTime = ref('');
 const recurrence = ref('none');
 const selectedListId = ref('');
 const markCompleted = ref(false);
+const reminderOffset = ref('none');
 const titleField = ref(null);
 const appliedDefaultDueDate = ref(null);
 let isApplyingDefaultDueDate = false;
@@ -47,6 +48,17 @@ const setDueDateToToday = () => {
 const listOptions = computed(() => normalizeTaskLists(props.lists));
 
 const canSubmit = computed(() => title.value.trim().length > 0);
+const reminderOptions = [
+  { value: 'none', label: 'No reminder' },
+  { value: '5', label: '5 minutes before' },
+  { value: '10', label: '10 minutes before' },
+  { value: '15', label: '15 minutes before' },
+  { value: '30', label: '30 minutes before' },
+  { value: '60', label: '1 hour before' },
+  { value: '120', label: '2 hours before' },
+  { value: '240', label: '4 hours before' },
+  { value: '1440', label: '1 day before' },
+];
 
 const resetForm = () => {
   title.value = '';
@@ -54,6 +66,7 @@ const resetForm = () => {
   dueTime.value = '';
   recurrence.value = 'none';
   markCompleted.value = false;
+  reminderOffset.value = 'none';
   if (props.defaultDueDate) {
     isApplyingDefaultDueDate = true;
     dueDate.value = props.defaultDueDate;
@@ -82,6 +95,7 @@ const handleSubmit = (shouldCloseModal = false) => {
     recurrence: recurrence.value,
     listId: selectedListId.value || null,
     completed: markCompleted.value,
+    reminderOffsetMinutes: reminderOffset.value === 'none' ? null : Number(reminderOffset.value),
   });
 
   if (shouldCloseModal) {
@@ -157,6 +171,7 @@ watch(
 watch(dueDate, (value) => {
   if (!value) {
     dueTime.value = '';
+    reminderOffset.value = 'none';
   }
 
   if (!isApplyingDefaultDueDate && appliedDefaultDueDate.value && value !== appliedDefaultDueDate.value) {
@@ -333,6 +348,28 @@ watch(
                 />
               </label>
             </div>
+            <label class="add-task__due-label add-task__reminder">
+              <span class="add-task__label-heading">
+                <IconGlyph
+                  name="alert"
+                  size="14"
+                  class="add-task__label-icon"
+                  aria-hidden="true"
+                />
+                <span>Reminder</span>
+              </span>
+              <select
+                v-model="reminderOffset"
+                name="reminder"
+                class="add-task__select"
+                aria-label="Reminder time"
+                :disabled="!dueDate"
+              >
+                <option v-for="option in reminderOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </label>
             <label class="add-task__due-label add-task__recurrence">
               <span class="add-task__label-heading">
                 <IconGlyph

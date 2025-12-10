@@ -46,6 +46,7 @@ let broadcastChannel = null;
 let isApplyingRemoteUpdate = false;
 
 const VALID_RECURRENCE = new Set(['daily', 'weekdays', 'weekly', 'monthly', 'quarterly', 'yearly']);
+const VALID_REMINDER_MINUTES = new Set([5, 10, 15, 30, 60, 120, 240, 1440]);
 
 const createListId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -107,6 +108,24 @@ const normalizeRecurrence = (value) => {
 
   const normalized = value.trim().toLowerCase();
   return VALID_RECURRENCE.has(normalized) ? normalized : null;
+};
+
+const normalizeReminderOffsetMinutes = (value) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+  const rounded = Math.round(numeric);
+  if (rounded <= 0) {
+    return null;
+  }
+  if (VALID_REMINDER_MINUTES.has(rounded)) {
+    return rounded;
+  }
+  return null;
 };
 
 const postStorageUpdate = () => {
@@ -295,6 +314,7 @@ const createRecurringTask = (task) => {
     due: nextDue ?? task.due ?? null,
     recurrence,
     listId: normalizeListId(task.listId),
+    reminderOffsetMinutes: normalizeReminderOffsetMinutes(task.reminderOffsetMinutes),
   };
 };
 
@@ -516,11 +536,13 @@ const addTask = ({
   dueTime,
   recurrence,
   listId,
+  reminderOffsetMinutes,
   completed = false,
 }) => {
   const due = buildDueDate(dueDate, dueTime);
   const recurrenceValue = normalizeRecurrence(recurrence);
   const isCompleted = Boolean(completed);
+  const reminderValue = due ? normalizeReminderOffsetMinutes(reminderOffsetMinutes) : null;
   const newTask = {
     id: initialId++,
     title,
@@ -529,6 +551,7 @@ const addTask = ({
     due,
     recurrence: recurrenceValue,
     listId: normalizeListId(listId),
+    reminderOffsetMinutes: reminderValue,
   };
 
   const updatedTasks = [...tasks.value, newTask];
@@ -546,7 +569,16 @@ const addTask = ({
   tasks.value = updatedTasks;
 };
 
-const updateTask = ({ id, title, description, dueDate, dueTime, recurrence, listId }) => {
+const updateTask = ({
+  id,
+  title,
+  description,
+  dueDate,
+  dueTime,
+  recurrence,
+  listId,
+  reminderOffsetMinutes,
+}) => {
   const targetIndex = tasks.value.findIndex((item) => item.id === id);
   if (targetIndex < 0) {
     return false;
@@ -557,6 +589,11 @@ const updateTask = ({ id, title, description, dueDate, dueTime, recurrence, list
     return false;
   }
 
+  const resolvedReminder =
+    reminderOffsetMinutes === undefined
+      ? target.reminderOffsetMinutes
+      : normalizeReminderOffsetMinutes(reminderOffsetMinutes);
+
   const nextTasks = [...tasks.value];
   const updatedTask = {
     ...target,
@@ -565,10 +602,12 @@ const updateTask = ({ id, title, description, dueDate, dueTime, recurrence, list
     due: buildDueDate(dueDate, dueTime),
     recurrence: normalizeRecurrence(recurrence),
     listId: normalizeListId(listId ?? target.listId),
+    reminderOffsetMinutes: resolvedReminder,
   };
 
   if (!dueDate) {
     updatedTask.due = null;
+    updatedTask.reminderOffsetMinutes = null;
   }
 
   nextTasks[targetIndex] = updatedTask;
@@ -811,6 +850,7 @@ const duplicateTask = (taskId) => {
     due: original.due ?? null,
     recurrence: original.recurrence ?? null,
     listId: normalizeListId(original.listId),
+    reminderOffsetMinutes: normalizeReminderOffsetMinutes(original.reminderOffsetMinutes),
   };
 
   const updatedTasks = [...tasks.value];
@@ -1070,6 +1110,8 @@ const loadFromStorage = async () => {
         due: task.due ?? null,
         recurrence: normalizeRecurrence(task.recurrence),
         listId: normalizeListId(task.listId),
+        reminderOffsetMinutes:
+          task.due !== null ? normalizeReminderOffsetMinutes(task.reminderOffsetMinutes) : null,
       }));
     } else {
       tasks.value = [];

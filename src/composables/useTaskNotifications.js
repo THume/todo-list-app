@@ -102,6 +102,7 @@ const maybeShowSystemNotification = ({ title, body, tag } = {}) => {
 export const useTaskNotifications = (tasksRef) => {
   const notifications = ref([]);
   const notifiedTaskIds = new Set();
+  const reminderNotifiedKeys = new Set();
   let dueCheckTimer = null;
 
   const dismissNotification = (id) => {
@@ -165,9 +166,10 @@ export const useTaskNotifications = (tasksRef) => {
     const currentTasks = Array.isArray(tasksRef.value) ? tasksRef.value : [];
     const now = Date.now();
     const newlyDueTasks = [];
+    const reminderTasks = [];
 
     currentTasks.forEach((task) => {
-      if (!task || task.completed || !task.due || notifiedTaskIds.has(task.id)) {
+      if (!task || task.completed || !task.due) {
         return;
       }
 
@@ -177,11 +179,55 @@ export const useTaskNotifications = (tasksRef) => {
         return;
       }
 
-      if (dueTime <= now) {
+      const reminderOffsetMinutes = Number(task.reminderOffsetMinutes);
+      if (
+        Number.isFinite(reminderOffsetMinutes)
+        && reminderOffsetMinutes > 0
+        && dueTime > now
+      ) {
+        const reminderTimestamp = dueTime - reminderOffsetMinutes * 60000;
+        const reminderKey = `${task.id}:${dueTime}:${reminderOffsetMinutes}`;
+        if (!reminderNotifiedKeys.has(reminderKey) && reminderTimestamp <= now) {
+          reminderNotifiedKeys.add(reminderKey);
+          reminderTasks.push(task);
+        }
+      }
+
+      if (dueTime <= now && !notifiedTaskIds.has(task.id)) {
         notifiedTaskIds.add(task.id);
         newlyDueTasks.push(task);
       }
     });
+
+    if (reminderTasks.length > 0) {
+      if (reminderTasks.length === 1) {
+        const [task] = reminderTasks;
+        const message = `Reminder: "${task.title}" is due soon.`;
+        pushNotification(message, {
+          desktop: true,
+          desktopTitle: 'Task reminder',
+          desktopBody: message,
+          desktopTag: `task-reminder-${task.id}`,
+          playTone: false,
+          duration: 8000,
+        });
+      } else {
+        const taskTitles = reminderTasks.map((task) => `"${task.title}"`).slice(0, 3);
+        const remainingCount = reminderTasks.length - taskTitles.length;
+        let message = `${reminderTasks.length} tasks are due soon: ${taskTitles.join(', ')}`;
+        if (remainingCount > 0) {
+          message += `, and ${remainingCount} more`;
+        }
+        pushNotification(message, {
+          desktop: true,
+          desktopTitle: 'Tasks due soon',
+          desktopBody: message,
+          desktopTag: `tasks-reminder-${now}`,
+          playTone: false,
+          duration: 8000,
+        });
+      }
+    }
 
     if (newlyDueTasks.length === 0) {
       return;
@@ -222,10 +268,33 @@ export const useTaskNotifications = (tasksRef) => {
   const synchroniseNotifiedIds = () => {
     const currentTasks = Array.isArray(tasksRef.value) ? tasksRef.value : [];
     const activeIds = new Set(currentTasks.map((task) => task?.id).filter((id) => id !== undefined));
+    const activeReminderKeys = new Set();
+
+    currentTasks.forEach((task) => {
+      if (!task || task.completed || !task.due) {
+        return;
+      }
+      const dueTime = Date.parse(task.due);
+      const reminderOffsetMinutes = Number(task.reminderOffsetMinutes);
+      if (
+        Number.isNaN(dueTime)
+        || !Number.isFinite(reminderOffsetMinutes)
+        || reminderOffsetMinutes <= 0
+      ) {
+        return;
+      }
+      activeReminderKeys.add(`${task.id}:${dueTime}:${reminderOffsetMinutes}`);
+    });
 
     Array.from(notifiedTaskIds).forEach((id) => {
       if (!activeIds.has(id)) {
         notifiedTaskIds.delete(id);
+      }
+    });
+
+    Array.from(reminderNotifiedKeys).forEach((key) => {
+      if (!activeReminderKeys.has(key)) {
+        reminderNotifiedKeys.delete(key);
       }
     });
   };
