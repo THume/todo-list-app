@@ -642,7 +642,6 @@ onUnmounted(() => {
                 />
                 <span class="settings-menu__radio-label">
                   <span class="settings-menu__radio-title">Large</span>
-                  <span class="settings-menu__radio-hint">Current sizing (100%)</span>
                 </span>
               </label>
               <label class="settings-menu__radio">
@@ -655,7 +654,6 @@ onUnmounted(() => {
                 />
                 <span class="settings-menu__radio-label">
                   <span class="settings-menu__radio-title">Small</span>
-                  <span class="settings-menu__radio-hint">Reduced sizing (80%)</span>
                 </span>
               </label>
             </div>
@@ -1349,11 +1347,6 @@ onUnmounted(() => {
 .settings-menu__radio-title {
   font-size: 0.95rem;
   color: theme.$color-text-primary;
-}
-
-.settings-menu__radio-hint {
-  font-size: 0.8rem;
-  color: theme.$color-text-muted;
 }
 
 @media (max-width: 960px) {
