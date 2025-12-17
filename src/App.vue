@@ -593,6 +593,73 @@ onUnmounted(() => {
           <span class="layout__add-task-text">Add a Task</span>
         </button>
       </div>
+      <div ref="settingsMenuRef" class="settings-menu">
+        <button
+          type="button"
+          class="settings-menu__trigger"
+          :aria-expanded="showSettingsMenu"
+          aria-haspopup="menu"
+          :aria-label="showSettingsMenu ? 'Close settings menu' : 'Open settings menu'"
+          :title="isSidebarCollapsed ? 'Settings' : undefined"
+          @click="toggleSettingsMenu"
+        >
+          <IconGlyph name="settings" size="22" aria-hidden="true" />
+          <span class="settings-menu__trigger-text">Settings</span>
+        </button>
+        <div
+          v-if="showSettingsMenu"
+          class="settings-menu__dropdown"
+          role="menu"
+        >
+          <p class="settings-menu__heading">Settings</p>
+          <label class="settings-menu__option">
+            <div class="settings-menu__option-text">
+              <span class="settings-menu__option-title">Standup page</span>
+              <span class="settings-menu__option-hint">
+                {{ isStandupEnabled ? 'Enabled' : 'Hidden' }}
+              </span>
+            </div>
+            <input
+              v-model="isStandupEnabled"
+              type="checkbox"
+              class="settings-menu__toggle-input"
+              aria-label="Toggle Standup page visibility"
+            />
+            <span class="settings-menu__toggle" aria-hidden="true"></span>
+          </label>
+          <div class="settings-menu__section">
+            <p class="settings-menu__section-title">Font size</p>
+            <div class="settings-menu__radio-group" role="group" aria-label="Font size">
+              <label class="settings-menu__radio">
+                <input
+                  v-model="fontSizeSetting"
+                  type="radio"
+                  class="settings-menu__radio-input"
+                  value="large"
+                  aria-label="Use large font size"
+                />
+                <span class="settings-menu__radio-label">
+                  <span class="settings-menu__radio-title">Large</span>
+                  <span class="settings-menu__radio-hint">Current sizing (100%)</span>
+                </span>
+              </label>
+              <label class="settings-menu__radio">
+                <input
+                  v-model="fontSizeSetting"
+                  type="radio"
+                  class="settings-menu__radio-input"
+                  value="small"
+                  aria-label="Use small font size"
+                />
+                <span class="settings-menu__radio-label">
+                  <span class="settings-menu__radio-title">Small</span>
+                  <span class="settings-menu__radio-hint">Reduced sizing (80%)</span>
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
       <div
         v-show="!isSidebarCollapsed"
         class="layout__resize-handle"
@@ -607,73 +674,6 @@ onUnmounted(() => {
       />
     </aside>
     <main class="layout__content">
-      <div class="layout__content-header">
-        <div ref="settingsMenuRef" class="settings-menu">
-          <button
-            type="button"
-            class="settings-menu__trigger"
-            :aria-expanded="showSettingsMenu"
-            aria-haspopup="menu"
-            :aria-label="showSettingsMenu ? 'Close settings menu' : 'Open settings menu'"
-            @click="toggleSettingsMenu"
-          >
-            <IconGlyph name="settings" size="22" aria-hidden="true" />
-          </button>
-          <div
-            v-if="showSettingsMenu"
-            class="settings-menu__dropdown"
-            role="menu"
-          >
-            <p class="settings-menu__heading">Settings</p>
-            <label class="settings-menu__option">
-              <div class="settings-menu__option-text">
-                <span class="settings-menu__option-title">Standup page</span>
-                <span class="settings-menu__option-hint">
-                  {{ isStandupEnabled ? 'Enabled' : 'Hidden' }}
-                </span>
-              </div>
-              <input
-                v-model="isStandupEnabled"
-                type="checkbox"
-                class="settings-menu__toggle-input"
-                aria-label="Toggle Standup page visibility"
-              />
-              <span class="settings-menu__toggle" aria-hidden="true"></span>
-            </label>
-            <div class="settings-menu__section">
-              <p class="settings-menu__section-title">Font size</p>
-              <div class="settings-menu__radio-group" role="group" aria-label="Font size">
-                <label class="settings-menu__radio">
-                  <input
-                    v-model="fontSizeSetting"
-                    type="radio"
-                    class="settings-menu__radio-input"
-                    value="large"
-                    aria-label="Use large font size"
-                  />
-                  <span class="settings-menu__radio-label">
-                    <span class="settings-menu__radio-title">Large</span>
-                    <span class="settings-menu__radio-hint">Current sizing (100%)</span>
-                  </span>
-                </label>
-                <label class="settings-menu__radio">
-                  <input
-                    v-model="fontSizeSetting"
-                    type="radio"
-                    class="settings-menu__radio-input"
-                    value="small"
-                    aria-label="Use small font size"
-                  />
-                  <span class="settings-menu__radio-label">
-                    <span class="settings-menu__radio-title">Small</span>
-                    <span class="settings-menu__radio-hint">Reduced sizing (80%)</span>
-                  </span>
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
       <RouterView />
     </main>
   </div>
@@ -1072,6 +1072,15 @@ onUnmounted(() => {
   padding: 0.75rem;
 }
 
+.layout--collapsed .settings-menu__trigger {
+  justify-content: center;
+  padding: 0.55rem;
+}
+
+.layout--collapsed .settings-menu__trigger-text {
+  display: none;
+}
+
 .layout__link--active .layout__nav-icon {
   color: #1b1b1d;
 }
@@ -1143,33 +1152,34 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
-.layout__content-header {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1.5rem;
-}
-
 .settings-menu {
   position: relative;
+  width: 100%;
+  margin-top: auto;
 }
 
 .settings-menu__trigger {
-  border-radius: 999px;
-  border: 1px solid theme.$color-border-input;
-  background: rgba(255, 255, 255, 0.04);
-  color: theme.$color-text-primary;
-  display: inline-flex;
+  border: 1px solid theme.$color-border-muted;
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.9rem;
+  background: transparent;
+  color: theme.$color-text-muted;
+  width: 100%;
+  display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
   cursor: pointer;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
 
-.settings-menu__trigger:hover,
-.settings-menu__trigger:focus-visible {
+.settings-menu__trigger:hover {
   color: theme.$color-text-heading;
-  border-color: theme.$color-accent;
-  background: rgba(34, 197, 94, 0.15);
+  border-color: theme.$color-border-muted;
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateX(2px);
 }
 
 .settings-menu__trigger:focus-visible {
@@ -1177,19 +1187,35 @@ onUnmounted(() => {
   outline-offset: 2px;
 }
 
+.settings-menu__trigger-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
 .settings-menu__dropdown {
   position: absolute;
+  bottom: 100%;
+  left: 0;
   right: 0;
-  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
   background: rgba(19, 21, 24, 0.98);
   border: 1px solid theme.$color-border-strong;
   border-radius: 0.75rem;
   padding: 1rem;
-  min-width: 15rem;
   box-shadow: 0 20px 40px -24px rgba(0, 0, 0, 0.9);
   display: grid;
   gap: 0.75rem;
   z-index: 5;
+}
+
+.layout--collapsed .settings-menu__dropdown {
+  left: 0;
+  right: auto;
+  min-width: 15rem;
 }
 
 .settings-menu__heading {
