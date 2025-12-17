@@ -400,13 +400,18 @@ watch(descriptionText, () => {
       </button>
     </div>
 
+    <time v-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">Due {{ formattedDueLabel }}</time>
+
     <footer class="task__meta">
       <span v-if="listLabel" class="task__list">
         {{ listLabel }}
       </span>
-      <span v-if="recurrenceLabel" class="task__recurrence">{{ recurrenceLabel }}</span>
-      <span v-if="reminderLabel" class="task__reminder">Reminder {{ reminderLabel }}</span>
-      <time v-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">Due {{ formattedDueLabel }}</time>
+      <span v-if="recurrenceLabel" class="task__recurrence" :title="recurrenceLabel">
+        <IconGlyph name="repeat" size="14" aria-hidden="true" />
+      </span>
+      <span v-if="reminderLabel" class="task__reminder" :title="`Reminder ${reminderLabel}`">
+        <IconGlyph name="alert" size="14" aria-hidden="true" />
+      </span>
     </footer>
   </article>
 </template>
@@ -545,7 +550,6 @@ $remove-hover: theme.$color-accent-hover;
 .task__menu-trigger {
   border: 1px solid $task-border;
   background: rgba(255, 255, 255, 0.04);
-  color: $task-muted;
   width: 2rem;
   height: 2rem;
   border-radius: 999px;
@@ -632,25 +636,36 @@ $remove-hover: theme.$color-accent-hover;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.15rem 0.6rem;
+  width: 1.75rem;
+  height: 1.75rem;
   border-radius: 999px;
   background: rgba(34, 197, 94, 0.16);
   color: #4ade80;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  cursor: help;
+  transition: background 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    background: rgba(34, 197, 94, 0.24);
+    transform: scale(1.05);
+  }
 }
 
 .task__reminder {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.7rem;
-  border-radius: 0.75rem;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
   background: rgba(59, 130, 246, 0.16);
   color: #bfdbfe;
-  font-weight: 600;
-  font-size: 0.8rem;
+  cursor: help;
+  transition: background 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    background: rgba(59, 130, 246, 0.24);
+    transform: scale(1.05);
+  }
 }
 
 .task__due {

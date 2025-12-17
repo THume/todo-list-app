@@ -389,7 +389,7 @@ watch(
             </div>
             <div class="add-task__input-shell add-task__input-shell--textarea">
               <IconGlyph
-                :name="isEditMode ? 'edit' : 'edit'"
+                name="edit"
                 size="16"
                 class="add-task__field-icon"
                 aria-hidden="true"
