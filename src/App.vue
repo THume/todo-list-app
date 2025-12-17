@@ -28,6 +28,8 @@ const {
 
 const showForm = ref(false);
 const isSidebarCollapsed = ref(false);
+const isListsSectionCollapsed = ref(false);
+const addTaskButtonRef = ref(null);
 const DEFAULT_LIST_ID = 'default';
 const DEFAULT_SIDEBAR_WIDTH = 380;
 const MIN_SIDEBAR_WIDTH = 256;
@@ -206,6 +208,10 @@ const toggleSidebar = () => {
   isSidebarCollapsed.value = !isSidebarCollapsed.value;
 };
 
+const toggleListsSection = () => {
+  isListsSectionCollapsed.value = !isListsSectionCollapsed.value;
+};
+
 const resetDeleteListState = () => {
   showListDeleteDialog.value = false;
   listPendingDelete.value = null;
@@ -339,6 +345,10 @@ const beginSidebarResize = (event) => {
 
 const handleAddTask = (payload) => {
   addTask(payload);
+  // Focus the Add a Task button after task is added
+  if (addTaskButtonRef.value) {
+    addTaskButtonRef.value.focus();
+  }
 };
 
 const handleNotificationAction = ({ id, action }) => {
@@ -523,7 +533,20 @@ onUnmounted(() => {
           </nav>
           <section class="layout__lists">
             <header class="layout__lists-header" :class="{ 'layout__lists-header--hidden': isSidebarCollapsed }">
-              <span class="layout__lists-title">Lists</span>
+              <button
+                type="button"
+                class="layout__lists-toggle"
+                :aria-expanded="!isListsSectionCollapsed"
+                :aria-label="isListsSectionCollapsed ? 'Expand lists section' : 'Collapse lists section'"
+                @click="toggleListsSection"
+              >
+                <IconGlyph
+                  :name="isListsSectionCollapsed ? 'chevron-right' : 'chevron-down'"
+                  size="14"
+                  aria-hidden="true"
+                />
+                <span class="layout__lists-title">Lists</span>
+              </button>
               <button
                 type="button"
                 class="layout__add-list"
@@ -540,6 +563,7 @@ onUnmounted(() => {
               </button>
             </header>
             <nav
+              v-show="!isListsSectionCollapsed"
               class="layout__list-nav"
               @dragover.prevent="handleListDragEnter(null)"
               @drop.prevent="handleListDropAtEnd"
@@ -576,6 +600,7 @@ onUnmounted(() => {
           </section>
         </div>
         <button
+          ref="addTaskButtonRef"
           type="button"
           class="layout__add-task"
           :title="isSidebarCollapsed ? 'Add a Task' : undefined"
@@ -605,7 +630,7 @@ onUnmounted(() => {
     </aside>
     <main class="layout__content">
       <div class="layout__content-header">
-        <div class="settings-menu" ref="settingsMenuRef">
+        <div ref="settingsMenuRef" class="settings-menu">
           <button
             type="button"
             class="settings-menu__trigger"
@@ -874,12 +899,34 @@ onUnmounted(() => {
   gap: 0.5rem;
 }
 
+.layout__lists-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: theme.$color-text-muted;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: theme.$color-text-heading;
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+}
+
 .layout__lists-title {
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: theme.$color-text-muted;
+  color: inherit;
 }
 
 .layout__add-list {
