@@ -13,6 +13,11 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  mode: {
+    type: String,
+    default: 'add',
+    validator: (value) => ['add', 'edit'].includes(value),
+  },
   defaultDueDate: {
     type: String,
     default: null,
@@ -25,9 +30,13 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  task: {
+    type: Object,
+    default: null,
+  },
 });
 
-const emit = defineEmits(['submit', 'update:visible']);
+const emit = defineEmits(['submit', 'update:visible', 'save', 'cancel']);
 
 const title = ref('');
 const description = ref('');
@@ -39,15 +48,83 @@ const markCompleted = ref(false);
 const reminderOffset = ref('none');
 const titleField = ref(null);
 const appliedDefaultDueDate = ref(null);
+const lastTaskId = ref(null);
 let isApplyingDefaultDueDate = false;
+
+const isEditMode = computed(() => props.mode === 'edit');
+
 const setDueDateToToday = () => {
   dueDate.value = getTodayDateString();
   appliedDefaultDueDate.value = null;
 };
 
+const formatDateInput = (isoString) => {
+  if (!isoString) {
+    return '';
+  }
+
+  const date = new Date(isoString);
+  if (Number.isNaN(date.valueOf())) {
+    return '';
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatTimeInput = (isoString) => {
+  if (!isoString) {
+    return '';
+  }
+
+  const date = new Date(isoString);
+  if (Number.isNaN(date.valueOf())) {
+    return '';
+  }
+
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+const applyTask = (task) => {
+  if (!task) {
+    title.value = '';
+    description.value = '';
+    dueDate.value = '';
+    dueTime.value = '';
+    recurrence.value = 'none';
+    lastTaskId.value = null;
+    selectedListId.value = resolveListId(listOptions.value, null);
+    reminderOffset.value = 'none';
+    return;
+  }
+
+  title.value = task.title ?? '';
+  description.value = task.description ?? '';
+  dueDate.value = formatDateInput(task.due);
+  dueTime.value = formatTimeInput(task.due);
+  recurrence.value = task.recurrence ?? 'none';
+  lastTaskId.value = task.id ?? null;
+  selectedListId.value = resolveListId(listOptions.value, task.listId);
+
+  const minutes = Number(task.reminderOffsetMinutes);
+  if (Number.isFinite(minutes) && minutes > 0 && task.due) {
+    reminderOffset.value = String(minutes);
+  } else {
+    reminderOffset.value = 'none';
+  }
+};
+
 const listOptions = computed(() => normalizeTaskLists(props.lists));
 
 const canSubmit = computed(() => title.value.trim().length > 0);
+
+const dialogTitle = computed(() => isEditMode.value ? 'Edit Task' : 'Add a Task');
+const submitButtonText = computed(() => isEditMode.value ? 'Save changes' : 'Add Task');
+const titleIcon = computed(() => isEditMode.value ? 'edit' : 'plus');
 const reminderOptions = [
   { value: 'none', label: 'No reminder' },
   { value: '5', label: '5 minutes before' },
@@ -67,6 +144,7 @@ const resetForm = () => {
   recurrence.value = 'none';
   markCompleted.value = false;
   reminderOffset.value = 'none';
+  lastTaskId.value = null;
   if (props.defaultDueDate) {
     isApplyingDefaultDueDate = true;
     dueDate.value = props.defaultDueDate;
@@ -87,31 +165,53 @@ const handleSubmit = (shouldCloseModal = false) => {
     return;
   }
 
-  emit('submit', {
-    title: trimmedTitle,
-    description: description.value.trim(),
-    dueDate: dueDate.value || null,
-    dueTime: dueTime.value || null,
-    recurrence: recurrence.value,
-    listId: selectedListId.value || null,
-    completed: markCompleted.value,
-    reminderOffsetMinutes: reminderOffset.value === 'none' ? null : Number(reminderOffset.value),
-  });
+  if (isEditMode.value) {
+    // Edit mode
+    if (!props.task) {
+      return;
+    }
+    emit('save', {
+      id: props.task.id,
+      title: trimmedTitle,
+      description: description.value.trim(),
+      dueDate: dueDate.value || null,
+      dueTime: dueTime.value || null,
+      recurrence: recurrence.value,
+      listId: selectedListId.value || null,
+      reminderOffsetMinutes: reminderOffset.value === 'none' ? null : Number(reminderOffset.value),
+    });
+    closeModal();
+  } else {
+    // Add mode
+    emit('submit', {
+      title: trimmedTitle,
+      description: description.value.trim(),
+      dueDate: dueDate.value || null,
+      dueTime: dueTime.value || null,
+      recurrence: recurrence.value,
+      listId: selectedListId.value || null,
+      completed: markCompleted.value,
+      reminderOffsetMinutes: reminderOffset.value === 'none' ? null : Number(reminderOffset.value),
+    });
 
-  if (shouldCloseModal) {
-    emit('update:visible', false);
-    return;
+    if (shouldCloseModal) {
+      emit('update:visible', false);
+      return;
+    }
+
+    resetForm();
+
+    nextTick(() => {
+      titleField.value?.focus();
+    });
   }
-
-  resetForm();
-
-  nextTick(() => {
-    titleField.value?.focus();
-  });
 };
 
 const closeModal = () => {
   emit('update:visible', false);
+  if (isEditMode.value) {
+    emit('cancel');
+  }
 };
 
 const handleBackdropClick = () => {
@@ -142,13 +242,34 @@ watch(
   (visible) => {
     if (visible) {
       registerKeydown();
+      if (isEditMode.value && props.task) {
+        applyTask(props.task);
+      }
       nextTick(() => titleField.value?.focus());
     } else {
       unregisterKeydown();
-      resetForm();
+      if (!isEditMode.value) {
+        resetForm();
+      }
     }
   },
   { immediate: true }
+);
+
+watch(
+  () => props.task,
+  (task) => {
+    if (!props.visible || !isEditMode.value) {
+      return;
+    }
+
+    if (task?.id !== lastTaskId.value) {
+      applyTask(task);
+      nextTick(() => {
+        titleField.value?.focus();
+      });
+    }
+  }
 );
 
 onUnmounted(() => {
@@ -174,7 +295,7 @@ watch(dueDate, (value) => {
     reminderOffset.value = 'none';
   }
 
-  if (!isApplyingDefaultDueDate && appliedDefaultDueDate.value && value !== appliedDefaultDueDate.value) {
+  if (!isEditMode.value && !isApplyingDefaultDueDate && appliedDefaultDueDate.value && value !== appliedDefaultDueDate.value) {
     appliedDefaultDueDate.value = null;
   }
 });
@@ -182,6 +303,10 @@ watch(dueDate, (value) => {
 watch(
   () => props.defaultDueDate,
   (newDefault, oldDefault) => {
+    if (isEditMode.value) {
+      return;
+    }
+
     if (!newDefault) {
       if (oldDefault && dueDate.value === oldDefault) {
         dueDate.value = '';
@@ -225,12 +350,12 @@ watch(
         <header class="add-task__header">
           <h1 id="add-task-title" class="add-task__title">
             <IconGlyph
-              name="plus"
+              :name="titleIcon"
               size="18"
               class="add-task__title-icon"
               aria-hidden="true"
             />
-            Add a Task
+            {{ dialogTitle }}
           </h1>
           <button
             type="button"
@@ -264,7 +389,7 @@ watch(
             </div>
             <div class="add-task__input-shell add-task__input-shell--textarea">
               <IconGlyph
-                name="pencil"
+                :name="isEditMode ? 'edit' : 'edit'"
                 size="16"
                 class="add-task__field-icon"
                 aria-hidden="true"
@@ -395,7 +520,7 @@ watch(
                 </option>
               </select>
             </label>
-            <div class="add-task__completion">
+            <div v-if="!isEditMode" class="add-task__completion">
               <label class="add-task__checkbox">
                 <input
                   v-model="markCompleted"
@@ -422,14 +547,15 @@ watch(
           <div class="add-task__actions">
             <button type="submit" class="add-task__submit" :disabled="!canSubmit">
               <IconGlyph
-                name="plus"
+                :name="isEditMode ? 'check' : 'plus'"
                 size="16"
                 class="add-task__submit-icon"
                 aria-hidden="true"
               />
-              Add Task
+              {{ submitButtonText }}
             </button>
             <button
+              v-if="!isEditMode"
               type="button"
               class="add-task__submit add-task__submit--secondary"
               :disabled="!canSubmit"

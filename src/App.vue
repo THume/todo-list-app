@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import AddTaskForm from './components/AddTaskForm.vue';
+import AddEditTaskModal from './components/AddEditTaskModal.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import TaskNotifications from './components/TaskNotifications.vue';
 import IconGlyph from './components/IconGlyph.vue';
@@ -699,7 +699,7 @@ onUnmounted(() => {
       <RouterView />
     </main>
   </div>
-  <AddTaskForm
+  <AddEditTaskModal
     v-model:visible="showForm"
     :default-due-date="defaultDueDate"
     :lists="lists"

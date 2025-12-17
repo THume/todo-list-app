@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Task from '../components/Task.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
-import TaskEditorDialog from '../components/TaskEditorDialog.vue';
+import AddEditTaskModal from '../components/AddEditTaskModal.vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
 const route = useRoute();
@@ -448,9 +448,11 @@ watch(listTasks, () => {
     @confirm="confirmDeleteList"
     @cancel="closeDeleteListDialog"
   />
-  <TaskEditorDialog
-    v-model:open="showEditDialog"
+  <AddEditTaskModal
+    v-model:visible="showEditDialog"
+    mode="edit"
     :task="taskPendingEdit"
+    :lists="lists"
     @save="handleEditSave"
     @cancel="closeEdit"
   />

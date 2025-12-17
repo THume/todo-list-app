@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import Task from '../components/Task.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
-import TaskEditorDialog from '../components/TaskEditorDialog.vue';
+import AddEditTaskModal from '../components/AddEditTaskModal.vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
 const {
@@ -355,9 +355,11 @@ watch(showEditDialog, (isOpen) => {
     @confirm="confirmDelete"
     @cancel="closeDialog"
   />
-  <TaskEditorDialog
-    v-model:open="showEditDialog"
+  <AddEditTaskModal
+    v-model:visible="showEditDialog"
+    mode="edit"
     :task="taskPendingEdit"
+    :lists="lists"
     @save="handleEditSave"
     @cancel="closeEdit"
   />
