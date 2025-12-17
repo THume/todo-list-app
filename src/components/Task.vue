@@ -84,8 +84,6 @@ const shouldShowDueTime = computed(() => {
 
 const dueDateIso = computed(() => (dueDate.value ? dueDate.value.toISOString() : ''));
 
-const statusLabel = computed(() => (props.task.completed ? 'Completed' : 'Pending'));
-
 const formattedDueLabel = computed(() => {
   if (!formattedDueDate.value) {
     return '';
@@ -406,7 +404,6 @@ watch(descriptionText, () => {
       <span v-if="listLabel" class="task__list">
         {{ listLabel }}
       </span>
-      <span class="task__status">{{ statusLabel }}</span>
       <span v-if="recurrenceLabel" class="task__recurrence">{{ recurrenceLabel }}</span>
       <span v-if="reminderLabel" class="task__reminder">Reminder {{ reminderLabel }}</span>
       <time v-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">Due {{ formattedDueLabel }}</time>
@@ -629,11 +626,6 @@ $remove-hover: theme.$color-accent-hover;
     background: rgba(239, 68, 68, 0.12);
     color: $remove-hover;
   }
-}
-
-.task__status {
-  font-weight: 600;
-  color: $task-heading;
 }
 
 .task__recurrence {
