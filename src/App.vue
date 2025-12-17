@@ -55,16 +55,12 @@ let hasInitializedVisibility = false;
 const route = useRoute();
 const router = useRouter();
 
-const isBrowser = typeof window !== 'undefined';
 const STANDUP_SETTING_STORAGE_KEY = 'todo-list.standup-enabled';
 const FONT_SIZE_SETTING_STORAGE_KEY = 'todo-list.font-size';
 const isStandupEnabled = ref(true);
 const fontSizeSetting = ref('large');
 
 const applyFontSizeSetting = (value) => {
-  if (!isBrowser || typeof document === 'undefined') {
-    return;
-  }
   const root = document.documentElement;
   if (!root) {
     return;
@@ -72,18 +68,16 @@ const applyFontSizeSetting = (value) => {
   root.style.fontSize = value === 'small' ? '80%' : '100%';
 };
 
-if (isBrowser) {
-  const storedStandupSetting = window.localStorage.getItem(STANDUP_SETTING_STORAGE_KEY);
-  if (storedStandupSetting === 'false') {
-    isStandupEnabled.value = false;
-  } else if (storedStandupSetting === 'true') {
-    isStandupEnabled.value = true;
-  }
+const storedStandupSetting = window.localStorage.getItem(STANDUP_SETTING_STORAGE_KEY);
+if (storedStandupSetting === 'false') {
+  isStandupEnabled.value = false;
+} else if (storedStandupSetting === 'true') {
+  isStandupEnabled.value = true;
+}
 
-  const storedFontSize = window.localStorage.getItem(FONT_SIZE_SETTING_STORAGE_KEY);
-  if (storedFontSize === 'small' || storedFontSize === 'large') {
-    fontSizeSetting.value = storedFontSize;
-  }
+const storedFontSize = window.localStorage.getItem(FONT_SIZE_SETTING_STORAGE_KEY);
+if (storedFontSize === 'small' || storedFontSize === 'large') {
+  fontSizeSetting.value = storedFontSize;
 }
 
 const clampSidebarWidth = (value) =>
@@ -191,9 +185,6 @@ const primaryNavLinks = computed(() => {
 });
 
 const handleCreateList = () => {
-  if (typeof window === 'undefined') {
-    return;
-  }
   const name = window.prompt('List name');
   if (!name) {
     return;
@@ -310,11 +301,9 @@ const stopSidebarResize = () => {
     return;
   }
   isResizingSidebar.value = false;
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('pointermove', onSidebarResizePointerMove);
-    window.removeEventListener('pointerup', stopSidebarResize);
-    window.removeEventListener('pointercancel', stopSidebarResize);
-  }
+  window.removeEventListener('pointermove', onSidebarResizePointerMove);
+  window.removeEventListener('pointerup', stopSidebarResize);
+  window.removeEventListener('pointercancel', stopSidebarResize);
   if (!isSidebarCollapsed.value) {
     sidebarWidth.value = clampSidebarWidth(sidebarWidth.value);
     lastExpandedWidth.value = sidebarWidth.value;
@@ -326,9 +315,6 @@ const beginSidebarResize = (event) => {
     return;
   }
   if (event.pointerType === 'mouse' && event.button !== 0) {
-    return;
-  }
-  if (typeof window === 'undefined') {
     return;
   }
   isResizingSidebar.value = true;
@@ -393,9 +379,7 @@ const handleSettingsKeydown = (event) => {
 watch(
   isStandupEnabled,
   (enabled) => {
-    if (isBrowser) {
-      window.localStorage.setItem(STANDUP_SETTING_STORAGE_KEY, String(enabled));
-    }
+    window.localStorage.setItem(STANDUP_SETTING_STORAGE_KEY, String(enabled));
   },
   { immediate: true }
 );
@@ -418,9 +402,6 @@ watch(
 );
 
 onMounted(() => {
-  if (!isBrowser) {
-    return;
-  }
   document.addEventListener('pointerdown', handleSettingsPointerDown);
   document.addEventListener('keydown', handleSettingsKeydown);
 });
@@ -451,9 +432,6 @@ watch(
 watch(
   fontSizeSetting,
   (value) => {
-    if (!isBrowser) {
-      return;
-    }
     window.localStorage.setItem(FONT_SIZE_SETTING_STORAGE_KEY, value);
     applyFontSizeSetting(value);
   },
@@ -463,10 +441,8 @@ watch(
 onUnmounted(() => {
   stopSidebarResize();
   teardown();
-  if (isBrowser) {
-    document.removeEventListener('pointerdown', handleSettingsPointerDown);
-    document.removeEventListener('keydown', handleSettingsKeydown);
-  }
+  document.removeEventListener('pointerdown', handleSettingsPointerDown);
+  document.removeEventListener('keydown', handleSettingsKeydown);
 });
 </script>
 

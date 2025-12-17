@@ -2,6 +2,8 @@
 
 A polished Vue 3 + Vite task manager focused on capturing, scheduling, and completing work without friction. Beyond everyday CRUD, it layers on recurring schedules, standup-ready summaries, real-time notifications, and JSON-backed persistence that survives browser refreshes.
 
+**Note:** This is a browser-only application built with Vite for client-side rendering. It is not designed for server-side rendering (SSR) or static site generation (SSG).
+
 ## Highlights
 
 - **Streamlined capture**: Add tasks from the sidebar with descriptions, list targets, due date & time, and recurrence (`daily`, `weekdays`, `weekly`, `monthly`, `quarterly`, `yearly`). The Today/Tomorrow views auto-select sensible defaults so you can add tasks in seconds, and you can quickly “Add and Start Another” when entering multiple items.

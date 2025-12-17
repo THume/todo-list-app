@@ -3,10 +3,6 @@ const API_BASE = '/api/storage';
 const encodeFileName = (fileName) => encodeURIComponent(fileName);
 
 export async function readJsonFile(fileName, fallbackValue) {
-  if (typeof window === 'undefined') {
-    return fallbackValue;
-  }
-
   try {
     const response = await fetch(`${API_BASE}/${encodeFileName(fileName)}`, {
       method: 'GET',
@@ -35,10 +31,6 @@ export async function readJsonFile(fileName, fallbackValue) {
 }
 
 export async function writeJsonFile(fileName, data) {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
   try {
     const response = await fetch(`${API_BASE}/${encodeFileName(fileName)}`, {
       method: 'PUT',

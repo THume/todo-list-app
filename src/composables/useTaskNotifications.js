@@ -11,10 +11,6 @@ const createNotificationId = () => {
 let audioContext = null;
 
 const ensureAudioContext = () => {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
 
   if (!AudioCtx) {
@@ -68,7 +64,7 @@ const playDueTone = () => {
 };
 
 const maybeShowSystemNotification = ({ title, body, tag } = {}) => {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
+  if (!('Notification' in window)) {
     return;
   }
 
@@ -141,7 +137,7 @@ export const useTaskNotifications = (tasksRef) => {
 
     notifications.value = [...notifications.value, notification];
 
-    if (typeof window !== 'undefined' && typeof duration === 'number' && duration > 0) {
+    if (typeof duration === 'number' && duration > 0) {
       window.setTimeout(() => {
         dismissNotification(id);
       }, duration);
@@ -300,7 +296,7 @@ export const useTaskNotifications = (tasksRef) => {
   };
 
   const startDueWatcher = () => {
-    if (dueCheckTimer !== null || typeof window === 'undefined') {
+    if (dueCheckTimer !== null) {
       checkDueTasks();
       return;
     }
@@ -310,7 +306,7 @@ export const useTaskNotifications = (tasksRef) => {
   };
 
   const stopDueWatcher = () => {
-    if (dueCheckTimer !== null && typeof window !== 'undefined') {
+    if (dueCheckTimer !== null) {
       window.clearInterval(dueCheckTimer);
       dueCheckTimer = null;
     }

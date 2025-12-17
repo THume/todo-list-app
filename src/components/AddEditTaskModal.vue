@@ -226,15 +226,11 @@ const handleKeydown = (event) => {
 };
 
 const registerKeydown = () => {
-  if (typeof window !== 'undefined') {
-    window.addEventListener('keydown', handleKeydown);
-  }
+  window.addEventListener('keydown', handleKeydown);
 };
 
 const unregisterKeydown = () => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('keydown', handleKeydown);
-  }
+  window.removeEventListener('keydown', handleKeydown);
 };
 
 watch(

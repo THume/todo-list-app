@@ -91,7 +91,7 @@ const navigateToDefaultList = () => {
 };
 
 const handleRenameList = () => {
-  if (!activeList.value || typeof window === 'undefined') {
+  if (!activeList.value) {
     return;
   }
   const nextName = window.prompt('Rename list', activeList.value.name ?? '');

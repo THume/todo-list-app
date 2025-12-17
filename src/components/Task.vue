@@ -194,17 +194,13 @@ const handleDocumentClick = (event) => {
 };
 
 onMounted(() => {
-  if (typeof window !== 'undefined') {
-    window.addEventListener('click', handleDocumentClick);
-  }
+  window.addEventListener('click', handleDocumentClick);
 
   measureDescriptionOverflow();
 });
 
 onBeforeUnmount(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('click', handleDocumentClick);
-  }
+  window.removeEventListener('click', handleDocumentClick);
 });
 
 const handleToggle = () => {
@@ -251,11 +247,6 @@ const toggleDescription = () => {
 };
 
 const measureDescriptionOverflow = async () => {
-  if (typeof window === 'undefined') {
-    canToggleDescription.value = false;
-    return;
-  }
-
   await nextTick();
   const el = descriptionEl.value;
   if (!el) {

@@ -74,11 +74,6 @@ const normalizeListId = (value) => {
 };
 
 const startCurrentTimeTicker = () => {
-  if (typeof window === 'undefined') {
-    currentTime.value = Date.now();
-    return;
-  }
-
   currentTime.value = Date.now();
 
   if (currentTimeTimer !== null) {
@@ -91,10 +86,6 @@ const startCurrentTimeTicker = () => {
 };
 
 const stopCurrentTimeTicker = () => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
   if (currentTimeTimer !== null) {
     window.clearInterval(currentTimeTimer);
     currentTimeTimer = null;
@@ -191,11 +182,7 @@ const handleBroadcastMessage = (event) => {
 };
 
 const setupBroadcastChannel = () => {
-  if (
-    typeof window === 'undefined'
-    || typeof window.BroadcastChannel === 'undefined'
-    || broadcastChannel
-  ) {
+  if (typeof window.BroadcastChannel === 'undefined' || broadcastChannel) {
     return;
   }
 
