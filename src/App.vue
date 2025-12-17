@@ -457,23 +457,25 @@ onUnmounted(() => {
       :class="['layout__sidebar', { 'layout__sidebar--collapsed': isSidebarCollapsed }]"
       :aria-expanded="!isSidebarCollapsed"
     >
-      <button
-        type="button"
-        class="layout__collapse-toggle"
-        :aria-expanded="!isSidebarCollapsed"
-        :aria-label="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-        @click="toggleSidebar"
-      >
-        <IconGlyph
-          :name="isSidebarCollapsed ? 'chevron-right' : 'chevron-left'"
-          size="22"
-          class="layout__collapse-icon"
-          aria-hidden="true"
-        />
-      </button>
       <div class="layout__sidebar-content" :class="{ 'layout__sidebar-content--collapsed': isSidebarCollapsed }">
         <div class="layout__sidebar-top" :class="{ 'layout__sidebar-top--hidden-title': isSidebarCollapsed }">
-          <h1 class="layout__title">TODOs</h1>
+          <div class="layout__header">
+            <h1 class="layout__title">TODOs</h1>
+            <button
+              type="button"
+              class="layout__collapse-toggle"
+              :aria-expanded="!isSidebarCollapsed"
+              :aria-label="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+              @click="toggleSidebar"
+            >
+              <IconGlyph
+                :name="isSidebarCollapsed ? 'chevron-right' : 'chevron-left'"
+                size="22"
+                class="layout__collapse-icon"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
           <nav class="layout__nav">
             <RouterLink
               v-for="link in primaryNavLinks"
@@ -816,13 +818,19 @@ onUnmounted(() => {
   background: theme.$color-accent;
 }
 
+.layout__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .layout__collapse-toggle {
   border: 1px solid theme.$color-border-muted;
   background: rgba(255, 255, 255, 0.08);
   color: theme.$color-text-heading;
   border-radius: 999px;
   cursor: pointer;
-  align-self: flex-end;
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, color 0.2s ease;
   display: inline-flex;
   align-items: center;
@@ -830,6 +838,7 @@ onUnmounted(() => {
   width: 2.75rem;
   height: 2.75rem;
   padding: 0;
+  flex-shrink: 0;
 
   &:hover {
     background: rgba(239, 68, 68, 0.2);
@@ -848,15 +857,13 @@ onUnmounted(() => {
   color: currentColor;
 }
 
-.layout__sidebar--collapsed .layout__collapse-toggle {
-  align-self: center;
-}
-
 .layout__title {
   margin: 0;
   font-size: 2rem;
   font-weight: 700;
   color: theme.$color-text-heading;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .layout__nav {
@@ -1039,6 +1046,10 @@ onUnmounted(() => {
 .layout--collapsed .layout__sidebar-top {
   width: 100%;
   align-items: center;
+}
+
+.layout--collapsed .layout__header {
+  justify-content: center;
 }
 
 .layout--collapsed .layout__title {
