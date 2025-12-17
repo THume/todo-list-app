@@ -397,10 +397,10 @@ watch(descriptionText, () => {
       <span v-if="listLabel" class="task__list">
         {{ listLabel }}
       </span>
-      <span v-if="recurrenceLabel" class="task__recurrence" :title="recurrenceLabel">
+      <span v-if="recurrenceLabel" v-tooltip="recurrenceLabel" class="task__recurrence">
         <IconGlyph name="repeat" size="14" aria-hidden="true" />
       </span>
-      <span v-if="reminderLabel" class="task__reminder" :title="`Reminder ${reminderLabel}`">
+      <span v-if="reminderLabel" v-tooltip="`Reminder ${reminderLabel}`" class="task__reminder">
         <IconGlyph name="alert" size="14" aria-hidden="true" />
       </span>
     </footer>

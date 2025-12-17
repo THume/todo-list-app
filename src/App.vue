@@ -480,10 +480,10 @@ onUnmounted(() => {
             <RouterLink
               v-for="link in primaryNavLinks"
               :key="link.to"
+              v-tooltip="isSidebarCollapsed ? link.label : undefined"
               :to="link.to"
               class="layout__link"
               active-class="layout__link--active"
-              :title="isSidebarCollapsed ? link.label : undefined"
             >
               <span class="layout__nav-icon" aria-hidden="true">
                 <IconGlyph :name="link.icon" size="22" />
@@ -512,11 +512,11 @@ onUnmounted(() => {
           <section class="layout__lists">
             <header class="layout__lists-header">
               <button
+                v-tooltip="isSidebarCollapsed ? (isListsSectionCollapsed ? 'Expand lists' : 'Collapse lists') : undefined"
                 type="button"
                 class="layout__lists-toggle"
                 :aria-expanded="!isListsSectionCollapsed"
                 :aria-label="isListsSectionCollapsed ? 'Expand lists section' : 'Collapse lists section'"
-                :title="isSidebarCollapsed ? (isListsSectionCollapsed ? 'Expand lists' : 'Collapse lists') : undefined"
                 @click="toggleListsSection"
               >
                 <IconGlyph
@@ -528,9 +528,9 @@ onUnmounted(() => {
               </button>
               <button
                 v-show="!isSidebarCollapsed"
+                v-tooltip="isSidebarCollapsed ? 'New List' : undefined"
                 type="button"
                 class="layout__add-list"
-                :title="isSidebarCollapsed ? 'New List' : undefined"
                 @click="handleCreateList"
               >
                 <IconGlyph
@@ -564,10 +564,10 @@ onUnmounted(() => {
                 @drop.prevent="handleListDrop(list)"
               >
                 <RouterLink
+                  v-tooltip="isSidebarCollapsed ? list.name : undefined"
                   :to="`/lists/${list.id}`"
                   class="layout__link layout__link--list"
                   active-class="layout__link--active"
-                  :title="isSidebarCollapsed ? list.name : undefined"
                 >
                   <span class="layout__list-icon" aria-hidden="true">
                     <IconGlyph name="folder" size="16" />
@@ -581,9 +581,9 @@ onUnmounted(() => {
         </div>
         <button
           ref="addTaskButtonRef"
+          v-tooltip="isSidebarCollapsed ? 'Add a Task' : undefined"
           type="button"
           class="layout__add-task"
-          :title="isSidebarCollapsed ? 'Add a Task' : undefined"
           @click="showForm = true"
         >
           <IconGlyph
@@ -597,12 +597,12 @@ onUnmounted(() => {
       </div>
       <div ref="settingsMenuRef" class="settings-menu">
         <button
+          v-tooltip="isSidebarCollapsed ? 'Settings' : undefined"
           type="button"
           class="settings-menu__trigger"
           :aria-expanded="showSettingsMenu"
           aria-haspopup="menu"
           :aria-label="showSettingsMenu ? 'Close settings menu' : 'Open settings menu'"
-          :title="isSidebarCollapsed ? 'Settings' : undefined"
           @click="toggleSettingsMenu"
         >
           <IconGlyph name="settings" size="22" aria-hidden="true" />

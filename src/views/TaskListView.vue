@@ -357,10 +357,10 @@ watch(listTasks, () => {
         </span>
         <div class="task-panel__controls" v-if="activeList">
           <button
+            v-tooltip="activeList.id === 'default' ? 'This is the default list and cannot be deleted' : 'Delete list'"
             type="button"
             class="task-panel__control-button"
             :disabled="activeList.id === 'default'"
-            :title="activeList.id === 'default' ? 'This is the default list and cannot be deleted' : 'Delete list'"
             @click="requestDeleteList"
           >
             Delete list
