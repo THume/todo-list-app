@@ -532,12 +532,13 @@ onUnmounted(() => {
             </RouterLink>
           </nav>
           <section class="layout__lists">
-            <header class="layout__lists-header" :class="{ 'layout__lists-header--hidden': isSidebarCollapsed }">
+            <header class="layout__lists-header">
               <button
                 type="button"
                 class="layout__lists-toggle"
                 :aria-expanded="!isListsSectionCollapsed"
                 :aria-label="isListsSectionCollapsed ? 'Expand lists section' : 'Collapse lists section'"
+                :title="isSidebarCollapsed ? (isListsSectionCollapsed ? 'Expand lists' : 'Collapse lists') : undefined"
                 @click="toggleListsSection"
               >
                 <IconGlyph
@@ -545,9 +546,10 @@ onUnmounted(() => {
                   size="14"
                   aria-hidden="true"
                 />
-                <span class="layout__lists-title">Lists</span>
+                <span v-show="!isSidebarCollapsed" class="layout__lists-title">Lists</span>
               </button>
               <button
+                v-show="!isSidebarCollapsed"
                 type="button"
                 class="layout__add-list"
                 :title="isSidebarCollapsed ? 'New List' : undefined"
@@ -1129,6 +1131,15 @@ onUnmounted(() => {
 
 .layout__lists-header--hidden {
   display: none;
+}
+
+.layout--collapsed .layout__lists-header {
+  justify-content: center;
+}
+
+.layout--collapsed .layout__lists-toggle {
+  width: 100%;
+  justify-content: center;
 }
 
 .layout__nav-count {
