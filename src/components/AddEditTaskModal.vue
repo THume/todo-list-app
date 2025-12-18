@@ -16,7 +16,7 @@ const props = defineProps({
   mode: {
     type: String,
     default: 'add',
-    validator: (value) => ['add', 'edit'].includes(value),
+    validator: (value) => ['add', 'edit', 'duplicate'].includes(value),
   },
   defaultDueDate: {
     type: String,
@@ -52,6 +52,7 @@ const lastTaskId = ref(null);
 let isApplyingDefaultDueDate = false;
 
 const isEditMode = computed(() => props.mode === 'edit');
+const isDuplicateMode = computed(() => props.mode === 'duplicate');
 
 const setDueDateToToday = () => {
   dueDate.value = getTodayDateString();
@@ -209,7 +210,7 @@ const handleSubmit = (shouldCloseModal = false) => {
 
 const closeModal = () => {
   emit('update:visible', false);
-  if (isEditMode.value) {
+  if (isEditMode.value || isDuplicateMode.value) {
     emit('cancel');
   }
 };
@@ -238,7 +239,7 @@ watch(
   (visible) => {
     if (visible) {
       registerKeydown();
-      if (isEditMode.value && props.task) {
+      if ((isEditMode.value || isDuplicateMode.value) && props.task) {
         applyTask(props.task);
       }
       nextTick(() => titleField.value?.focus());

@@ -13,6 +13,7 @@ const {
   updateTask,
   reorderTask,
   duplicateTask,
+  addTask,
   moveTaskToToday,
   moveTaskToTomorrow,
   lists,
@@ -22,6 +23,8 @@ const showDeleteDialog = ref(false);
 const taskPendingDelete = ref(null);
 const showEditDialog = ref(false);
 const taskPendingEdit = ref(null);
+const showDuplicateDialog = ref(false);
+const taskPendingDuplicate = ref(null);
 const draggedTaskId = ref(null);
 const dragOverTaskId = ref(null);
 const dropIndicatorIndex = ref(-1);
@@ -87,10 +90,17 @@ const handleEditSave = (payload) => {
 };
 
 const handleDuplicate = (task) => {
-  const duplicated = duplicateTask(task.id);
-  if (duplicated) {
-    startEdit(duplicated);
-  }
+  taskPendingDuplicate.value = task;
+  showDuplicateDialog.value = true;
+};
+
+const closeDuplicate = () => {
+  showDuplicateDialog.value = false;
+};
+
+const handleDuplicateSubmit = (payload) => {
+  addTask(payload);
+  closeDuplicate();
 };
 
 const handleMoveToToday = (task) => {
@@ -209,6 +219,12 @@ watch(showEditDialog, (isOpen) => {
     taskPendingEdit.value = null;
   }
 });
+
+watch(showDuplicateDialog, (isOpen) => {
+  if (!isOpen) {
+    taskPendingDuplicate.value = null;
+  }
+});
 </script>
 
 <template>
@@ -279,6 +295,14 @@ watch(showEditDialog, (isOpen) => {
     :lists="lists"
     @save="handleEditSave"
     @cancel="closeEdit"
+  />
+  <AddEditTaskModal
+    v-model:visible="showDuplicateDialog"
+    mode="duplicate"
+    :task="taskPendingDuplicate"
+    :lists="lists"
+    @submit="handleDuplicateSubmit"
+    @cancel="closeDuplicate"
   />
 </template>
 

@@ -12,6 +12,7 @@ const {
   deleteCompletedTask,
   updateCompletedTaskTimestamp,
   duplicateTask,
+  addTask,
   updateTask,
   lists,
 } = useTaskStore();
@@ -239,6 +240,8 @@ const taskBeingAdjusted = ref(null);
 
 const showEditModal = ref(false);
 const taskPendingEdit = ref(null);
+const showDuplicateDialog = ref(false);
+const taskPendingDuplicate = ref(null);
 
 const clearFilters = () => {
   filterStartDate.value = '';
@@ -253,11 +256,18 @@ const handleToggle = (task) => {
 };
 
 const handleDuplicate = (task) => {
-  const duplicated = duplicateTask(task.id);
-  if (duplicated) {
-    taskPendingEdit.value = duplicated;
-    showEditModal.value = true;
-  }
+  taskPendingDuplicate.value = task;
+  showDuplicateDialog.value = true;
+};
+
+const closeDuplicateModal = () => {
+  showDuplicateDialog.value = false;
+  taskPendingDuplicate.value = null;
+};
+
+const handleDuplicateSubmit = (payload) => {
+  addTask(payload);
+  closeDuplicateModal();
 };
 
 const closeEditModal = () => {
@@ -381,6 +391,14 @@ const handleConfirmDelete = () => {
     :task="taskPendingEdit"
     @save="handleEditSave"
     @cancel="closeEditModal"
+  />
+  <AddEditTaskModal
+    v-model:visible="showDuplicateDialog"
+    mode="duplicate"
+    :task="taskPendingDuplicate"
+    :lists="lists"
+    @submit="handleDuplicateSubmit"
+    @cancel="closeDuplicateModal"
   />
   <AdjustCompletionDateModal
     v-model:visible="showAdjustDateModal"
