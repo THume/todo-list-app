@@ -9,7 +9,7 @@ const {
   tasksDueToday,
   tasksCompletedToday,
   lists,
-  completedTasks,
+  tasks,
 } = useTaskStore();
 
 const loadHiddenSet = () => {
@@ -157,14 +157,14 @@ const selectedCompletedDateMessageLabel = computed(
 const completedDateMax = computed(() => toDateInputValue(new Date()));
 
 const rawCompletedYesterday = computed(() => {
-  const entries = Array.isArray(completedTasks.value) ? completedTasks.value : [];
+  const completedTasksList = tasks.value.filter((task) => task.completed);
   const { start, end } = completedDateBounds.value;
   if (typeof start !== 'number' || typeof end !== 'number') {
     return [];
   }
-  return entries
-    .filter((entry) => {
-      const completedTimestamp = Date.parse(entry?.completedAt ?? '');
+  return completedTasksList
+    .filter((task) => {
+      const completedTimestamp = Date.parse(task?.completedAt ?? '');
       if (Number.isNaN(completedTimestamp)) {
         return false;
       }

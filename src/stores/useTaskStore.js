@@ -3,7 +3,6 @@ import { useTaskNotifications } from '../composables/useTaskNotifications';
 import { readJsonFile, writeJsonFile } from '../services/jsonStorage';
 
 const TASKS_FILE_NAME = 'tasks.json';
-const COMPLETED_TASKS_FILE_NAME = 'completed-tasks.json';
 const LISTS_FILE_NAME = 'lists.json';
 const DEFAULT_LIST_ID = 'default';
 const DEFAULT_LIST_NAME = 'My Tasks';
@@ -13,7 +12,6 @@ const DEFAULT_LIST = Object.freeze({
 });
 
 const tasks = ref([]);
-const completedTasks = ref([]);
 const lists = ref([DEFAULT_LIST]);
 const currentTime = ref(Date.now());
 
@@ -143,17 +141,6 @@ const persistTasks = async (value) => {
     }
   } catch (error) {
     console.error('Failed to persist tasks to JSON file', error);
-  }
-};
-
-const persistCompletedTasks = async (value) => {
-  try {
-    await writeJsonFile(COMPLETED_TASKS_FILE_NAME, value);
-    if (watchersReady && !isApplyingRemoteUpdate) {
-      postStorageUpdate();
-    }
-  } catch (error) {
-    console.error('Failed to persist completed tasks to JSON file', error);
   }
 };
 
@@ -305,39 +292,14 @@ const createRecurringTask = (task) => {
   };
 };
 
-const recordCompletion = (task) => {
-  if (!task) {
-    return;
-  }
-
-  const entry = {
-    taskId: task.id,
-    title: task.title,
-    description: task.description ?? '',
-    due: task.due ?? null,
-    completedAt: new Date().toISOString(),
-    recurrence: normalizeRecurrence(task.recurrence),
-    listId: normalizeListId(task.listId),
-  };
-
-  const existingIndex = completedTasks.value.findIndex((item) => item.taskId === task.id);
-
-  if (existingIndex >= 0) {
-    const updated = [...completedTasks.value];
-    updated[existingIndex] = entry;
-    completedTasks.value = updated;
-  } else {
-    completedTasks.value = [...completedTasks.value, entry];
-  }
-};
-
-const removeCompletion = (taskId) => {
-  completedTasks.value = completedTasks.value.filter((entry) => entry.taskId !== taskId);
-};
-
 const updateCompletedTaskTimestamp = (taskId, completedAt) => {
-  const entryIndex = completedTasks.value.findIndex((entry) => entry.taskId === taskId);
-  if (entryIndex < 0) {
+  const taskIndex = tasks.value.findIndex((task) => task.id === taskId);
+  if (taskIndex < 0) {
+    return false;
+  }
+
+  const task = tasks.value[taskIndex];
+  if (!task.completed) {
     return false;
   }
 
@@ -355,12 +317,12 @@ const updateCompletedTaskTimestamp = (taskId, completedAt) => {
     return false;
   }
 
-  const updatedEntries = [...completedTasks.value];
-  updatedEntries[entryIndex] = {
-    ...updatedEntries[entryIndex],
+  const updatedTasks = [...tasks.value];
+  updatedTasks[taskIndex] = {
+    ...task,
     completedAt: resolvedDate.toISOString(),
   };
-  completedTasks.value = updatedEntries;
+  tasks.value = updatedTasks;
 
   return true;
 };
@@ -541,10 +503,13 @@ const addTask = ({
     reminderOffsetMinutes: reminderValue,
   };
 
+  if (isCompleted) {
+    newTask.completedAt = new Date().toISOString();
+  }
+
   const updatedTasks = [...tasks.value, newTask];
 
   if (isCompleted) {
-    recordCompletion(newTask);
     const nextTask = createRecurringTask(newTask);
 
     if (nextTask) {
@@ -631,8 +596,7 @@ const reorderTask = ({ id, beforeId = null }) => {
   return true;
 };
 
-const toggleTaskCompletion = (taskId, options = {}) => {
-  const { suppressNotification = false } = options;
+const toggleTaskCompletion = (taskId) => {
   const targetIndex = tasks.value.findIndex((item) => item?.id === taskId);
   if (targetIndex < 0) {
     return;
@@ -648,11 +612,16 @@ const toggleTaskCompletion = (taskId, options = {}) => {
     completed: !originalTask.completed,
   };
 
+  if (updatedTask.completed) {
+    updatedTask.completedAt = new Date().toISOString();
+  } else {
+    delete updatedTask.completedAt;
+  }
+
   const updatedTasks = [...tasks.value];
   updatedTasks[targetIndex] = updatedTask;
 
   if (updatedTask.completed) {
-    recordCompletion(updatedTask);
     const nextTask = createRecurringTask(updatedTask);
 
     if (nextTask) {
@@ -661,31 +630,7 @@ const toggleTaskCompletion = (taskId, options = {}) => {
     } else {
       spawnedRecurringTaskIds.delete(updatedTask.id);
     }
-
-    tasks.value = updatedTasks;
-
-    if (!suppressNotification) {
-      const existingNotificationId = completionNotificationIds.get(updatedTask.id);
-      if (existingNotificationId) {
-        dismissNotification(existingNotificationId);
-      }
-
-      const notificationId = pushNotification(
-        `Task "${updatedTask.title || 'Untitled task'}" completed.`,
-        {
-          action: {
-            label: 'Undo',
-            type: 'undo-completed-task',
-            payload: { taskId: updatedTask.id },
-          },
-          duration: 10000,
-        }
-      );
-      completionNotificationIds.set(updatedTask.id, notificationId);
-    }
   } else {
-    removeCompletion(updatedTask.id);
-
     const spawnedId = spawnedRecurringTaskIds.get(updatedTask.id);
     if (spawnedId !== undefined) {
       const removalIndex = updatedTasks.findIndex((item) => item?.id === spawnedId);
@@ -694,21 +639,13 @@ const toggleTaskCompletion = (taskId, options = {}) => {
       }
       spawnedRecurringTaskIds.delete(updatedTask.id);
     }
-
-    tasks.value = updatedTasks;
-
-    const notificationId = completionNotificationIds.get(updatedTask.id);
-    if (notificationId) {
-      dismissNotification(notificationId);
-      completionNotificationIds.delete(updatedTask.id);
-    }
   }
+
+  tasks.value = updatedTasks;
 };
 
 const removeTask = (taskId) => {
   tasks.value = tasks.value.filter((item) => item.id !== taskId);
-  removeCompletion(taskId);
-  completionNotificationIds.delete(taskId);
   spawnedRecurringTaskIds.delete(taskId);
 
   Array.from(spawnedRecurringTaskIds.entries()).forEach(([originId, spawnedId]) => {
@@ -719,53 +656,23 @@ const removeTask = (taskId) => {
 };
 
 const reviveCompletedTask = (taskId) => {
-  const entryIndex = completedTasks.value.findIndex((entry) => entry.taskId === taskId);
-  if (entryIndex < 0) {
+  const taskIndex = tasks.value.findIndex((task) => task.id === taskId);
+  if (taskIndex < 0) {
     return false;
   }
 
-  const currentTasks = Array.isArray(tasks.value) ? tasks.value : [];
-  const targetIndex = currentTasks.findIndex((task) => task?.id === taskId);
-
-  if (targetIndex >= 0) {
-    const targetTask = currentTasks[targetIndex];
-
-    if (targetTask.completed) {
-      toggleTaskCompletion(taskId, { suppressNotification: true });
-    } else {
-      completedTasks.value = completedTasks.value.filter((entry) => entry.taskId !== taskId);
-    }
-  } else {
-    const entry = completedTasks.value[entryIndex];
-    const revivedTask = {
-      id: taskId,
-      title: entry.title ?? 'Untitled task',
-      description: entry.description ?? '',
-      completed: false,
-      due: entry.due ?? null,
-      recurrence: entry.recurrence ?? null,
-      listId: normalizeListId(entry.listId),
-    };
-
-    tasks.value = [...currentTasks, revivedTask];
-    completedTasks.value = completedTasks.value.filter((item) => item.taskId !== taskId);
+  const task = tasks.value[taskIndex];
+  if (!task.completed) {
+    return false;
   }
 
-  completionNotificationIds.delete(taskId);
-  spawnedRecurringTaskIds.delete(taskId);
-
-  Array.from(spawnedRecurringTaskIds.entries()).forEach(([originId, spawnedId]) => {
-    if (spawnedId === taskId) {
-      spawnedRecurringTaskIds.delete(originId);
-    }
-  });
-
+  toggleTaskCompletion(taskId);
   return true;
 };
 
 const deleteCompletedTask = (taskId) => {
-  const hasEntry = completedTasks.value.some((entry) => entry.taskId === taskId);
-  if (!hasEntry) {
+  const task = tasks.value.find((t) => t.id === taskId);
+  if (!task || !task.completed) {
     return false;
   }
 
@@ -868,9 +775,6 @@ const removeList = (listId) => {
     );
 
   tasks.value = reassignTasks(Array.isArray(tasks.value) ? tasks.value : []);
-  completedTasks.value = reassignTasks(
-    Array.isArray(completedTasks.value) ? completedTasks.value : []
-  );
 
   return true;
 };
@@ -1018,7 +922,7 @@ const tasksDueTomorrow = computed(() => {
 });
 
 const tasksCompletedYesterday = computed(() => {
-  const entries = Array.isArray(completedTasks.value) ? completedTasks.value : [];
+  const completedTasksList = tasks.value.filter((task) => task.completed);
   const todayStartDate = getStartOfDay(currentTime.value);
 
   if (!(todayStartDate instanceof Date) || Number.isNaN(todayStartDate.valueOf())) {
@@ -1031,9 +935,9 @@ const tasksCompletedYesterday = computed(() => {
   const startTimestamp = yesterdayStartDate.getTime();
   const endTimestamp = todayStartDate.getTime();
 
-  return entries
-    .filter((entry) => {
-      const completedTimestamp = Date.parse(entry?.completedAt ?? '');
+  return completedTasksList
+    .filter((task) => {
+      const completedTimestamp = Date.parse(task?.completedAt ?? '');
       if (Number.isNaN(completedTimestamp)) {
         return false;
       }
@@ -1057,7 +961,7 @@ const tasksCompletedYesterday = computed(() => {
 });
 
 const tasksCompletedToday = computed(() => {
-  const entries = Array.isArray(completedTasks.value) ? completedTasks.value : [];
+  const completedTasksList = tasks.value.filter((task) => task.completed);
   const todayStartDate = getStartOfDay(currentTime.value);
 
   if (!(todayStartDate instanceof Date) || Number.isNaN(todayStartDate.valueOf())) {
@@ -1070,9 +974,9 @@ const tasksCompletedToday = computed(() => {
   const startTimestamp = todayStartDate.getTime();
   const endTimestamp = tomorrowStartDate.getTime();
 
-  return entries
-    .filter((entry) => {
-      const completedTimestamp = Date.parse(entry?.completedAt ?? '');
+  return completedTasksList
+    .filter((task) => {
+      const completedTimestamp = Date.parse(task?.completedAt ?? '');
       if (Number.isNaN(completedTimestamp)) {
         return false;
       }
@@ -1096,16 +1000,18 @@ const tasksCompletedToday = computed(() => {
 });
 
 const sortedCompletedTasks = computed(() => {
-  return [...completedTasks.value].sort((a, b) => {
-    const aTime = Date.parse(a.completedAt ?? '');
-    const bTime = Date.parse(b.completedAt ?? '');
+  return tasks.value
+    .filter((task) => task.completed)
+    .sort((a, b) => {
+      const aTime = Date.parse(a.completedAt ?? '');
+      const bTime = Date.parse(b.completedAt ?? '');
 
-    if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
-      return 0;
-    }
+      if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
+        return 0;
+      }
 
-    return bTime - aTime;
-  });
+      return bTime - aTime;
+    });
 });
 
 const loadFromStorage = async () => {
@@ -1147,6 +1053,7 @@ const loadFromStorage = async () => {
         title: typeof task.title === 'string' ? task.title : 'Untitled task',
         description: typeof task.description === 'string' ? task.description : '',
         completed: Boolean(task.completed),
+        completedAt: task.completedAt ?? null,
         due: task.due ?? null,
         recurrence: normalizeRecurrence(task.recurrence),
         listId: normalizeListId(task.listId),
@@ -1161,35 +1068,8 @@ const loadFromStorage = async () => {
     tasks.value = [];
   }
 
-  try {
-    const parsedCompleted = await readJsonFile(COMPLETED_TASKS_FILE_NAME, []);
-
-    if (Array.isArray(parsedCompleted)) {
-      completedTasks.value = parsedCompleted.map((entry) => ({
-        taskId: entry.taskId,
-        title: entry.title ?? 'Untitled task',
-        description: entry.description ?? '',
-        due: entry.due ?? null,
-        completedAt: entry.completedAt ?? new Date().toISOString(),
-        recurrence: normalizeRecurrence(entry.recurrence),
-        listId: normalizeListId(entry.listId),
-      }));
-    } else {
-      completedTasks.value = [];
-    }
-  } catch (error) {
-    console.error('Failed to load completed tasks from JSON storage', error);
-    completedTasks.value = [];
-  }
-
   ensureDefaultList();
   syncInitialId();
-
-  tasks.value.forEach((task) => {
-    if (task.completed && !completedTasks.value.some((entry) => entry.taskId === task.id)) {
-      recordCompletion(task);
-    }
-  });
 };
 
 watch(
@@ -1200,17 +1080,6 @@ watch(
     }
     persistTasks(tasks.value);
     checkDueTasks();
-  },
-  { deep: true }
-);
-
-watch(
-  completedTasks,
-  () => {
-    if (!watchersReady || isApplyingRemoteUpdate) {
-      return;
-    }
-    persistCompletedTasks(completedTasks.value);
   },
   { deep: true }
 );
@@ -1227,22 +1096,6 @@ watch(
   { deep: true }
 );
 
-watch(
-  notifications,
-  (current) => {
-    const activeIds = new Set(
-      (Array.isArray(current) ? current : []).map((notification) => notification?.id)
-    );
-
-    Array.from(completionNotificationIds.entries()).forEach(([taskId, noteId]) => {
-      if (!activeIds.has(noteId)) {
-        completionNotificationIds.delete(taskId);
-      }
-    });
-  },
-  { deep: false }
-);
-
 const initialize = async () => {
   if (isInitialized) {
     return;
@@ -1252,7 +1105,6 @@ const initialize = async () => {
   await loadFromStorage();
   await Promise.all([
     persistTasks(tasks.value),
-    persistCompletedTasks(completedTasks.value),
     persistLists(lists.value),
   ]);
   checkDueTasks();
@@ -1275,7 +1127,6 @@ export const useTaskStore = () => {
 
   return {
     tasks,
-    completedTasks,
     lists,
     tasksOverdue,
     tasksDueToday,
