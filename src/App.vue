@@ -349,6 +349,15 @@ const handleNotificationAction = ({ id, action }) => {
     }
   }
 
+  if (action.type === 'undo-revive-task') {
+    const taskId = action.payload?.taskId;
+    if (taskId !== undefined && taskId !== null) {
+      // Re-complete the task by toggling it back
+      toggleTaskCompletion(taskId, { suppressNotification: true });
+    }
+  }
+
+  // Always dismiss the notification after handling the action
   dismissNotification(id);
 };
 

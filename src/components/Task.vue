@@ -17,6 +17,7 @@ const emit = defineEmits([
   'move-to-today',
   'move-to-tomorrow',
   'skip-recurrence',
+  'adjust-completion-date',
 ]);
 
 const props = defineProps({
@@ -36,6 +37,14 @@ const props = defineProps({
   showSkipRecurrenceAction: {
     type: Boolean,
     default: false,
+  },
+  isCompletedPage: {
+    type: Boolean,
+    default: false,
+  },
+  completedDate: {
+    type: String,
+    default: '',
   },
 });
 
@@ -159,11 +168,13 @@ const isDueToday = computed(() => {
   );
 });
 
-const showMoveToTomorrow = computed(() => isDueToday.value);
-const showMoveToToday = computed(() => !isDueToday.value);
+const showMoveToTomorrow = computed(() => !props.isCompletedPage && isDueToday.value);
+const showMoveToToday = computed(() => !props.isCompletedPage && !isDueToday.value);
 const canSkipRecurrence = computed(
-  () => props.showSkipRecurrenceAction && Boolean(props.task.recurrence) && !props.task.completed
+  () => !props.isCompletedPage && props.showSkipRecurrenceAction && Boolean(props.task.recurrence) && !props.task.completed
 );
+const showEditAction = computed(() => !props.isCompletedPage);
+const showAdjustCompletionDate = computed(() => props.isCompletedPage);
 
 const closeMenu = () => {
   menuOpen.value = false;
@@ -241,6 +252,53 @@ const handleSkipRecurrence = () => {
   closeMenu();
 };
 
+const handleAdjustCompletionDate = () => {
+  emit('adjust-completion-date', props.task);
+  closeMenu();
+};
+
+const completedDateObj = computed(() => {
+  if (!props.completedDate) {
+    return null;
+  }
+
+  const date = new Date(props.completedDate);
+  return Number.isNaN(date.getTime()) ? null : date;
+});
+
+const formattedCompletedDate = computed(() => {
+  if (!completedDateObj.value) {
+    return '';
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: completedDateObj.value.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+  }).format(completedDateObj.value);
+});
+
+const formattedCompletedTime = computed(() => {
+  if (!completedDateObj.value) {
+    return '';
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(completedDateObj.value);
+});
+
+const completedDateIso = computed(() => (completedDateObj.value ? completedDateObj.value.toISOString() : ''));
+
+const formattedCompletedLabel = computed(() => {
+  if (!formattedCompletedDate.value) {
+    return '';
+  }
+
+  return `${formattedCompletedDate.value} at ${formattedCompletedTime.value}`;
+});
+
 const descriptionText = computed(() => (typeof props.task.description === 'string' ? props.task.description : ''));
 const toggleDescription = () => {
   isDescriptionExpanded.value = !isDescriptionExpanded.value;
@@ -272,7 +330,7 @@ watch(descriptionText, () => {
 </script>
 
 <template>
-  <article class="task" :class="{ 'task--completed': task.completed }">
+  <article class="task">
     <header class="task__header">
       <div class="task__checkbox">
         <input
@@ -335,6 +393,16 @@ watch(descriptionText, () => {
                   Skip Recurrence
                 </button>
               </li>
+              <li v-if="showAdjustCompletionDate" role="none">
+                <button
+                  type="button"
+                  class="task__menu-item"
+                  role="menuitem"
+                  @click="handleAdjustCompletionDate"
+                >
+                  Adjust Completion Date
+                </button>
+              </li>
               <li role="none">
                 <button
                   type="button"
@@ -345,7 +413,7 @@ watch(descriptionText, () => {
                   Duplicate
                 </button>
               </li>
-              <li role="none">
+              <li v-if="showEditAction" role="none">
                 <button
                   type="button"
                   class="task__menu-item"
@@ -374,9 +442,9 @@ watch(descriptionText, () => {
 
     <div v-if="task.description" class="task__description-row">
       <p
+        ref="descriptionEl"
         class="task__description"
         :class="{ 'task__description--clamped': !isDescriptionExpanded }"
-        ref="descriptionEl"
       >
         {{ task.description }}
       </p>
@@ -392,6 +460,8 @@ watch(descriptionText, () => {
     </div>
 
     <time v-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">Due {{ formattedDueLabel }}</time>
+
+    <time v-if="formattedCompletedLabel" class="task__completed-date" :datetime="completedDateIso">Completed {{ formattedCompletedLabel }}</time>
 
     <footer class="task__meta">
       <span v-if="listLabel" class="task__list">
@@ -663,11 +733,9 @@ $remove-hover: theme.$color-accent-hover;
   color: $task-due;
 }
 
-.task--completed {
-  .task__title {
-    color: $task-completed;
-    text-decoration: line-through;
-  }
+.task__completed-date {
+  color: $task-muted;
+  font-size: 0.9rem;
 }
 
 .task-menu-enter-active,

@@ -39,6 +39,7 @@ let watchersReady = false;
 let currentTimeTimer = null;
 let listInitialId = 1;
 const completionNotificationIds = new Map();
+const reviveNotificationIds = new Map();
 const spawnedRecurringTaskIds = new Map();
 let broadcastChannel = null;
 let isApplyingRemoteUpdate = false;
@@ -596,7 +597,7 @@ const reorderTask = ({ id, beforeId = null }) => {
   return true;
 };
 
-const toggleTaskCompletion = (taskId) => {
+const toggleTaskCompletion = (taskId, { suppressNotification = false } = {}) => {
   const targetIndex = tasks.value.findIndex((item) => item?.id === taskId);
   if (targetIndex < 0) {
     return;
@@ -655,7 +656,7 @@ const removeTask = (taskId) => {
   });
 };
 
-const reviveCompletedTask = (taskId) => {
+const reviveCompletedTask = (taskId, { suppressNotification = false } = {}) => {
   const taskIndex = tasks.value.findIndex((task) => task.id === taskId);
   if (taskIndex < 0) {
     return false;
@@ -666,7 +667,29 @@ const reviveCompletedTask = (taskId) => {
     return false;
   }
 
+  const taskTitle = task.title;
+
   toggleTaskCompletion(taskId);
+
+  if (!suppressNotification) {
+    const message = `Task "${taskTitle}" was revived`;
+    const notificationId = pushNotification(message, {
+      action: {
+        type: 'undo-revive-task',
+        label: 'Undo',
+        payload: { taskId },
+      },
+    });
+    reviveNotificationIds.set(taskId, notificationId);
+  } else {
+    // Clean up notification when undo is triggered
+    const existingNotificationId = reviveNotificationIds.get(taskId);
+    if (existingNotificationId) {
+      dismissNotification(existingNotificationId);
+      reviveNotificationIds.delete(taskId);
+    }
+  }
+
   return true;
 };
 
