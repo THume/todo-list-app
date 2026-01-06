@@ -1,5 +1,6 @@
 ﻿<script setup>
 import { computed, ref, watch } from 'vue';
+import IconGlyph from '../components/IconGlyph.vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
 const STANDUP_HIDDEN_STORAGE_KEY = 'todo-list.standup-hidden';
@@ -699,7 +700,9 @@ watch(showAll, (value) => {
                     </li>
                   </ul>
                 </div>
-                <span class="standup__badge">List: {{ resolveListName(entry.listId) }}</span>
+                <span class="standup__list-pill">
+                  <span class="standup__list-text">{{ resolveListName(entry.listId) }}</span>
+                </span>
                 <div class="standup__item-actions">
                   <button
                     v-if="!showAll"
@@ -824,9 +827,16 @@ watch(showAll, (value) => {
                   </ul>
                 </div>
                 <div class="standup__meta-row">
-                  <span class="standup__badge">List: {{ resolveListName(entry.listId) }}</span>
-                  <span v-if="entry.recurrence" class="standup__badge standup__badge--info">
-                    Repeats: {{ entry.recurrence }}
+                  <span class="standup__list-pill">
+                    <span class="standup__list-text">{{ resolveListName(entry.listId) }}</span>
+                  </span>
+                  <span
+                    v-if="entry.recurrence"
+                    class="standup__recurrence-icon"
+                    v-tooltip="`Repeats: ${entry.recurrence}`"
+                    aria-label="Repeats"
+                  >
+                    <IconGlyph name="repeat" size="14" aria-hidden="true" />
                   </span>
                 </div>
                 <div class="standup__item-actions">
@@ -895,7 +905,11 @@ watch(showAll, (value) => {
               >
                 <div class="standup__item-header">
                   <span class="standup__item-title">{{ task.title }}</span>
-                  <time class="standup__item-meta" :datetime="task.due">
+                  <time
+                    v-if="formatTimeOnly(task.due)"
+                    class="standup__item-meta"
+                    :datetime="task.due"
+                  >
                     Due {{ formatTimeOnly(task.due) }}
                   </time>
                 </div>
@@ -925,9 +939,16 @@ watch(showAll, (value) => {
                   </ul>
                 </div>
                 <div class="standup__meta-row">
-                  <span class="standup__badge">List: {{ resolveListName(task.listId) }}</span>
-                  <span v-if="task.recurrence" class="standup__badge standup__badge--info">
-                    Repeats: {{ task.recurrence }}
+                  <span class="standup__list-pill">
+                    <span class="standup__list-text">{{ resolveListName(task.listId) }}</span>
+                  </span>
+                  <span
+                    v-if="task.recurrence"
+                    class="standup__recurrence-icon"
+                    v-tooltip="`Repeats: ${task.recurrence}`"
+                    aria-label="Repeats"
+                  >
+                    <IconGlyph name="repeat" size="14" aria-hidden="true" />
                   </span>
                 </div>
                 <div class="standup__item-actions">
@@ -1293,23 +1314,36 @@ watch(showAll, (value) => {
   flex-wrap: wrap;
 }
 
-.standup__badge {
+.standup__list-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.6rem;
+  gap: 0.35rem;
+  padding: 0.25rem 0.75rem;
   border-radius: 999px;
-  background: rgba(59, 130, 246, 0.18);
-  color: #93c5fd;
-  font-size: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(148, 163, 184, 0.12);
+  color: theme.$color-text-heading;
   font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  width: max-content;
+  font-size: 0.85rem;
 }
 
-.standup__badge--info {
-  background: rgba(16, 185, 129, 0.18);
-  color: #6ee7b7;
+.standup__list-text {
+  max-width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.standup__recurrence-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.4);
 }
 
 .standup__item-actions {
