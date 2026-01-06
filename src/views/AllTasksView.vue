@@ -31,6 +31,7 @@ const taskPendingDuplicate = ref(null);
 const draggedTaskId = ref(null);
 const dragOverTaskId = ref(null);
 const dropIndicatorIndex = ref(-1);
+const searchTerm = ref('');
 
 const listNameById = computed(() => {
   const result = {};
@@ -56,6 +57,30 @@ const resolveListName = (task) => {
   }
   return fallback;
 };
+
+const normalizedSearch = computed(() => searchTerm.value.trim().toLowerCase());
+const visibleTasks = computed(() => {
+  const current = Array.isArray(activeTasks.value) ? activeTasks.value : [];
+  const term = normalizedSearch.value;
+  if (!term) {
+    return current;
+  }
+  return current.filter((task) => {
+    const title = typeof task?.title === 'string' ? task.title.toLowerCase() : '';
+    const description =
+      typeof task?.description === 'string' ? task.description.toLowerCase() : '';
+    return title.includes(term) || description.includes(term);
+  });
+});
+
+const activeCount = computed(() => activeTasks.value?.length ?? 0);
+const visibleCount = computed(() => visibleTasks.value.length);
+const countLabel = computed(() => {
+  if (!normalizedSearch.value) {
+    return `${activeCount.value} active`;
+  }
+  return `${visibleCount.value} of ${activeCount.value} active`;
+});
 
 const handleToggle = (task) => {
   toggleTaskCompletion(task.id);
@@ -201,7 +226,7 @@ const handleDragEnter = (task) => {
     return;
   }
   const allTasks = tasks.value ?? [];
-  const visibleTasks = activeTasks.value ?? [];
+  const filteredTasks = visibleTasks.value ?? [];
   const sourceIndex = allTasks.findIndex((item) => item.id === draggedTaskId.value);
   const targetIndex = allTasks.findIndex((item) => item.id === task.id);
 
@@ -210,13 +235,13 @@ const handleDragEnter = (task) => {
     return;
   }
 
-  const targetIndexVisible = visibleTasks.findIndex((item) => item.id === task.id);
-  const sourceIndexVisible = visibleTasks.findIndex((item) => item.id === draggedTaskId.value);
+  const targetIndexVisible = filteredTasks.findIndex((item) => item.id === task.id);
+  const sourceIndexVisible = filteredTasks.findIndex((item) => item.id === draggedTaskId.value);
 
   let indicatorIndex = targetIndexVisible >= 0 ? targetIndexVisible : 0;
 
   if (sourceIndex < targetIndex) {
-    indicatorIndex = targetIndexVisible >= 0 ? targetIndexVisible + 1 : visibleTasks.length;
+    indicatorIndex = targetIndexVisible >= 0 ? targetIndexVisible + 1 : filteredTasks.length;
   } else if (sourceIndexVisible >= 0 && targetIndexVisible >= 0) {
     indicatorIndex = targetIndexVisible;
   }
@@ -287,7 +312,7 @@ const handleListDragOver = (event) => {
   if (event?.target !== event?.currentTarget) {
     return;
   }
-  dropIndicatorIndex.value = (activeTasks.value ?? []).length;
+  dropIndicatorIndex.value = visibleTasks.value.length;
   dragOverTaskId.value = null;
 };
 
@@ -308,9 +333,30 @@ watch(showDuplicateDialog, (isOpen) => {
   <section class="task-panel">
     <header class="task-panel__header">
       <h2>All Tasks</h2>
-      <span class="task-panel__count">{{ activeTasks.length }} active</span>
+      <span class="task-panel__count">{{ countLabel }}</span>
     </header>
     <div class="task-panel__controls">
+      <div class="task-panel__search">
+        <label class="task-panel__search-label" for="task-search-input">
+          <IconGlyph
+            name="search"
+            size="16"
+            class="task-panel__search-icon"
+            aria-hidden="true"
+          />
+          <span>Search tasks</span>
+        </label>
+        <input
+          id="task-search-input"
+          v-model="searchTerm"
+          type="search"
+          class="task-panel__search-input"
+          name="task-search"
+          autocomplete="off"
+          placeholder="Search by title or description"
+          aria-label="Search tasks"
+        />
+      </div>
       <div class="postpone-control">
         <label class="postpone-control__label" for="postpone-date-input">
           <IconGlyph
@@ -354,8 +400,11 @@ watch(showDuplicateDialog, (isOpen) => {
         {{ postponeMessage }}
       </p>
     </div>
-    <p v-if="activeTasks.length === 0" class="task-panel__empty">
+    <p v-if="activeCount === 0" class="task-panel__empty">
       No active tasks right now.
+    </p>
+    <p v-else-if="visibleCount === 0" class="task-panel__empty">
+      No tasks match your search.
     </p>
     <ul
       v-else
@@ -363,7 +412,7 @@ watch(showDuplicateDialog, (isOpen) => {
       @dragover.prevent="handleListDragOver($event)"
       @drop.prevent="handleDropAtListEnd"
     >
-      <template v-for="(task, index) in activeTasks" :key="task.id">
+      <template v-for="(task, index) in visibleTasks" :key="task.id">
         <li
           v-if="dropIndicatorIndex === index"
           class="task-panel__drop-indicator"
@@ -396,7 +445,7 @@ watch(showDuplicateDialog, (isOpen) => {
         </li>
       </template>
       <li
-        v-if="dropIndicatorIndex === activeTasks.length"
+        v-if="dropIndicatorIndex === visibleTasks.length"
         class="task-panel__drop-indicator task-panel__drop-indicator--end"
       />
     </ul>
@@ -470,7 +519,42 @@ watch(showDuplicateDialog, (isOpen) => {
   padding: 1rem;
   background: rgba(255, 255, 255, 0.03);
   display: grid;
-  gap: 0.5rem;
+  gap: 0.75rem;
+}
+
+.task-panel__search {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.task-panel__search-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  color: theme.$color-text-muted;
+  font-size: 0.9rem;
+}
+
+.task-panel__search-icon {
+  color: theme.$color-accent;
+}
+
+.task-panel__search-input {
+  width: 100%;
+  border: 1px solid theme.$color-border-input;
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  background: rgba(0, 0, 0, 0.35);
+  color: theme.$color-text-primary;
+  font: inherit;
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+    border-color: theme.$color-accent;
+    background: rgba(0, 0, 0, 0.45);
+  }
 }
 
 .postpone-control {
