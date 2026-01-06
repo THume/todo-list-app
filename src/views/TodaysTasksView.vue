@@ -16,6 +16,7 @@ const {
   reorderTask,
   duplicateTask,
   addTask,
+  toggleSubtaskCompletion,
   moveTaskToToday,
   moveTaskToTomorrow,
   lists,
@@ -138,6 +139,10 @@ const handleMoveToToday = (task) => {
 
 const handleMoveToTomorrow = (task) => {
   moveTaskToTomorrow(task.id);
+};
+
+const handleToggleSubtask = ({ taskId, subtaskId }) => {
+  toggleSubtaskCompletion(taskId, subtaskId);
 };
 
 const handleDragStart = (task) => {
@@ -298,6 +303,7 @@ watch(showDuplicateDialog, (isOpen) => {
             @duplicate="handleDuplicate"
             @move-to-today="handleMoveToToday"
             @move-to-tomorrow="handleMoveToTomorrow"
+            @toggle-subtask="handleToggleSubtask"
           />
         </li>
       </template>
@@ -353,6 +359,7 @@ watch(showDuplicateDialog, (isOpen) => {
             @duplicate="handleDuplicate"
             @move-to-today="handleMoveToToday"
             @move-to-tomorrow="handleMoveToTomorrow"
+            @toggle-subtask="handleToggleSubtask"
           />
         </li>
       </template>

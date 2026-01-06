@@ -38,6 +38,7 @@ let isInitialized = false;
 let watchersReady = false;
 let currentTimeTimer = null;
 let listInitialId = 1;
+let subtaskInitialId = 1;
 const completionNotificationIds = new Map();
 const reviveNotificationIds = new Map();
 const spawnedRecurringTaskIds = new Map();
@@ -55,6 +56,14 @@ const createListId = () => {
   return `list-${Date.now()}-${listInitialId}`;
 };
 
+const createSubtaskId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  subtaskInitialId += 1;
+  return `subtask-${Date.now()}-${subtaskInitialId}`;
+};
+
 const ensureDefaultList = () => {
   const hasDefault = lists.value.some((list) => list.id === DEFAULT_LIST_ID);
   if (!hasDefault) {
@@ -70,6 +79,90 @@ const normalizeListId = (value) => {
     }
   }
   return DEFAULT_LIST_ID;
+};
+
+const sanitizeSubtasks = (value) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set();
+
+  return value
+    .map((entry, index) => {
+      const title =
+        typeof entry?.title === 'string' && entry.title.trim().length > 0
+          ? entry.title.trim()
+          : '';
+
+      if (!title) {
+        return null;
+      }
+
+      let id =
+        typeof entry?.id === 'string' && entry.id.trim().length > 0
+          ? entry.id.trim()
+          : `subtask-${index + 1}`;
+
+      if (seen.has(id)) {
+        id = `${id}-${index + 1}`;
+        if (seen.has(id)) {
+          return null;
+        }
+      }
+
+      seen.add(id);
+
+      return {
+        id,
+        title,
+        completed: Boolean(entry?.completed),
+      };
+    })
+    .filter(Boolean);
+};
+
+const areAllSubtasksCompleted = (subtasks) =>
+  Array.isArray(subtasks) && subtasks.length > 0 && subtasks.every((item) => item?.completed);
+
+const applyCompletionState = (task, completed) => {
+  const updatedTask = { ...task, completed };
+
+  if (completed) {
+    updatedTask.completedAt = new Date().toISOString();
+  } else {
+    delete updatedTask.completedAt;
+  }
+
+  return updatedTask;
+};
+
+const removeSpawnedRecurringTask = (taskId, updatedTasks) => {
+  const spawnedId = spawnedRecurringTaskIds.get(taskId);
+  if (spawnedId === undefined) {
+    return;
+  }
+  const removalIndex = updatedTasks.findIndex((item) => item?.id === spawnedId);
+  if (removalIndex >= 0) {
+    updatedTasks.splice(removalIndex, 1);
+  }
+  spawnedRecurringTaskIds.delete(taskId);
+};
+
+const applyRecurringTransition = (updatedTasks, updatedTask) => {
+  if (updatedTask.completed) {
+    const nextTask = createRecurringTask(updatedTask);
+
+    if (nextTask) {
+      spawnedRecurringTaskIds.set(updatedTask.id, nextTask.id);
+      updatedTasks.push(nextTask);
+    } else {
+      spawnedRecurringTaskIds.delete(updatedTask.id);
+    }
+    return;
+  }
+
+  removeSpawnedRecurringTask(updatedTask.id, updatedTasks);
 };
 
 const startCurrentTimeTicker = () => {
@@ -290,6 +383,7 @@ const createRecurringTask = (task) => {
     recurrence,
     listId: normalizeListId(task.listId),
     reminderOffsetMinutes: normalizeReminderOffsetMinutes(task.reminderOffsetMinutes),
+    subtasks: [],
   };
 };
 
@@ -488,10 +582,18 @@ const addTask = ({
   listId,
   reminderOffsetMinutes,
   completed = false,
+  subtasks = [],
 }) => {
   const due = buildDueDate(dueDate, dueTime);
   const recurrenceValue = normalizeRecurrence(recurrence);
-  const isCompleted = Boolean(completed);
+  const normalizedSubtasks = sanitizeSubtasks(subtasks);
+  const resolvedSubtasks =
+    Boolean(completed) && normalizedSubtasks.length > 0
+      ? normalizedSubtasks.map((subtask) => ({ ...subtask, completed: true }))
+      : normalizedSubtasks;
+  const hasIncompleteSubtasks =
+    resolvedSubtasks.length > 0 && !areAllSubtasksCompleted(resolvedSubtasks);
+  const isCompleted = Boolean(completed) && !hasIncompleteSubtasks;
   const reminderValue = due ? normalizeReminderOffsetMinutes(reminderOffsetMinutes) : null;
   const newTask = {
     id: initialId++,
@@ -502,6 +604,7 @@ const addTask = ({
     recurrence: recurrenceValue,
     listId: normalizeListId(listId),
     reminderOffsetMinutes: reminderValue,
+    subtasks: resolvedSubtasks,
   };
 
   if (isCompleted) {
@@ -531,6 +634,7 @@ const updateTask = ({
   recurrence,
   listId,
   reminderOffsetMinutes,
+  subtasks,
 }) => {
   const targetIndex = tasks.value.findIndex((item) => item.id === id);
   if (targetIndex < 0) {
@@ -546,6 +650,8 @@ const updateTask = ({
     reminderOffsetMinutes === undefined
       ? target.reminderOffsetMinutes
       : normalizeReminderOffsetMinutes(reminderOffsetMinutes);
+  const resolvedSubtasks =
+    subtasks === undefined ? sanitizeSubtasks(target.subtasks) : sanitizeSubtasks(subtasks);
 
   const nextTasks = [...tasks.value];
   const updatedTask = {
@@ -556,6 +662,7 @@ const updateTask = ({
     recurrence: normalizeRecurrence(recurrence),
     listId: normalizeListId(listId ?? target.listId),
     reminderOffsetMinutes: resolvedReminder,
+    subtasks: resolvedSubtasks,
   };
 
   if (!dueDate) {
@@ -563,7 +670,13 @@ const updateTask = ({
     updatedTask.reminderOffsetMinutes = null;
   }
 
-  nextTasks[targetIndex] = updatedTask;
+  const resolvedCompleted = updatedTask.subtasks.length > 0
+    ? areAllSubtasksCompleted(updatedTask.subtasks)
+    : updatedTask.completed;
+
+  const completionAdjusted = applyCompletionState(updatedTask, resolvedCompleted);
+  nextTasks[targetIndex] = completionAdjusted;
+  applyRecurringTransition(nextTasks, completionAdjusted);
   tasks.value = nextTasks;
   return true;
 };
@@ -608,41 +721,95 @@ const toggleTaskCompletion = (taskId, { suppressNotification = false } = {}) => 
     return;
   }
 
-  const updatedTask = {
-    ...originalTask,
-    completed: !originalTask.completed,
-  };
-
-  if (updatedTask.completed) {
-    updatedTask.completedAt = new Date().toISOString();
-  } else {
-    delete updatedTask.completedAt;
-  }
+  const currentSubtasks = sanitizeSubtasks(originalTask.subtasks);
+  const nextCompleted = !originalTask.completed;
+  const updatedTask = applyCompletionState(
+    {
+      ...originalTask,
+      subtasks:
+        currentSubtasks.length > 0
+          ? currentSubtasks.map((subtask) => ({ ...subtask, completed: nextCompleted }))
+          : currentSubtasks,
+    },
+    nextCompleted
+  );
 
   const updatedTasks = [...tasks.value];
   updatedTasks[targetIndex] = updatedTask;
 
-  if (updatedTask.completed) {
-    const nextTask = createRecurringTask(updatedTask);
+  applyRecurringTransition(updatedTasks, updatedTask);
 
-    if (nextTask) {
-      spawnedRecurringTaskIds.set(updatedTask.id, nextTask.id);
-      updatedTasks.push(nextTask);
-    } else {
-      spawnedRecurringTaskIds.delete(updatedTask.id);
-    }
+  tasks.value = updatedTasks;
+};
+
+const addSubtask = (taskId, title) => {
+  const trimmed = typeof title === 'string' ? title.trim() : '';
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const taskIndex = tasks.value.findIndex((task) => task?.id === taskId);
+  if (taskIndex < 0) {
+    return null;
+  }
+
+  const targetTask = tasks.value[taskIndex];
+  const existingSubtasks = sanitizeSubtasks(targetTask.subtasks);
+  const newSubtask = {
+    id: createSubtaskId(),
+    title: trimmed,
+    completed: false,
+  };
+
+  const updatedTasks = [...tasks.value];
+  const updatedTask = applyCompletionState(
+    {
+      ...targetTask,
+      subtasks: [...existingSubtasks, newSubtask],
+    },
+    false
+  );
+  updatedTasks[taskIndex] = updatedTask;
+  removeSpawnedRecurringTask(updatedTask.id, updatedTasks);
+  tasks.value = updatedTasks;
+  return newSubtask;
+};
+
+const toggleSubtaskCompletion = (taskId, subtaskId) => {
+  const taskIndex = tasks.value.findIndex((task) => task?.id === taskId);
+  if (taskIndex < 0) {
+    return false;
+  }
+
+  const targetTask = tasks.value[taskIndex];
+  const normalizedSubtasks = sanitizeSubtasks(targetTask.subtasks);
+  const subtaskIndex = normalizedSubtasks.findIndex((entry) => entry.id === subtaskId);
+
+  if (subtaskIndex < 0) {
+    return false;
+  }
+
+  const nextSubtasks = [...normalizedSubtasks];
+  nextSubtasks[subtaskIndex] = {
+    ...nextSubtasks[subtaskIndex],
+    completed: !nextSubtasks[subtaskIndex].completed,
+  };
+
+  const updatedTasks = [...tasks.value];
+  let updatedTask = { ...targetTask, subtasks: nextSubtasks };
+
+  if (areAllSubtasksCompleted(nextSubtasks)) {
+    updatedTask = applyCompletionState(updatedTask, true);
+    updatedTasks[taskIndex] = updatedTask;
+    applyRecurringTransition(updatedTasks, updatedTask);
   } else {
-    const spawnedId = spawnedRecurringTaskIds.get(updatedTask.id);
-    if (spawnedId !== undefined) {
-      const removalIndex = updatedTasks.findIndex((item) => item?.id === spawnedId);
-      if (removalIndex >= 0) {
-        updatedTasks.splice(removalIndex, 1);
-      }
-      spawnedRecurringTaskIds.delete(updatedTask.id);
-    }
+    updatedTask = applyCompletionState(updatedTask, false);
+    updatedTasks[taskIndex] = updatedTask;
+    removeSpawnedRecurringTask(updatedTask.id, updatedTasks);
   }
 
   tasks.value = updatedTasks;
+  return true;
 };
 
 const removeTask = (taskId) => {
@@ -818,6 +985,10 @@ const duplicateTask = (taskId) => {
     recurrence: original.recurrence ?? null,
     listId: normalizeListId(original.listId),
     reminderOffsetMinutes: normalizeReminderOffsetMinutes(original.reminderOffsetMinutes),
+    subtasks: sanitizeSubtasks(original.subtasks).map((subtask) => ({
+      ...subtask,
+      completed: false,
+    })),
   };
 
   const updatedTasks = [...tasks.value];
@@ -1082,6 +1253,7 @@ const loadFromStorage = async () => {
         listId: normalizeListId(task.listId),
         reminderOffsetMinutes:
           task.due !== null ? normalizeReminderOffsetMinutes(task.reminderOffsetMinutes) : null,
+        subtasks: sanitizeSubtasks(task.subtasks),
       }));
     } else {
       tasks.value = [];
@@ -1175,6 +1347,8 @@ export const useTaskStore = () => {
     updateTask,
     reorderTask,
     toggleTaskCompletion,
+    addSubtask,
+    toggleSubtaskCompletion,
     removeTask,
     moveTaskToToday,
     moveTaskToTomorrow,

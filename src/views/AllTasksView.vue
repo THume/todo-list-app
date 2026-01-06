@@ -15,6 +15,7 @@ const {
   reorderTask,
   duplicateTask,
   addTask,
+  toggleSubtaskCompletion,
   moveTaskToToday,
   moveTaskToTomorrow,
   postponeTasksUntil,
@@ -114,6 +115,10 @@ const handleMoveToToday = (task) => {
 
 const handleMoveToTomorrow = (task) => {
   moveTaskToTomorrow(task.id);
+};
+
+const handleToggleSubtask = ({ taskId, subtaskId }) => {
+  toggleSubtaskCompletion(taskId, subtaskId);
 };
 
 const postponeDate = ref('');
@@ -386,6 +391,7 @@ watch(showDuplicateDialog, (isOpen) => {
             @duplicate="handleDuplicate"
             @move-to-today="handleMoveToToday"
             @move-to-tomorrow="handleMoveToTomorrow"
+            @toggle-subtask="handleToggleSubtask"
           />
         </li>
       </template>

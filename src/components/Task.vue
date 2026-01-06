@@ -18,6 +18,7 @@ const emit = defineEmits([
   'move-to-tomorrow',
   'skip-recurrence',
   'adjust-completion-date',
+  'toggle-subtask',
 ]);
 
 const props = defineProps({
@@ -154,6 +155,11 @@ const menuPanel = ref(null);
 const isDescriptionExpanded = ref(false);
 const descriptionEl = ref(null);
 const canToggleDescription = ref(false);
+const subtasks = computed(() =>
+  Array.isArray(props.task?.subtasks) ? props.task.subtasks : []
+);
+const hasSubtasks = computed(() => subtasks.value.length > 0);
+const isCheckboxDisabled = computed(() => hasSubtasks.value && !props.isCompletedPage);
 
 const isDueToday = computed(() => {
   if (!dueDate.value) {
@@ -257,6 +263,10 @@ const handleAdjustCompletionDate = () => {
   closeMenu();
 };
 
+const handleToggleSubtask = (subtask) => {
+  emit('toggle-subtask', { taskId: props.task.id, subtaskId: subtask.id });
+};
+
 const completedDateObj = computed(() => {
   if (!props.completedDate) {
     return null;
@@ -338,6 +348,7 @@ watch(descriptionText, () => {
           class="task__checkbox-input"
           :checked="task.completed"
           :aria-label="`Mark ${task.title} as ${task.completed ? 'pending' : 'completed'}`"
+          :disabled="isCheckboxDisabled"
           @change.stop="handleToggle"
         />
         <span class="task__title">{{ task.title }}</span>
@@ -459,6 +470,29 @@ watch(descriptionText, () => {
       </button>
     </div>
 
+    <div v-if="subtasks.length" class="task__subtasks">
+      <div v-for="subtask in subtasks" :key="subtask.id" class="task__subtask">
+        <label class="task__subtask-label">
+          <input
+            type="checkbox"
+            class="task__subtask-checkbox"
+            :checked="subtask.completed"
+            :disabled="props.isCompletedPage"
+            :aria-label="`Mark subtask ${subtask.title} as ${subtask.completed ? 'pending' : 'completed'}`"
+            @change.stop="handleToggleSubtask(subtask)"
+          />
+          <span
+            :class="[
+              'task__subtask-title',
+              { 'task__subtask-title--completed': subtask.completed },
+            ]"
+          >
+            {{ subtask.title }}
+          </span>
+        </label>
+      </div>
+    </div>
+
     <time v-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">Due {{ formattedDueLabel }}</time>
 
     <time v-if="formattedCompletedLabel" class="task__completed-date" :datetime="completedDateIso">Completed {{ formattedCompletedLabel }}</time>
@@ -529,6 +563,13 @@ $remove-hover: theme.$color-accent-hover;
   accent-color: $checkbox-accent;
   background: $checkbox-bg;
   border: 1px solid $task-border;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    accent-color: $task-muted;
+    border-color: $task-muted;
+  }
 }
 
 .task__title {
@@ -570,6 +611,47 @@ $remove-hover: theme.$color-accent-hover;
     outline: 2px solid $checkbox-accent;
     outline-offset: 2px;
   }
+}
+
+.task__subtasks {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid $task-border;
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.task__subtask {
+  display: flex;
+  align-items: center;
+}
+
+.task__subtask-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  color: $task-heading;
+  font-weight: 600;
+}
+
+.task__subtask-checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: $checkbox-accent;
+  flex: none;
+}
+
+.task__subtask-title {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.task__subtask-title--completed {
+  text-decoration: line-through;
+  color: $task-muted;
 }
 
 .task__meta {

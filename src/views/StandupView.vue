@@ -675,6 +675,28 @@ watch(showAll, (value) => {
                 >
                   Originally due {{ formatTimestamp(entry.due) }}
                 </time>
+                <div v-if="entry.subtasks?.length" class="standup__subtasks">
+                  <p class="standup__subtasks-title">Subtasks</p>
+                  <ul class="standup__subtask-list">
+                    <li v-for="subtask in entry.subtasks" :key="subtask.id" class="standup__subtask">
+                      <span
+                        :class="[
+                          'standup__subtask-status',
+                          { 'standup__subtask-status--done': subtask.completed },
+                        ]"
+                        aria-hidden="true"
+                      ></span>
+                      <span
+                        :class="[
+                          'standup__subtask-title',
+                          { 'standup__subtask-title--done': subtask.completed },
+                        ]"
+                      >
+                        {{ subtask.title }}
+                      </span>
+                    </li>
+                  </ul>
+                </div>
                 <span class="standup__badge">List: {{ resolveListName(entry.listId) }}</span>
                 <div class="standup__item-actions">
                   <button
@@ -777,6 +799,28 @@ watch(showAll, (value) => {
                 >
                   Was due {{ formatTimestamp(entry.due) }}
                 </time>
+                <div v-if="entry.subtasks?.length" class="standup__subtasks">
+                  <p class="standup__subtasks-title">Subtasks</p>
+                  <ul class="standup__subtask-list">
+                    <li v-for="subtask in entry.subtasks" :key="subtask.id" class="standup__subtask">
+                      <span
+                        :class="[
+                          'standup__subtask-status',
+                          { 'standup__subtask-status--done': subtask.completed },
+                        ]"
+                        aria-hidden="true"
+                      ></span>
+                      <span
+                        :class="[
+                          'standup__subtask-title',
+                          { 'standup__subtask-title--done': subtask.completed },
+                        ]"
+                      >
+                        {{ subtask.title }}
+                      </span>
+                    </li>
+                  </ul>
+                </div>
                 <div class="standup__meta-row">
                   <span class="standup__badge">List: {{ resolveListName(entry.listId) }}</span>
                   <span v-if="entry.recurrence" class="standup__badge standup__badge--info">
@@ -856,6 +900,28 @@ watch(showAll, (value) => {
                 <p v-if="task.description" class="standup__item-description">
                   {{ task.description }}
                 </p>
+                <div v-if="task.subtasks?.length" class="standup__subtasks">
+                  <p class="standup__subtasks-title">Subtasks</p>
+                  <ul class="standup__subtask-list">
+                    <li v-for="subtask in task.subtasks" :key="subtask.id" class="standup__subtask">
+                      <span
+                        :class="[
+                          'standup__subtask-status',
+                          { 'standup__subtask-status--done': subtask.completed },
+                        ]"
+                        aria-hidden="true"
+                      ></span>
+                      <span
+                        :class="[
+                          'standup__subtask-title',
+                          { 'standup__subtask-title--done': subtask.completed },
+                        ]"
+                      >
+                        {{ subtask.title }}
+                      </span>
+                    </li>
+                  </ul>
+                </div>
                 <div class="standup__meta-row">
                   <span class="standup__badge">List: {{ resolveListName(task.listId) }}</span>
                   <span v-if="task.recurrence" class="standup__badge standup__badge--info">
@@ -1160,6 +1226,63 @@ watch(showAll, (value) => {
   margin: 0;
   color: #d4d4d8;
   opacity: 0.85;
+}
+
+.standup__subtasks {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed theme.$color-border-input;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.standup__subtasks-title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: theme.$color-text-muted;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.standup__subtask-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.standup__subtask {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.standup__subtask-status {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 0.3rem;
+  border: 2px solid theme.$color-border-input;
+  flex: none;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.standup__subtask-status--done {
+  background: rgba(34, 197, 94, 0.25);
+  border-color: rgba(34, 197, 94, 0.7);
+}
+
+.standup__subtask-title {
+  flex: 1;
+  min-width: 0;
+  color: theme.$color-text-primary;
+}
+
+.standup__subtask-title--done {
+  color: theme.$color-text-muted;
+  text-decoration: line-through;
 }
 
 .standup__meta-row {

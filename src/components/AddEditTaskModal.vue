@@ -47,8 +47,11 @@ const selectedListId = ref('');
 const markCompleted = ref(false);
 const reminderOffset = ref('none');
 const titleField = ref(null);
+const subtaskInput = ref('');
 const appliedDefaultDueDate = ref(null);
 const lastTaskId = ref(null);
+const subtasks = ref([]);
+let subtaskLocalId = 0;
 let isApplyingDefaultDueDate = false;
 
 const isEditMode = computed(() => props.mode === 'edit');
@@ -91,6 +94,7 @@ const formatTimeInput = (isoString) => {
 };
 
 const applyTask = (task) => {
+  subtaskLocalId = 0;
   if (!task) {
     title.value = '';
     description.value = '';
@@ -100,6 +104,7 @@ const applyTask = (task) => {
     lastTaskId.value = null;
     selectedListId.value = resolveListId(listOptions.value, null);
     reminderOffset.value = 'none';
+    subtasks.value = [];
     return;
   }
 
@@ -110,6 +115,17 @@ const applyTask = (task) => {
   recurrence.value = task.recurrence ?? 'none';
   lastTaskId.value = task.id ?? null;
   selectedListId.value = resolveListId(listOptions.value, task.listId);
+  subtaskInput.value = '';
+  const mappedSubtasks = Array.isArray(task.subtasks)
+    ? task.subtasks
+        .filter((entry) => typeof entry?.title === 'string' && entry.title.trim().length > 0)
+        .map((entry) => ({
+          id: entry.id ?? `local-${++subtaskLocalId}`,
+          title: entry.title.trim(),
+          completed: isDuplicateMode.value ? false : Boolean(entry.completed),
+        }))
+    : [];
+  subtasks.value = mappedSubtasks;
 
   const minutes = Number(task.reminderOffsetMinutes);
   if (Number.isFinite(minutes) && minutes > 0 && task.due) {
@@ -137,6 +153,8 @@ const reminderOptions = [
   { value: '240', label: '4 hours before' },
   { value: '1440', label: '1 day before' },
 ];
+const hasSubtasks = computed(() => subtasks.value.length > 0);
+const canAddSubtask = computed(() => subtaskInput.value.trim().length > 0);
 
 const resetForm = () => {
   title.value = '';
@@ -146,11 +164,14 @@ const resetForm = () => {
   markCompleted.value = false;
   reminderOffset.value = 'none';
   lastTaskId.value = null;
+  subtasks.value = [];
+  subtaskLocalId = 0;
+  subtaskInput.value = '';
   if (props.defaultDueDate) {
     isApplyingDefaultDueDate = true;
     dueDate.value = props.defaultDueDate;
     appliedDefaultDueDate.value = props.defaultDueDate;
-    nextTick(() => {
+      nextTick(() => {
       isApplyingDefaultDueDate = false;
     });
   } else {
@@ -166,6 +187,13 @@ const handleSubmit = (shouldCloseModal = false) => {
     return;
   }
 
+  const sanitizedSubtasks = subtasks.value
+    .map((entry) => ({
+      ...entry,
+      title: typeof entry.title === 'string' ? entry.title.trim() : '',
+    }))
+    .filter((entry) => entry.title.length > 0);
+
   if (isEditMode.value) {
     // Edit mode
     if (!props.task) {
@@ -180,6 +208,7 @@ const handleSubmit = (shouldCloseModal = false) => {
       recurrence: recurrence.value,
       listId: selectedListId.value || null,
       reminderOffsetMinutes: reminderOffset.value === 'none' ? null : Number(reminderOffset.value),
+      subtasks: sanitizedSubtasks,
     });
     closeModal();
   } else {
@@ -193,6 +222,7 @@ const handleSubmit = (shouldCloseModal = false) => {
       listId: selectedListId.value || null,
       completed: markCompleted.value,
       reminderOffsetMinutes: reminderOffset.value === 'none' ? null : Number(reminderOffset.value),
+      subtasks: sanitizedSubtasks.map((entry) => ({ ...entry, completed: false })),
     });
 
     if (shouldCloseModal) {
@@ -206,6 +236,31 @@ const handleSubmit = (shouldCloseModal = false) => {
       titleField.value?.focus();
     });
   }
+};
+
+const addSubtask = (titleValue) => {
+  const trimmed = typeof titleValue === 'string' ? titleValue.trim() : '';
+  if (!trimmed) {
+    return;
+  }
+  subtasks.value = [
+    ...subtasks.value,
+    {
+      id: `local-${++subtaskLocalId}`,
+      title: trimmed,
+      completed: false,
+    },
+  ];
+};
+
+const removeSubtask = (id) => {
+  subtasks.value = subtasks.value.filter((entry) => entry.id !== id);
+};
+
+const toggleSubtask = (id) => {
+  subtasks.value = subtasks.value.map((entry) =>
+    entry.id === id ? { ...entry, completed: !entry.completed } : entry
+  );
 };
 
 const closeModal = () => {
@@ -492,6 +547,67 @@ watch(
                 </option>
               </select>
             </label>
+            <div class="add-task__subtasks">
+              <div class="add-task__subtasks-header">
+                <span class="add-task__label-heading">
+                  <IconGlyph
+                    name="check"
+                    size="14"
+                    class="add-task__label-icon"
+                    aria-hidden="true"
+                  />
+                  <span>Subtasks</span>
+                </span>
+              </div>
+              <div class="add-task__subtask-input-row">
+                <input
+                  v-model="subtaskInput"
+                  type="text"
+                  class="add-task__subtask-input"
+                  name="subtask"
+                  autocomplete="off"
+                  placeholder="Add a subtask title"
+                  aria-label="Add a subtask"
+                  @keydown.enter.prevent="addSubtask(subtaskInput); subtaskInput = ''"
+                />
+                <button
+                  type="button"
+                  class="add-task__subtask-button"
+                  :disabled="!canAddSubtask"
+                  @click="addSubtask(subtaskInput); subtaskInput = ''"
+                >
+                  Add
+                </button>
+              </div>
+              <ul v-if="hasSubtasks" class="add-task__subtask-list">
+                <li v-for="subtask in subtasks" :key="subtask.id" class="add-task__subtask">
+                  <label class="add-task__subtask-label">
+                    <input
+                      type="checkbox"
+                      class="add-task__subtask-checkbox"
+                      :checked="subtask.completed"
+                      @change="toggleSubtask(subtask.id)"
+                    />
+                    <span
+                      :class="[
+                        'add-task__subtask-title',
+                        { 'add-task__subtask-title--completed': subtask.completed },
+                      ]"
+                    >
+                      {{ subtask.title }}
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    class="add-task__subtask-remove"
+                    aria-label="Remove subtask"
+                    @click="removeSubtask(subtask.id)"
+                  >
+                    &times;
+                  </button>
+                </li>
+              </ul>
+            </div>
             <label class="add-task__due-label add-task__recurrence">
               <span class="add-task__label-heading">
                 <IconGlyph
@@ -967,6 +1083,132 @@ $remove-hover: #f87171;
   &__chip-icon {
     margin-right: 0.35rem;
     color: theme.$color-accent;
+  }
+
+  &__subtasks {
+    display: grid;
+    gap: 0.65rem;
+    padding: 0.9rem 0.95rem;
+    border: 1px solid $input-border;
+    border-radius: 1rem;
+    background: $input-bg;
+  }
+
+  &__subtasks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__subtask-input-row {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+  }
+
+  &__subtask-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 1px solid $input-border;
+    border-radius: 0.65rem;
+    padding: 0.6rem 0.75rem;
+    background: $input-bg;
+    color: $input-text;
+
+    &:focus-visible {
+      outline: 2px solid $focus-outline;
+      outline-offset: 2px;
+      border-color: $button-bg;
+      background: $input-bg-focus;
+    }
+  }
+
+  &__subtask-button {
+    border: 1px solid $button-bg;
+    background: rgba(239, 68, 68, 0.12);
+    color: $button-bg;
+    font-weight: 700;
+    padding: 0.55rem 1rem;
+    border-radius: 0.65rem;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+
+    &:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.2);
+      transform: translateY(-1px);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__subtask-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  &__subtask {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  &__subtask-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex: 1 1 auto;
+    color: $input-text;
+    font-weight: 600;
+  }
+
+  &__subtask-checkbox {
+    width: 1rem;
+    height: 1rem;
+    accent-color: $button-bg;
+  }
+
+  &__subtask-title {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+  }
+
+  &__subtask-title--completed {
+    text-decoration: line-through;
+    color: theme.$color-text-muted;
+  }
+
+  &__subtask-remove {
+    border: 1px solid $panel-border;
+    background: transparent;
+    color: $input-text;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.65rem;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+
+    &:hover {
+      border-color: $button-bg;
+      color: $button-bg;
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    &:focus-visible {
+      outline: 2px solid $focus-outline;
+      outline-offset: 2px;
+    }
   }
 
   &__submit {

@@ -18,6 +18,7 @@ const {
   reorderTask,
   duplicateTask,
   addTask,
+  toggleSubtaskCompletion,
   moveTaskToToday,
   moveTaskToTomorrow,
   removeList,
@@ -197,6 +198,10 @@ const handleMoveToToday = (task) => {
 
 const handleMoveToTomorrow = (task) => {
   moveTaskToTomorrow(task.id);
+};
+
+const handleToggleSubtask = ({ taskId, subtaskId }) => {
+  toggleSubtaskCompletion(taskId, subtaskId);
 };
 
 const handleDragStart = (task) => {
@@ -431,13 +436,14 @@ watch(listTasks, () => {
               :list-name="resolveListName(task)"
               @toggle="handleToggle"
               @remove="requestDelete"
-              @edit="startEdit"
-              @duplicate="handleDuplicate"
-              @move-to-today="handleMoveToToday"
-              @move-to-tomorrow="handleMoveToTomorrow"
-            />
-          </li>
-        </template>
+            @edit="startEdit"
+            @duplicate="handleDuplicate"
+            @move-to-today="handleMoveToToday"
+            @move-to-tomorrow="handleMoveToTomorrow"
+            @toggle-subtask="handleToggleSubtask"
+          />
+        </li>
+      </template>
         <li
           v-if="dropIndicatorIndex === listTasks.length"
           class="task-panel__drop-indicator task-panel__drop-indicator--end"

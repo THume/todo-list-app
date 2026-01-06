@@ -14,6 +14,7 @@ const {
   reorderTask,
   duplicateTask,
   addTask,
+  toggleSubtaskCompletion,
   moveTaskToToday,
   moveTaskToTomorrow,
   moveOverdueTasksToToday,
@@ -111,6 +112,10 @@ const handleMoveToToday = (task) => {
 
 const handleMoveToTomorrow = (task) => {
   moveTaskToTomorrow(task.id);
+};
+
+const handleToggleSubtask = ({ taskId, subtaskId }) => {
+  toggleSubtaskCompletion(taskId, subtaskId);
 };
 
 const handleMoveAllToToday = () => {
@@ -299,6 +304,7 @@ watch(showDuplicateDialog, (isOpen) => {
             @move-to-today="handleMoveToToday"
             @move-to-tomorrow="handleMoveToTomorrow"
             @skip-recurrence="handleSkipRecurrence"
+            @toggle-subtask="handleToggleSubtask"
           />
         </li>
       </template>
