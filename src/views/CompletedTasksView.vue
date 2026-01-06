@@ -369,7 +369,7 @@ const handleConfirmDelete = () => {
       <li v-for="group in groupedEntries" :key="group.key" class="history__group">
         <h3 class="history__group-title">{{ group.label }}</h3>
         <ul class="history__list">
-          <li v-for="entry in group.items" :key="entry.taskId">
+          <li v-for="entry in group.items" :key="entry.id">
             <Task
               :task="entry"
               :is-completed-page="true"

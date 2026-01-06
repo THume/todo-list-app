@@ -4,6 +4,7 @@ import { readJsonFile, writeJsonFile } from '../services/jsonStorage';
 
 const TASKS_FILE_NAME = 'tasks.json';
 const LISTS_FILE_NAME = 'lists.json';
+const COMPLETED_FILE_NAME = 'completed.json';
 const DEFAULT_LIST_ID = 'default';
 const DEFAULT_LIST_NAME = 'My Tasks';
 const DEFAULT_LIST = Object.freeze({
@@ -13,6 +14,7 @@ const DEFAULT_LIST = Object.freeze({
 
 const tasks = ref([]);
 const lists = ref([DEFAULT_LIST]);
+const completedTasks = ref([]);
 const currentTime = ref(Date.now());
 
 const FALLBACK_DUE_TIME = '23:59';
@@ -38,6 +40,7 @@ let isInitialized = false;
 let watchersReady = false;
 let currentTimeTimer = null;
 let listInitialId = 1;
+let completedInitialId = 1;
 let subtaskInitialId = 1;
 const completionNotificationIds = new Map();
 const reviveNotificationIds = new Map();
@@ -62,6 +65,14 @@ const createSubtaskId = () => {
   }
   subtaskInitialId += 1;
   return `subtask-${Date.now()}-${subtaskInitialId}`;
+};
+
+const createCompletedId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  completedInitialId += 1;
+  return `completed-${Date.now()}-${completedInitialId}`;
 };
 
 const ensureDefaultList = () => {
@@ -125,6 +136,55 @@ const sanitizeSubtasks = (value) => {
 const areAllSubtasksCompleted = (subtasks) =>
   Array.isArray(subtasks) && subtasks.length > 0 && subtasks.every((item) => item?.completed);
 
+const sanitizeCompletedEntries = (entries) => {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+
+  const seen = new Set();
+
+  return entries
+    .map((entry, index) => {
+      const id =
+        typeof entry?.id === 'string' && entry.id.trim().length > 0
+          ? entry.id.trim()
+          : `completed-${index + 1}`;
+      if (seen.has(id)) {
+        return null;
+      }
+      seen.add(id);
+
+      const taskId =
+        typeof entry?.taskId === 'number' || typeof entry?.taskId === 'string'
+          ? entry.taskId
+          : null;
+
+      const completedAtValue = entry?.completedAt ?? entry?.completed_at ?? null;
+      const completedAtDate = completedAtValue ? new Date(completedAtValue) : null;
+      const completedAt = completedAtDate && !Number.isNaN(completedAtDate.valueOf())
+        ? completedAtDate.toISOString()
+        : null;
+
+      return {
+        id,
+        taskId,
+        title: typeof entry?.title === 'string' ? entry.title : 'Untitled task',
+        description: typeof entry?.description === 'string' ? entry.description : '',
+        completed: true,
+        completedAt,
+        due: entry?.due ?? null,
+        recurrence: normalizeRecurrence(entry?.recurrence),
+        listId: normalizeListId(entry?.listId),
+        reminderOffsetMinutes: entry?.reminderOffsetMinutes ?? null,
+        subtasks: sanitizeSubtasks(entry?.subtasks).map((subtask) => ({
+          ...subtask,
+          completed: Boolean(subtask.completed),
+        })),
+      };
+    })
+    .filter(Boolean);
+};
+
 const applyCompletionState = (task, completed) => {
   const updatedTask = { ...task, completed };
 
@@ -163,6 +223,28 @@ const applyRecurringTransition = (updatedTasks, updatedTask) => {
   }
 
   removeSpawnedRecurringTask(updatedTask.id, updatedTasks);
+};
+
+const buildCompletedEntry = (task, completedAt = null) => {
+  const resolvedCompletedAt = completedAt
+    ? new Date(completedAt)
+    : new Date(task.completedAt ?? Date.now());
+
+  return {
+    id: createCompletedId(),
+    taskId: task.id,
+    title: task.title,
+    description: task.description ?? '',
+    completed: true,
+    completedAt: Number.isNaN(resolvedCompletedAt.valueOf())
+      ? new Date().toISOString()
+      : resolvedCompletedAt.toISOString(),
+    due: task.due ?? null,
+    recurrence: normalizeRecurrence(task.recurrence),
+    listId: normalizeListId(task.listId),
+    reminderOffsetMinutes: normalizeReminderOffsetMinutes(task.reminderOffsetMinutes),
+    subtasks: sanitizeSubtasks(task.subtasks).map((subtask) => ({ ...subtask, completed: true })),
+  };
 };
 
 const startCurrentTimeTicker = () => {
@@ -249,6 +331,17 @@ const persistLists = async (value) => {
   }
 };
 
+const persistCompleted = async (value) => {
+  try {
+    await writeJsonFile(COMPLETED_FILE_NAME, value);
+    if (watchersReady && !isApplyingRemoteUpdate) {
+      postStorageUpdate();
+    }
+  } catch (error) {
+    console.error('Failed to persist completed tasks to JSON file', error);
+  }
+};
+
 const handleBroadcastMessage = (event) => {
   const data = event?.data;
   if (!data || data.source === instanceId) {
@@ -296,8 +389,21 @@ const applyRemoteUpdateFromBroadcast = async () => {
 };
 
 const syncInitialId = () => {
-  const maxId = tasks.value.reduce((acc, task) => Math.max(acc, Number(task.id) || 0), 0);
+  const taskMax = tasks.value.reduce((acc, task) => Math.max(acc, Number(task.id) || 0), 0);
+  const completedMax = completedTasks.value.reduce(
+    (acc, entry) => Math.max(acc, Number(entry.taskId) || 0),
+    0
+  );
+  const maxId = Math.max(taskMax, completedMax);
   initialId = maxId + 1;
+};
+
+const syncCompletedInitialId = () => {
+  const maxId = completedTasks.value.reduce(
+    (acc, entry) => Math.max(acc, Number(entry.id) || 0),
+    0
+  );
+  completedInitialId = maxId + 1;
 };
 
 const buildDueDate = (date, time) => {
@@ -388,13 +494,8 @@ const createRecurringTask = (task) => {
 };
 
 const updateCompletedTaskTimestamp = (taskId, completedAt) => {
-  const taskIndex = tasks.value.findIndex((task) => task.id === taskId);
-  if (taskIndex < 0) {
-    return false;
-  }
-
-  const task = tasks.value[taskIndex];
-  if (!task.completed) {
+  const entryIndex = completedTasks.value.findIndex((task) => task.id === taskId);
+  if (entryIndex < 0) {
     return false;
   }
 
@@ -412,12 +513,12 @@ const updateCompletedTaskTimestamp = (taskId, completedAt) => {
     return false;
   }
 
-  const updatedTasks = [...tasks.value];
-  updatedTasks[taskIndex] = {
-    ...task,
+  const updated = [...completedTasks.value];
+  updated[entryIndex] = {
+    ...updated[entryIndex],
     completedAt: resolvedDate.toISOString(),
   };
-  tasks.value = updatedTasks;
+  completedTasks.value = updated;
 
   return true;
 };
@@ -609,20 +710,18 @@ const addTask = ({
 
   if (isCompleted) {
     newTask.completedAt = new Date().toISOString();
-  }
-
-  const updatedTasks = [...tasks.value, newTask];
-
-  if (isCompleted) {
+    completedTasks.value = [...completedTasks.value, buildCompletedEntry(newTask)];
     const nextTask = createRecurringTask(newTask);
-
     if (nextTask) {
       spawnedRecurringTaskIds.set(newTask.id, nextTask.id);
-      updatedTasks.push(nextTask);
+      tasks.value = [...tasks.value, nextTask];
     }
+    syncInitialId();
+    syncCompletedInitialId();
+    return;
   }
 
-  tasks.value = updatedTasks;
+  tasks.value = [...tasks.value, newTask];
 };
 
 const updateTask = ({
@@ -675,8 +774,26 @@ const updateTask = ({
     : updatedTask.completed;
 
   const completionAdjusted = applyCompletionState(updatedTask, resolvedCompleted);
+
+  if (resolvedCompleted) {
+    nextTasks.splice(targetIndex, 1);
+    const completedEntry = buildCompletedEntry(completionAdjusted);
+    const nextTask = createRecurringTask(completionAdjusted);
+    if (nextTask) {
+      spawnedRecurringTaskIds.set(completionAdjusted.id, nextTask.id);
+      nextTasks.push(nextTask);
+    } else {
+      spawnedRecurringTaskIds.delete(completionAdjusted.id);
+    }
+    tasks.value = nextTasks;
+    completedTasks.value = [...completedTasks.value, completedEntry];
+    syncInitialId();
+    syncCompletedInitialId();
+    return true;
+  }
+
   nextTasks[targetIndex] = completionAdjusted;
-  applyRecurringTransition(nextTasks, completionAdjusted);
+  removeSpawnedRecurringTask(completionAdjusted.id, nextTasks);
   tasks.value = nextTasks;
   return true;
 };
@@ -721,25 +838,27 @@ const toggleTaskCompletion = (taskId, { suppressNotification = false } = {}) => 
     return;
   }
 
-  const currentSubtasks = sanitizeSubtasks(originalTask.subtasks);
-  const nextCompleted = !originalTask.completed;
-  const updatedTask = applyCompletionState(
-    {
-      ...originalTask,
-      subtasks:
-        currentSubtasks.length > 0
-          ? currentSubtasks.map((subtask) => ({ ...subtask, completed: nextCompleted }))
-          : currentSubtasks,
-    },
-    nextCompleted
+  const updatedTasks = [...tasks.value];
+  updatedTasks.splice(targetIndex, 1);
+
+  const completedEntry = buildCompletedEntry(
+    applyCompletionState(
+      { ...originalTask, subtasks: sanitizeSubtasks(originalTask.subtasks) },
+      true
+    )
   );
 
-  const updatedTasks = [...tasks.value];
-  updatedTasks[targetIndex] = updatedTask;
+  const nextTasks = [...updatedTasks];
+  const nextTask = createRecurringTask(originalTask);
+  if (nextTask) {
+    spawnedRecurringTaskIds.set(originalTask.id, nextTask.id);
+    nextTasks.push(nextTask);
+  } else {
+    spawnedRecurringTaskIds.delete(originalTask.id);
+  }
 
-  applyRecurringTransition(updatedTasks, updatedTask);
-
-  tasks.value = updatedTasks;
+  tasks.value = nextTasks;
+  completedTasks.value = [...completedTasks.value, completedEntry];
 };
 
 const addSubtask = (taskId, title) => {
@@ -800,15 +919,26 @@ const toggleSubtaskCompletion = (taskId, subtaskId) => {
 
   if (areAllSubtasksCompleted(nextSubtasks)) {
     updatedTask = applyCompletionState(updatedTask, true);
-    updatedTasks[taskIndex] = updatedTask;
-    applyRecurringTransition(updatedTasks, updatedTask);
+    updatedTasks.splice(taskIndex, 1);
+    const completedEntry = buildCompletedEntry(updatedTask);
+    const nextTask = createRecurringTask(updatedTask);
+    if (nextTask) {
+      spawnedRecurringTaskIds.set(updatedTask.id, nextTask.id);
+      updatedTasks.push(nextTask);
+    } else {
+      spawnedRecurringTaskIds.delete(updatedTask.id);
+    }
+    tasks.value = updatedTasks;
+    completedTasks.value = [...completedTasks.value, completedEntry];
+    syncInitialId();
+    syncCompletedInitialId();
   } else {
     updatedTask = applyCompletionState(updatedTask, false);
     updatedTasks[taskIndex] = updatedTask;
     removeSpawnedRecurringTask(updatedTask.id, updatedTasks);
+    tasks.value = updatedTasks;
   }
 
-  tasks.value = updatedTasks;
   return true;
 };
 
@@ -824,49 +954,71 @@ const removeTask = (taskId) => {
 };
 
 const reviveCompletedTask = (taskId, { suppressNotification = false } = {}) => {
-  const taskIndex = tasks.value.findIndex((task) => task.id === taskId);
-  if (taskIndex < 0) {
+  const completedIndex = completedTasks.value.findIndex((task) => task.id === taskId);
+  if (completedIndex < 0) {
     return false;
   }
 
-  const task = tasks.value[taskIndex];
-  if (!task.completed) {
-    return false;
-  }
+  const entry = completedTasks.value[completedIndex];
+  const candidateId = entry.taskId ?? null;
+  const idInUse = tasks.value.some((task) => task.id === candidateId);
+  const restoredId =
+    candidateId && !idInUse && (typeof candidateId === 'number' || typeof candidateId === 'string')
+      ? candidateId
+      : initialId++;
 
-  const taskTitle = task.title;
+  const restoredTask = {
+    id: restoredId,
+    title: entry.title ?? 'Untitled task',
+    description: entry.description ?? '',
+    completed: false,
+    due: entry.due ?? null,
+    recurrence: normalizeRecurrence(entry.recurrence),
+    listId: normalizeListId(entry.listId),
+    reminderOffsetMinutes: normalizeReminderOffsetMinutes(entry.reminderOffsetMinutes),
+    subtasks: sanitizeSubtasks(entry.subtasks).map((subtask) => ({
+      ...subtask,
+      completed: false,
+    })),
+  };
 
-  toggleTaskCompletion(taskId);
+  const nextCompleted = [...completedTasks.value];
+  nextCompleted.splice(completedIndex, 1);
+  completedTasks.value = nextCompleted;
+
+  const nextTasks = [...tasks.value, restoredTask];
+  removeSpawnedRecurringTask(restoredTask.id, nextTasks);
+  tasks.value = nextTasks;
 
   if (!suppressNotification) {
-    const message = `Task "${taskTitle}" was revived`;
+    const message = `Task "${restoredTask.title}" was revived`;
     const notificationId = pushNotification(message, {
       action: {
         type: 'undo-revive-task',
         label: 'Undo',
-        payload: { taskId },
+        payload: { taskId: restoredTask.id },
       },
     });
-    reviveNotificationIds.set(taskId, notificationId);
+    reviveNotificationIds.set(restoredTask.id, notificationId);
   } else {
-    // Clean up notification when undo is triggered
-    const existingNotificationId = reviveNotificationIds.get(taskId);
+    const existingNotificationId = reviveNotificationIds.get(restoredTask.id);
     if (existingNotificationId) {
       dismissNotification(existingNotificationId);
-      reviveNotificationIds.delete(taskId);
+      reviveNotificationIds.delete(restoredTask.id);
     }
   }
 
+  syncInitialId();
   return true;
 };
 
 const deleteCompletedTask = (taskId) => {
-  const task = tasks.value.find((t) => t.id === taskId);
-  if (!task || !task.completed) {
+  const nextCompleted = completedTasks.value.filter((entry) => entry.id !== taskId);
+  if (nextCompleted.length === completedTasks.value.length) {
     return false;
   }
 
-  removeTask(taskId);
+  completedTasks.value = nextCompleted;
   return true;
 };
 
@@ -1116,7 +1268,7 @@ const tasksDueTomorrow = computed(() => {
 });
 
 const tasksCompletedYesterday = computed(() => {
-  const completedTasksList = tasks.value.filter((task) => task.completed);
+  const completedTasksList = Array.isArray(completedTasks.value) ? completedTasks.value : [];
   const todayStartDate = getStartOfDay(currentTime.value);
 
   if (!(todayStartDate instanceof Date) || Number.isNaN(todayStartDate.valueOf())) {
@@ -1155,7 +1307,7 @@ const tasksCompletedYesterday = computed(() => {
 });
 
 const tasksCompletedToday = computed(() => {
-  const completedTasksList = tasks.value.filter((task) => task.completed);
+  const completedTasksList = Array.isArray(completedTasks.value) ? completedTasks.value : [];
   const todayStartDate = getStartOfDay(currentTime.value);
 
   if (!(todayStartDate instanceof Date) || Number.isNaN(todayStartDate.valueOf())) {
@@ -1194,18 +1346,22 @@ const tasksCompletedToday = computed(() => {
 });
 
 const sortedCompletedTasks = computed(() => {
-  return tasks.value
-    .filter((task) => task.completed)
-    .sort((a, b) => {
-      const aTime = Date.parse(a.completedAt ?? '');
-      const bTime = Date.parse(b.completedAt ?? '');
+  return [...completedTasks.value].sort((a, b) => {
+    const aTime = Date.parse(a.completedAt ?? '');
+    const bTime = Date.parse(b.completedAt ?? '');
 
-      if (Number.isNaN(aTime) || Number.isNaN(bTime)) {
-        return 0;
-      }
+    if (Number.isNaN(aTime) && Number.isNaN(bTime)) {
+      return 0;
+    }
+    if (Number.isNaN(aTime)) {
+      return 1;
+    }
+    if (Number.isNaN(bTime)) {
+      return -1;
+    }
 
-      return bTime - aTime;
-    });
+    return bTime - aTime;
+  });
 });
 
 const loadFromStorage = async () => {
@@ -1239,22 +1395,46 @@ const loadFromStorage = async () => {
   ensureDefaultList();
 
   try {
+    const parsedCompleted = await readJsonFile(COMPLETED_FILE_NAME, []);
+    completedTasks.value = sanitizeCompletedEntries(parsedCompleted);
+  } catch (error) {
+    console.error('Failed to load completed tasks from JSON storage', error);
+    completedTasks.value = [];
+  }
+
+  try {
     const parsed = await readJsonFile(TASKS_FILE_NAME, []);
 
     if (Array.isArray(parsed)) {
-      tasks.value = parsed.map((task, index) => ({
-        id: task.id ?? index + 1,
-        title: typeof task.title === 'string' ? task.title : 'Untitled task',
-        description: typeof task.description === 'string' ? task.description : '',
-        completed: Boolean(task.completed),
-        completedAt: task.completedAt ?? null,
-        due: task.due ?? null,
-        recurrence: normalizeRecurrence(task.recurrence),
-        listId: normalizeListId(task.listId),
-        reminderOffsetMinutes:
-          task.due !== null ? normalizeReminderOffsetMinutes(task.reminderOffsetMinutes) : null,
-        subtasks: sanitizeSubtasks(task.subtasks),
-      }));
+      const active = [];
+      const migratedCompleted = [];
+
+      parsed.forEach((task, index) => {
+        const base = {
+          id: task.id ?? index + 1,
+          title: typeof task.title === 'string' ? task.title : 'Untitled task',
+          description: typeof task.description === 'string' ? task.description : '',
+          completed: Boolean(task.completed),
+          completedAt: task.completedAt ?? task.completed_at ?? null,
+          due: task.due ?? null,
+          recurrence: normalizeRecurrence(task.recurrence),
+          listId: normalizeListId(task.listId),
+          reminderOffsetMinutes:
+            task.due !== null ? normalizeReminderOffsetMinutes(task.reminderOffsetMinutes) : null,
+          subtasks: sanitizeSubtasks(task.subtasks),
+        };
+
+        if (base.completed) {
+          migratedCompleted.push(buildCompletedEntry(base, base.completedAt));
+        } else {
+          active.push(base);
+        }
+      });
+
+      tasks.value = active;
+      if (migratedCompleted.length > 0) {
+        completedTasks.value = [...completedTasks.value, ...migratedCompleted];
+      }
     } else {
       tasks.value = [];
     }
@@ -1265,6 +1445,7 @@ const loadFromStorage = async () => {
 
   ensureDefaultList();
   syncInitialId();
+  syncCompletedInitialId();
 };
 
 watch(
@@ -1291,6 +1472,17 @@ watch(
   { deep: true }
 );
 
+watch(
+  completedTasks,
+  () => {
+    if (!watchersReady || isApplyingRemoteUpdate) {
+      return;
+    }
+    persistCompleted(completedTasks.value);
+  },
+  { deep: true }
+);
+
 const initialize = async () => {
   if (isInitialized) {
     return;
@@ -1301,6 +1493,7 @@ const initialize = async () => {
   await Promise.all([
     persistTasks(tasks.value),
     persistLists(lists.value),
+    persistCompleted(completedTasks.value),
   ]);
   checkDueTasks();
   startDueWatcher();

@@ -8,8 +8,8 @@ const STANDUP_SHOW_ALL_STORAGE_KEY = 'todo-list.standup-show-all';
 const {
   tasksDueToday,
   tasksCompletedToday,
+  sortedCompletedTasks,
   lists,
-  tasks,
 } = useTaskStore();
 
 const loadHiddenSet = () => {
@@ -157,7 +157,9 @@ const selectedCompletedDateMessageLabel = computed(
 const completedDateMax = computed(() => toDateInputValue(new Date()));
 
 const rawCompletedYesterday = computed(() => {
-  const completedTasksList = tasks.value.filter((task) => task.completed);
+  const completedTasksList = Array.isArray(sortedCompletedTasks.value)
+    ? sortedCompletedTasks.value
+    : [];
   const { start, end } = completedDateBounds.value;
   if (typeof start !== 'number' || typeof end !== 'number') {
     return [];
@@ -642,7 +644,7 @@ watch(showAll, (value) => {
             <ul class="standup__list">
               <li
                 v-for="entry in group.items"
-                :key="entry.taskId"
+                :key="entry.id"
                 :class="[
                   'standup__item',
                   {
@@ -766,7 +768,7 @@ watch(showAll, (value) => {
             >
               <li
                 v-for="entry in displayedCompletedToday"
-                :key="entry.taskId"
+                :key="entry.id"
                 :class="[
                   'standup__item',
                   {
