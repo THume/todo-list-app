@@ -179,6 +179,7 @@ const sanitizeCompletedEntries = (entries) => {
         title: typeof entry?.title === 'string' ? entry.title : 'Untitled task',
         description: typeof entry?.description === 'string' ? entry.description : '',
         completed: true,
+        workedOn: Boolean(entry?.workedOn ?? entry?.worked_on),
         completedAt,
         due: entry?.due ?? null,
         recurrence: normalizeRecurrence(entry?.recurrence),
@@ -234,7 +235,7 @@ const applyRecurringTransition = (updatedTasks, updatedTask) => {
   removeSpawnedRecurringTask(updatedTask.id, updatedTasks);
 };
 
-const buildCompletedEntry = (task, completedAt = null) => {
+const buildCompletedEntry = (task, completedAt = null, { workedOn = false } = {}) => {
   const resolvedCompletedAt = completedAt
     ? new Date(completedAt)
     : new Date(task.completedAt ?? Date.now());
@@ -245,6 +246,7 @@ const buildCompletedEntry = (task, completedAt = null) => {
     title: task.title,
     description: task.description ?? '',
     completed: true,
+    workedOn: Boolean(workedOn),
     completedAt: Number.isNaN(resolvedCompletedAt.valueOf())
       ? new Date().toISOString()
       : resolvedCompletedAt.toISOString(),
@@ -649,6 +651,75 @@ const moveTaskToTomorrow = (taskId) => {
   const tomorrowStart = getStartOfDay(currentTime.value);
   tomorrowStart.setDate(tomorrowStart.getDate() + 1);
   return moveTaskToDate(taskId, tomorrowStart);
+};
+
+const markTaskWorkedOn = (taskId, { dayOffset = 1 } = {}) => {
+  const targetIndex = tasks.value.findIndex((item) => item.id === taskId);
+  if (targetIndex < 0) {
+    return null;
+  }
+
+  const targetTask = tasks.value[targetIndex];
+  if (!targetTask || targetTask.completed) {
+    return null;
+  }
+
+  const recurrence = normalizeRecurrence(targetTask.recurrence);
+  const completedEntry = buildCompletedEntry(targetTask, null, { workedOn: true });
+  addCompletedEntry(completedEntry);
+
+  if (recurrence) {
+    const updatedTasks = [...tasks.value];
+    updatedTasks.splice(targetIndex, 1);
+
+    const nextTask = createRecurringTask(targetTask);
+    if (nextTask) {
+      spawnedRecurringTaskIds.set(targetTask.id, nextTask.id);
+      updatedTasks.push(nextTask);
+    } else {
+      spawnedRecurringTaskIds.delete(targetTask.id);
+    }
+
+    tasks.value = updatedTasks;
+    syncInitialId();
+    syncCompletedInitialId();
+    return nextTask;
+  }
+
+  const hasDue = Boolean(targetTask.due);
+  let nextDue = null;
+
+  if (hasDue) {
+    const nextStart = getStartOfDay(currentTime.value);
+    nextStart.setDate(nextStart.getDate() + Math.max(0, Number(dayOffset) || 0));
+    nextDue = buildDueIsoForTargetDate(targetTask, nextStart);
+  }
+
+  const duplicate = {
+    id: initialId++,
+    title: targetTask.title,
+    description: targetTask.description ?? '',
+    completed: false,
+    due: nextDue,
+    recurrence: normalizeRecurrence(targetTask.recurrence),
+    listId: normalizeListId(targetTask.listId),
+    reminderOffsetMinutes: nextDue
+      ? normalizeReminderOffsetMinutes(targetTask.reminderOffsetMinutes)
+      : null,
+    subtasks: sanitizeSubtasks(targetTask.subtasks).map((subtask) => ({
+      ...subtask,
+      completed: false,
+    })),
+  };
+
+  const updatedTasks = [...tasks.value];
+  updatedTasks.splice(targetIndex, 1, duplicate);
+  tasks.value = updatedTasks;
+
+  syncInitialId();
+  syncCompletedInitialId();
+
+  return duplicate;
 };
 
 const moveOverdueTasksToToday = () => {
@@ -1611,6 +1682,7 @@ export const useTaskStore = () => {
     removeTask,
     moveTaskToToday,
     moveTaskToTomorrow,
+    markTaskWorkedOn,
     moveOverdueTasksToToday,
     postponeTasksUntil,
     skipTaskRecurrence,

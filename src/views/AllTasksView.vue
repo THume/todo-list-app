@@ -18,6 +18,7 @@ const {
   toggleSubtaskCompletion,
   moveTaskToToday,
   moveTaskToTomorrow,
+  markTaskWorkedOn,
   postponeTasksUntil,
   lists,
 } = useTaskStore();
@@ -142,8 +143,24 @@ const handleMoveToTomorrow = (task) => {
   moveTaskToTomorrow(task.id);
 };
 
+const handleWorkedOnNextDay = (task) => {
+  markTaskWorkedOn(task.id, { dayOffset: 2 });
+};
+
 const handleToggleSubtask = ({ taskId, subtaskId }) => {
   toggleSubtaskCompletion(taskId, subtaskId);
+};
+
+const getWorkedOnActionLabel = (task) => {
+  if (!task) {
+    return '';
+  }
+  if (task.recurrence) {
+    return 'Mark as "Worked on" and move to next occurrence';
+  }
+  return task.due
+    ? 'Mark as "Worked on" and move to next day'
+    : 'Mark as "Worked on" and duplicate';
 };
 
 const postponeDate = ref('');
@@ -434,12 +451,15 @@ watch(showDuplicateDialog, (isOpen) => {
           <Task
             :task="task"
             :list-name="resolveListName(task)"
+            :show-worked-on-action="Boolean(getWorkedOnActionLabel(task))"
+            :worked-on-action-label="getWorkedOnActionLabel(task)"
             @toggle="handleToggle"
             @remove="requestDelete"
             @edit="startEdit"
             @duplicate="handleDuplicate"
             @move-to-today="handleMoveToToday"
             @move-to-tomorrow="handleMoveToTomorrow"
+            @worked-on="handleWorkedOnNextDay"
             @toggle-subtask="handleToggleSubtask"
           />
         </li>

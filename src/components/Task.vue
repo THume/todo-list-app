@@ -16,6 +16,7 @@ const emit = defineEmits([
   'duplicate',
   'move-to-today',
   'move-to-tomorrow',
+  'worked-on',
   'skip-recurrence',
   'adjust-completion-date',
   'edit-completion-notes',
@@ -45,6 +46,14 @@ const props = defineProps({
     default: false,
   },
   completedDate: {
+    type: String,
+    default: '',
+  },
+  showWorkedOnAction: {
+    type: Boolean,
+    default: false,
+  },
+  workedOnActionLabel: {
     type: String,
     default: '',
   },
@@ -177,6 +186,9 @@ const isDueToday = computed(() => {
 
 const showMoveToTomorrow = computed(() => !props.isCompletedPage && isDueToday.value);
 const showMoveToToday = computed(() => !props.isCompletedPage && !isDueToday.value);
+const showWorkedOnAction = computed(
+  () => !props.isCompletedPage && props.showWorkedOnAction && Boolean(props.workedOnActionLabel)
+);
 const canSkipRecurrence = computed(
   () => !props.isCompletedPage && props.showSkipRecurrenceAction && Boolean(props.task.recurrence) && !props.task.completed
 );
@@ -254,6 +266,11 @@ const handleMoveToTomorrow = () => {
   closeMenu();
 };
 
+const handleWorkedOn = () => {
+  emit('worked-on', props.task);
+  closeMenu();
+};
+
 const handleSkipRecurrence = () => {
   emit('skip-recurrence', props.task);
   closeMenu();
@@ -314,6 +331,8 @@ const formattedCompletedLabel = computed(() => {
 
   return `${formattedCompletedDate.value} at ${formattedCompletedTime.value}`;
 });
+
+const isWorkedOn = computed(() => Boolean(props.task?.workedOn));
 
 const descriptionText = computed(() => (typeof props.task.description === 'string' ? props.task.description : ''));
 const toggleDescription = () => {
@@ -398,6 +417,16 @@ watch(descriptionText, () => {
                   @click="handleMoveToTomorrow"
                 >
                   Move to Tomorrow
+                </button>
+              </li>
+              <li v-if="showWorkedOnAction" role="none">
+                <button
+                  type="button"
+                  class="task__menu-item"
+                  role="menuitem"
+                  @click="handleWorkedOn"
+                >
+                  {{ workedOnActionLabel }}
                 </button>
               </li>
               <li v-if="canSkipRecurrence" role="none">
@@ -512,6 +541,8 @@ watch(descriptionText, () => {
     <time v-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">Due {{ formattedDueLabel }}</time>
 
     <time v-if="formattedCompletedLabel" class="task__completed-date" :datetime="completedDateIso">Completed {{ formattedCompletedLabel }}</time>
+
+    <span v-if="isCompletedPage && isWorkedOn" class="task__worked-on">Worked on</span>
 
     <div
       v-if="isCompletedPage && task.completionNotes"
@@ -867,6 +898,21 @@ $remove-hover: theme.$color-accent-hover;
   color: $task-description;
   white-space: pre-line;
   line-height: 1.5;
+}
+
+.task__worked-on {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(96, 165, 250, 0.5);
+  color: #bfdbfe;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .task-menu-enter-active,

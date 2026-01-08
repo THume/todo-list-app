@@ -667,6 +667,7 @@ watch(showAll, (value) => {
                   <time class="standup__item-meta" :datetime="entry.completedAt">
                     Completed {{ formatTimestamp(entry.completedAt) }}
                   </time>
+                  <span v-if="entry.workedOn" class="standup__worked-on">Worked on</span>
                 </div>
                 <p v-if="entry.description" class="standup__item-description">
                   {{ entry.description }}
@@ -793,6 +794,7 @@ watch(showAll, (value) => {
                   <time class="standup__item-meta" :datetime="entry.completedAt">
                     Completed at {{ formatTimeOnly(entry.completedAt) }}
                   </time>
+                  <span v-if="entry.workedOn" class="standup__worked-on">Worked on</span>
                 </div>
                 <p v-if="entry.description" class="standup__item-description">
                   {{ entry.description }}
@@ -1243,6 +1245,20 @@ watch(showAll, (value) => {
 .standup__item-meta {
   color: theme.$color-text-muted;
   font-size: 0.85rem;
+}
+
+.standup__worked-on {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 165, 250, 0.5);
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .standup__item-description {
