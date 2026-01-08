@@ -19,6 +19,16 @@ const handleDismiss = (id) => {
 const handleAction = (id, action) => {
   emit('action', { id, action });
 };
+
+const resolveActions = (note) => {
+  if (Array.isArray(note?.actions) && note.actions.length > 0) {
+    return note.actions;
+  }
+  if (note?.action) {
+    return [note.action];
+  }
+  return [];
+};
 </script>
 
 <template>
@@ -28,12 +38,13 @@ const handleAction = (id, action) => {
         <span class="notifications__message">{{ note.message }}</span>
         <div class="notifications__actions">
           <button
-            v-if="note.action"
+            v-for="(action, index) in resolveActions(note)"
+            :key="`${note.id}-action-${index}`"
             type="button"
             class="notifications__action"
-            @click="handleAction(note.id, note.action)"
+            @click="handleAction(note.id, action)"
           >
-            {{ note.action.label }}
+            {{ action.label }}
           </button>
           <button type="button" class="notifications__dismiss" @click="handleDismiss(note.id)">
             Dismiss

@@ -112,27 +112,43 @@ export const useTaskNotifications = (tasksRef) => {
       desktopBody,
       desktopTag,
       playTone = false,
+      actions = null,
       action = null,
       duration = 8000,
     } = options;
 
+    const normalizeAction = (value) => {
+      if (!value) {
+        return null;
+      }
+      const label =
+        typeof value.label === 'string' && value.label.trim().length > 0
+          ? value.label.trim()
+          : 'Action';
+      return {
+        label,
+        type: value.type ?? null,
+        payload: value.payload ?? null,
+      };
+    };
+
+    const resolvedActions = [];
+    const candidates = Array.isArray(actions) ? actions : action ? [action] : [];
+    candidates.forEach((candidate) => {
+      const normalized = normalizeAction(candidate);
+      if (normalized) {
+        resolvedActions.push(normalized);
+      }
+    });
+
     const id = createNotificationId();
-    const sanitizedAction = action
-      ? {
-          label:
-            typeof action.label === 'string' && action.label.trim().length > 0
-              ? action.label.trim()
-              : 'Action',
-          type: action.type ?? null,
-          payload: action.payload ?? null,
-        }
-      : null;
 
     const notification = {
       id,
       message,
       createdAt: new Date().toISOString(),
-      action: sanitizedAction,
+      action: resolvedActions[0] ?? null,
+      actions: resolvedActions,
     };
 
     notifications.value = [...notifications.value, notification];

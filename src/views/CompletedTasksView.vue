@@ -4,6 +4,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue';
 import Task from '../components/Task.vue';
 import AdjustCompletionDateModal from '../components/AdjustCompletionDateModal.vue';
 import AddEditTaskModal from '../components/AddEditTaskModal.vue';
+import CompletionNotesModal from '../components/CompletionNotesModal.vue';
 import { useTaskStore } from '../stores/useTaskStore';
 
 const {
@@ -11,6 +12,7 @@ const {
   reviveCompletedTask,
   deleteCompletedTask,
   updateCompletedTaskTimestamp,
+  updateCompletedTaskNotes,
   duplicateTask,
   addTask,
   updateTask,
@@ -242,6 +244,8 @@ const showEditModal = ref(false);
 const taskPendingEdit = ref(null);
 const showDuplicateDialog = ref(false);
 const taskPendingDuplicate = ref(null);
+const showCompletionNotesModal = ref(false);
+const taskPendingNotes = ref(null);
 
 const clearFilters = () => {
   filterStartDate.value = '';
@@ -282,6 +286,24 @@ const handleEditSave = (payload) => {
 const handleAdjustCompletionDate = (task) => {
   taskBeingAdjusted.value = task;
   showAdjustDateModal.value = true;
+};
+
+const handleEditCompletionNotes = (task) => {
+  taskPendingNotes.value = task;
+  showCompletionNotesModal.value = true;
+};
+
+const handleSaveCompletionNotes = (notes) => {
+  if (taskPendingNotes.value) {
+    updateCompletedTaskNotes(taskPendingNotes.value.id, notes);
+  }
+  taskPendingNotes.value = null;
+  showCompletionNotesModal.value = false;
+};
+
+const handleCancelCompletionNotes = () => {
+  taskPendingNotes.value = null;
+  showCompletionNotesModal.value = false;
 };
 
 const handleSaveAdjustedDate = (isoDate) => {
@@ -378,6 +400,7 @@ const handleConfirmDelete = () => {
               @remove="requestDelete"
               @duplicate="handleDuplicate"
               @adjust-completion-date="handleAdjustCompletionDate"
+              @edit-completion-notes="handleEditCompletionNotes"
             />
           </li>
         </ul>
@@ -406,6 +429,13 @@ const handleConfirmDelete = () => {
     :current-completed-at="taskBeingAdjusted?.completedAt"
     @save="handleSaveAdjustedDate"
     @cancel="handleCancelAdjustDate"
+  />
+  <CompletionNotesModal
+    v-model:visible="showCompletionNotesModal"
+    :task-title="taskPendingNotes?.title || ''"
+    :initial-notes="taskPendingNotes?.completionNotes || ''"
+    @save="handleSaveCompletionNotes"
+    @cancel="handleCancelCompletionNotes"
   />
   <ConfirmDialog
     v-model:open="showDeleteDialog"

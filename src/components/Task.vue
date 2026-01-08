@@ -18,6 +18,7 @@ const emit = defineEmits([
   'move-to-tomorrow',
   'skip-recurrence',
   'adjust-completion-date',
+  'edit-completion-notes',
   'toggle-subtask',
 ]);
 
@@ -263,6 +264,11 @@ const handleAdjustCompletionDate = () => {
   closeMenu();
 };
 
+const handleEditCompletionNotes = () => {
+  emit('edit-completion-notes', props.task);
+  closeMenu();
+};
+
 const handleToggleSubtask = (subtask) => {
   emit('toggle-subtask', { taskId: props.task.id, subtaskId: subtask.id });
 };
@@ -414,6 +420,16 @@ watch(descriptionText, () => {
                   Adjust Completion Date
                 </button>
               </li>
+              <li v-if="isCompletedPage" role="none">
+                <button
+                  type="button"
+                  class="task__menu-item"
+                  role="menuitem"
+                  @click="handleEditCompletionNotes"
+                >
+                  Change Completion Notes
+                </button>
+              </li>
               <li role="none">
                 <button
                   type="button"
@@ -496,6 +512,16 @@ watch(descriptionText, () => {
     <time v-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">Due {{ formattedDueLabel }}</time>
 
     <time v-if="formattedCompletedLabel" class="task__completed-date" :datetime="completedDateIso">Completed {{ formattedCompletedLabel }}</time>
+
+    <div
+      v-if="isCompletedPage && task.completionNotes"
+      class="task__completion-notes"
+    >
+      <p class="task__completion-notes-label">Completion Notes</p>
+      <p class="task__completion-notes-body">
+        {{ task.completionNotes }}
+      </p>
+    </div>
 
     <footer class="task__meta">
       <span v-if="listLabel" class="task__list">
@@ -818,6 +844,29 @@ $remove-hover: theme.$color-accent-hover;
 .task__completed-date {
   color: $task-muted;
   font-size: 0.9rem;
+}
+
+.task__completion-notes {
+  padding: 0.75rem 0.85rem;
+  border: 1px dashed $task-border;
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 0.35rem;
+}
+
+.task__completion-notes-label {
+  margin: 0;
+  font-weight: 700;
+  color: $task-heading;
+  font-size: 0.9rem;
+}
+
+.task__completion-notes-body {
+  margin: 0;
+  color: $task-description;
+  white-space: pre-line;
+  line-height: 1.5;
 }
 
 .task-menu-enter-active,

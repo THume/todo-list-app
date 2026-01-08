@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import AddEditTaskModal from './components/AddEditTaskModal.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import TaskNotifications from './components/TaskNotifications.vue';
+import CompletionNotesModal from './components/CompletionNotesModal.vue';
 import IconGlyph from './components/IconGlyph.vue';
 import { useTaskStore } from './stores/useTaskStore';
 
@@ -14,6 +15,8 @@ const {
   tasks,
   addTask,
   toggleTaskCompletion,
+  reviveCompletedTask,
+  updateCompletedTaskNotes,
   tasksDueToday,
   tasksDueTodayPastDue,
   tasksDueTomorrow,
@@ -24,6 +27,7 @@ const {
   removeList,
   reorderList,
   activeCountsByList,
+  sortedCompletedTasks,
 } = useTaskStore();
 
 const showForm = ref(false);
@@ -59,6 +63,10 @@ const STANDUP_SETTING_STORAGE_KEY = 'todo-list.standup-enabled';
 const FONT_SIZE_SETTING_STORAGE_KEY = 'todo-list.font-size';
 const isStandupEnabled = ref(true);
 const fontSizeSetting = ref('large');
+const showCompletionNotesModal = ref(false);
+const completionNotesTargetId = ref(null);
+const completionNotesInitial = ref('');
+const completionNotesTaskTitle = ref('');
 
 const applyFontSizeSetting = (value) => {
   const root = document.documentElement;
@@ -337,16 +345,74 @@ const handleAddTask = (payload) => {
   }
 };
 
+const closeCompletionNotesModal = () => {
+  showCompletionNotesModal.value = false;
+  completionNotesTargetId.value = null;
+  completionNotesInitial.value = '';
+  completionNotesTaskTitle.value = '';
+};
+
+const openCompletionNotesModal = (completedId) => {
+  if (!completedId) {
+    return;
+  }
+  const entry =
+    sortedCompletedTasks.value?.find((item) => item.id === completedId) || null;
+  if (!entry) {
+    return;
+  }
+  completionNotesTargetId.value = entry.id;
+  completionNotesTaskTitle.value = entry.title ?? '';
+  completionNotesInitial.value = entry.completionNotes ?? '';
+  showCompletionNotesModal.value = true;
+};
+
+const handleSaveCompletionNotes = (notes) => {
+  if (completionNotesTargetId.value) {
+    updateCompletedTaskNotes(completionNotesTargetId.value, notes);
+  }
+  closeCompletionNotesModal();
+};
+
+const handleCancelCompletionNotes = () => {
+  closeCompletionNotesModal();
+};
+
 const handleNotificationAction = ({ id, action }) => {
   if (!action) {
     return;
   }
 
   if (action.type === 'undo-completed-task') {
-    const taskId = action.payload?.taskId;
-    if (taskId !== undefined && taskId !== null) {
-      toggleTaskCompletion(taskId, { suppressNotification: true });
+    const completedId = action.payload?.completedId ?? null;
+    const taskId = action.payload?.taskId ?? null;
+
+    if (completedId) {
+      reviveCompletedTask(completedId, { suppressNotification: true });
+      dismissNotification(id);
+      return;
     }
+
+    if (taskId !== undefined && taskId !== null) {
+      const match =
+        sortedCompletedTasks.value?.find(
+          (entry) => entry.id === taskId || entry.taskId === taskId
+        ) || null;
+      if (match) {
+        reviveCompletedTask(match.id, { suppressNotification: true });
+        dismissNotification(id);
+        return;
+      }
+    }
+  }
+
+  if (action.type === 'add-completion-notes') {
+    const completedId = action.payload?.completedId;
+    if (completedId) {
+      openCompletionNotesModal(completedId);
+    }
+    dismissNotification(id);
+    return;
   }
 
   if (action.type === 'undo-revive-task') {
@@ -355,9 +421,10 @@ const handleNotificationAction = ({ id, action }) => {
       // Re-complete the task by toggling it back
       toggleTaskCompletion(taskId, { suppressNotification: true });
     }
+    dismissNotification(id);
+    return;
   }
 
-  // Always dismiss the notification after handling the action
   dismissNotification(id);
 };
 
@@ -460,6 +527,13 @@ onUnmounted(() => {
     :notifications="notifications"
     @dismiss="dismissNotification"
     @action="handleNotificationAction"
+  />
+  <CompletionNotesModal
+    v-model:visible="showCompletionNotesModal"
+    :task-title="completionNotesTaskTitle"
+    :initial-notes="completionNotesInitial"
+    @save="handleSaveCompletionNotes"
+    @cancel="handleCancelCompletionNotes"
   />
   <div class="layout" :class="{ 'layout--collapsed': isSidebarCollapsed }" :style="layoutStyle">
     <aside

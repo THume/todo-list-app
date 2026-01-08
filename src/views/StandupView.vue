@@ -838,24 +838,24 @@ watch(showAll, (value) => {
                   >
                     <IconGlyph name="repeat" size="14" aria-hidden="true" />
                   </span>
-                </div>
-                <div class="standup__item-actions">
-                  <button
-                    v-if="!showAll"
-                    type="button"
-                    class="standup__item-toggle"
-                    @click="hideTask(buildCompletedTodayKey(entry))"
-                  >
-                    Hide
-                  </button>
-                  <button
-                    v-else-if="isHidden(buildCompletedTodayKey(entry))"
-                    type="button"
-                    class="standup__item-toggle standup__item-toggle--show"
-                    @click="showTask(buildCompletedTodayKey(entry))"
-                  >
-                    Show
-                  </button>
+                  <div class="standup__item-actions">
+                    <button
+                      v-if="!showAll"
+                      type="button"
+                      class="standup__item-toggle"
+                      @click="hideTask(buildCompletedTodayKey(entry))"
+                    >
+                      Hide
+                    </button>
+                    <button
+                      v-else-if="isHidden(buildCompletedTodayKey(entry))"
+                      type="button"
+                      class="standup__item-toggle standup__item-toggle--show"
+                      @click="showTask(buildCompletedTodayKey(entry))"
+                    >
+                      Show
+                    </button>
+                  </div>
                 </div>
               </li>
               <li
@@ -950,24 +950,24 @@ watch(showAll, (value) => {
                   >
                     <IconGlyph name="repeat" size="14" aria-hidden="true" />
                   </span>
-                </div>
-                <div class="standup__item-actions">
-                  <button
-                    v-if="!showAll"
-                    type="button"
-                    class="standup__item-toggle"
-                    @click="hideTask(buildScheduledKey(task))"
-                  >
-                    Hide
-                  </button>
-                  <button
-                    v-else-if="isHidden(buildScheduledKey(task))"
-                    type="button"
-                    class="standup__item-toggle standup__item-toggle--show"
-                    @click="showTask(buildScheduledKey(task))"
-                  >
-                    Show
-                  </button>
+                  <div class="standup__item-actions">
+                    <button
+                      v-if="!showAll"
+                      type="button"
+                      class="standup__item-toggle"
+                      @click="hideTask(buildScheduledKey(task))"
+                    >
+                      Hide
+                    </button>
+                    <button
+                      v-else-if="isHidden(buildScheduledKey(task))"
+                      type="button"
+                      class="standup__item-toggle standup__item-toggle--show"
+                      @click="showTask(buildScheduledKey(task))"
+                    >
+                      Show
+                    </button>
+                  </div>
                 </div>
               </li>
               <li
@@ -1312,6 +1312,7 @@ watch(showAll, (value) => {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .standup__list-pill {
@@ -1325,6 +1326,8 @@ watch(showAll, (value) => {
   color: theme.$color-text-heading;
   font-weight: 600;
   font-size: 0.85rem;
+  width: fit-content;
+  justify-self: start;
 }
 
 .standup__list-text {
@@ -1349,7 +1352,7 @@ watch(showAll, (value) => {
 .standup__item-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 0.25rem;
+  margin-left: auto;
 }
 
 .standup__item-toggle {
