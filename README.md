@@ -1,8 +1,8 @@
 # Todo List App
 
-A polished Vue 3 + Vite task manager focused on capturing, scheduling, and completing work without friction. Beyond everyday CRUD, it layers on recurring schedules, standup-ready summaries, real-time notifications, and JSON-backed persistence that survives browser refreshes.
+**Note:** This app is my experiment in vibe coding. The code is largely AI generated.
 
-**Note:** This is a browser-only application built with Vite for client-side rendering. It is not designed for server-side rendering (SSR) or static site generation (SSG).
+A polished Vue 3 + Vite task manager focused on capturing, scheduling, and completing work without friction. Beyond everyday CRUD, it layers on recurring schedules, standup-ready summaries, real-time notifications, and JSON-backed persistence that survives browser refreshes. This is a browser-only application built with Vite for client-side rendering. It is not designed for server-side rendering (SSR) or static site generation (SSG).
 
 ## Highlights
 
