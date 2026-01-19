@@ -157,6 +157,12 @@ const selectedCompletedDateMessageLabel = computed(
 
 const completedDateMax = computed(() => toDateInputValue(new Date()));
 
+const showCompletedDateHint = computed(() => {
+  const startSet = Boolean(parseDateInputValue(selectedCompletedStartDate.value));
+  const endSet = Boolean(parseDateInputValue(selectedCompletedEndDate.value));
+  return startSet === endSet;
+});
+
 const rawCompletedYesterday = computed(() => {
   const completedTasksList = Array.isArray(sortedCompletedTasks.value)
     ? sortedCompletedTasks.value
@@ -523,6 +529,36 @@ const formatTimestamp = (value) => {
   }).format(date);
 };
 
+const isEndOfDayTime = (date) => date.getHours() === 23 && date.getMinutes() === 59;
+
+const formatDueDateTime = (value) => {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const options = isEndOfDayTime(date)
+    ? { dateStyle: 'medium' }
+    : { dateStyle: 'medium', timeStyle: 'short' };
+  return new Intl.DateTimeFormat(undefined, options).format(date);
+};
+
+const formatDueTimeOnly = (value) => {
+  if (!value) {
+    return '';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const options = isEndOfDayTime(date)
+    ? { dateStyle: 'medium' }
+    : { timeStyle: 'short' };
+  return new Intl.DateTimeFormat(undefined, options).format(date);
+};
+
 const formatTimeOnly = (value) => {
   if (!value) {
     return '';
@@ -592,7 +628,7 @@ watch(showAll, (value) => {
         </header>
         <div class="standup__date-filter" aria-live="polite">
           <div class="standup__date-filter-summary">
-            <span class="standup__date-filter-hint">
+            <span v-if="showCompletedDateHint" class="standup__date-filter-hint">
               {{ selectedCompletedDateDisplay || 'Select a date range' }}
             </span>
             <button
@@ -672,12 +708,18 @@ watch(showAll, (value) => {
                 <p v-if="entry.description" class="standup__item-description">
                   {{ entry.description }}
                 </p>
+                <div v-if="entry.completionNotes" class="standup__completion-notes">
+                  <p class="standup__completion-notes-label">Completion Notes</p>
+                  <p class="standup__completion-notes-body">
+                    {{ entry.completionNotes }}
+                  </p>
+                </div>
                 <time
                   v-if="entry.due"
                   class="standup__item-meta"
                   :datetime="entry.due"
                 >
-                  Originally due {{ formatTimestamp(entry.due) }}
+                  Originally due {{ formatDueDateTime(entry.due) }}
                 </time>
                 <div v-if="entry.subtasks?.length" class="standup__subtasks">
                   <p class="standup__subtasks-title">Subtasks</p>
@@ -799,12 +841,18 @@ watch(showAll, (value) => {
                 <p v-if="entry.description" class="standup__item-description">
                   {{ entry.description }}
                 </p>
+                <div v-if="entry.completionNotes" class="standup__completion-notes">
+                  <p class="standup__completion-notes-label">Completion Notes</p>
+                  <p class="standup__completion-notes-body">
+                    {{ entry.completionNotes }}
+                  </p>
+                </div>
                 <time
                   v-if="entry.due"
                   class="standup__item-meta"
                   :datetime="entry.due"
                 >
-                  Was due {{ formatTimestamp(entry.due) }}
+                  Was due {{ formatDueDateTime(entry.due) }}
                 </time>
                 <div v-if="entry.subtasks?.length" class="standup__subtasks">
                   <p class="standup__subtasks-title">Subtasks</p>
@@ -912,7 +960,7 @@ watch(showAll, (value) => {
                     class="standup__item-meta"
                     :datetime="task.due"
                   >
-                    Due {{ formatTimeOnly(task.due) }}
+                    Due {{ formatDueTimeOnly(task.due) }}
                   </time>
                 </div>
                 <p v-if="task.description" class="standup__item-description">
@@ -1265,6 +1313,29 @@ watch(showAll, (value) => {
   margin: 0;
   color: #d4d4d8;
   opacity: 0.85;
+}
+
+.standup__completion-notes {
+  padding: 0.65rem 0.75rem;
+  border: 1px dashed theme.$color-border-input;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 0.35rem;
+}
+
+.standup__completion-notes-label {
+  margin: 0;
+  font-weight: 700;
+  color: theme.$color-text-heading;
+  font-size: 0.85rem;
+}
+
+.standup__completion-notes-body {
+  margin: 0;
+  color: #d4d4d8;
+  line-height: 1.5;
+  white-space: pre-line;
 }
 
 .standup__subtasks {
