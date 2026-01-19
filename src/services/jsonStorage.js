@@ -125,3 +125,60 @@ export async function restoreBackupSnapshot(snapshotId) {
     return { ok: false, error };
   }
 }
+
+export async function exportDataBundle() {
+  try {
+    if (isForcedStorageFailure()) {
+      throw new Error('Forced storage export failure.');
+    }
+    const response = await fetch(`${API_BASE}/export`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to export data: ${response.statusText}`);
+    }
+
+    const payload = await response.json();
+    return { ok: true, data: payload };
+  } catch (error) {
+    console.error('Failed to export data bundle', error);
+    return { ok: false, data: null, error };
+  }
+}
+
+export async function importDataBundle(bundle) {
+  try {
+    if (isForcedStorageFailure()) {
+      throw new Error('Forced storage import failure.');
+    }
+    const response = await fetch(`${API_BASE}/import`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(bundle ?? {}),
+    });
+
+    if (!response.ok) {
+      let message = response.statusText;
+      try {
+        const payload = await response.json();
+        if (payload?.error) {
+          message = payload.error;
+        }
+      } catch (error) {
+        // ignore payload parsing errors
+      }
+      throw new Error(`Failed to import data: ${message}`);
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error('Failed to import data bundle', error);
+    return { ok: false, error };
+  }
+}

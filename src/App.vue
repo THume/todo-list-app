@@ -8,7 +8,12 @@ import CompletionNotesModal from './components/CompletionNotesModal.vue';
 import IconGlyph from './components/IconGlyph.vue';
 import BackupRestoreModal from './components/BackupRestoreModal.vue';
 import { useTaskStore } from './stores/useTaskStore';
-import { listBackupSnapshots, restoreBackupSnapshot } from './services/jsonStorage';
+import {
+  listBackupSnapshots,
+  restoreBackupSnapshot,
+  exportDataBundle,
+  importDataBundle,
+} from './services/jsonStorage';
 
 const {
   notifications,
@@ -81,6 +86,12 @@ const backupLoading = ref(false);
 const backupError = ref('');
 const backupRestoringId = ref(null);
 const lastBackupAt = ref(null);
+const exportError = ref('');
+const importError = ref('');
+const importFileRef = ref(null);
+const pendingImportBundle = ref(null);
+const importSummary = ref('');
+const showImportConfirm = ref(false);
 const lastSavedLabel = computed(() => {
   if (!lastSavedAt.value) {
     return 'Not saved yet';
@@ -541,6 +552,108 @@ const handleRestoreBackup = async (snapshotId) => {
   closeBackupModal();
 };
 
+const buildExportFileName = () => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  return `todo-backup-${timestamp}.json`;
+};
+
+const handleExportData = async () => {
+  exportError.value = '';
+  const result = await exportDataBundle();
+  if (!result.ok) {
+    exportError.value = 'Export failed.';
+    return;
+  }
+
+  const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = buildExportFileName();
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+};
+
+const openImportPicker = () => {
+  importError.value = '';
+  pendingImportBundle.value = null;
+  importSummary.value = '';
+  if (importFileRef.value) {
+    importFileRef.value.value = '';
+    importFileRef.value.click();
+  }
+};
+
+const buildImportSummary = (bundle) => {
+  const tasksCount = Array.isArray(bundle?.tasks) ? bundle.tasks.length : 0;
+  const listsCount = Array.isArray(bundle?.lists) ? bundle.lists.length : 0;
+  const completedCount = Array.isArray(bundle?.completed) ? bundle.completed.length : 0;
+  return `Tasks: ${tasksCount}, Lists: ${listsCount}, Completed: ${completedCount}.`;
+};
+
+const handleImportFileChange = (event) => {
+  const file = event.target?.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const raw = String(reader.result ?? '').trim();
+      const parsed = raw.length > 0 ? JSON.parse(raw) : null;
+      if (
+        !parsed
+        || !Array.isArray(parsed.tasks)
+        || !Array.isArray(parsed.lists)
+        || !Array.isArray(parsed.completed)
+      ) {
+        importError.value = 'Invalid backup file.';
+        return;
+      }
+      pendingImportBundle.value = parsed;
+      importSummary.value = buildImportSummary(parsed);
+      showImportConfirm.value = true;
+    } catch (error) {
+      importError.value = 'Invalid JSON file.';
+    }
+  };
+  reader.onerror = () => {
+    importError.value = 'Unable to read file.';
+  };
+  reader.readAsText(file);
+};
+
+const handleConfirmImport = async () => {
+  if (!pendingImportBundle.value) {
+    showImportConfirm.value = false;
+    return;
+  }
+  importError.value = '';
+  const result = await importDataBundle(pendingImportBundle.value);
+  if (!result.ok) {
+    importError.value = 'Import failed.';
+    pendingImportBundle.value = null;
+    importSummary.value = '';
+    return;
+  }
+  showImportConfirm.value = false;
+  pendingImportBundle.value = null;
+  importSummary.value = '';
+  await refreshFromStorage();
+  loadBackupSnapshots();
+};
+
+const handleCancelImport = () => {
+  showImportConfirm.value = false;
+  pendingImportBundle.value = null;
+  importSummary.value = '';
+};
+
 const closeSettingsMenu = () => {
   showSettingsMenu.value = false;
 };
@@ -888,10 +1001,30 @@ onUnmounted(() => {
             <button
               type="button"
               class="settings-menu__action"
+              @click="handleExportData"
+            >
+              Export data
+            </button>
+            <button
+              type="button"
+              class="settings-menu__action"
+              @click="openImportPicker"
+            >
+              Import data
+            </button>
+            <button
+              type="button"
+              class="settings-menu__action"
               @click="openBackupModal"
             >
               Restore backup
             </button>
+            <p v-if="exportError" class="settings-menu__status settings-menu__status--error">
+              {{ exportError }}
+            </p>
+            <p v-if="importError" class="settings-menu__status settings-menu__status--error">
+              {{ importError }}
+            </p>
             <p class="settings-menu__status" :class="{ 'settings-menu__status--error': !storageStatus.ok }">
               {{ storageStatus.ok ? lastSavedLabel : storageStatus.message }}
             </p>
@@ -934,6 +1067,14 @@ onUnmounted(() => {
       <RouterView />
     </main>
   </div>
+  <input
+    ref="importFileRef"
+    type="file"
+    accept="application/json"
+    class="sr-only"
+    aria-hidden="true"
+    @change="handleImportFileChange"
+  />
   <AddEditTaskModal
     v-model:visible="showForm"
     :default-due-date="defaultDueDate"
@@ -950,6 +1091,15 @@ onUnmounted(() => {
     message="Deleting a list moves all of its tasks back into My Tasks."
     @confirm="handleConfirmDeleteList"
     @cancel="handleCancelDeleteList"
+  />
+  <ConfirmDialog
+    v-model:open="showImportConfirm"
+    title="Import backup?"
+    confirm-label="Import"
+    cancel-label="Cancel"
+    :message="`This will replace all tasks, lists, and completed history. ${importSummary}`"
+    @confirm="handleConfirmImport"
+    @cancel="handleCancelImport"
   />
   <BackupRestoreModal
     :visible="showBackupModal"
@@ -1607,6 +1757,18 @@ onUnmounted(() => {
 
 .settings-menu__status--error {
   color: #fca5a5;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .storage-banner {

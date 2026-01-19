@@ -198,6 +198,116 @@ const createJsonStorageMiddleware = () => {
 
     const url = new URL(req.url, 'http://localhost');
     const relativePath = decodeURIComponent(url.pathname.replace('/api/storage/', ''));
+    if (relativePath === 'export') {
+      if (req.method === 'OPTIONS') {
+        res.statusCode = 204;
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.end();
+        return;
+      }
+
+      if (req.method !== 'GET') {
+        res.statusCode = 405;
+        res.setHeader('Allow', 'GET');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Method not allowed.' }));
+        return;
+      }
+
+      const tasksResult = readJsonFromDisk('tasks.json');
+      const listsResult = readJsonFromDisk('lists.json');
+      const completedResult = readJsonFromDisk('completed.json');
+
+      if (!tasksResult.ok || !listsResult.ok || !completedResult.ok) {
+        res.statusCode = 500;
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Failed to read storage files.' }));
+        return;
+      }
+
+      const payload = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        tasks: Array.isArray(tasksResult.data) ? tasksResult.data : [],
+        lists: Array.isArray(listsResult.data) ? listsResult.data : [],
+        completed: Array.isArray(completedResult.data) ? completedResult.data : [],
+      };
+
+      res.statusCode = 200;
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(payload));
+      return;
+    }
+
+    if (relativePath === 'import') {
+      if (req.method === 'OPTIONS') {
+        res.statusCode = 204;
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.end();
+        return;
+      }
+
+      if (req.method !== 'POST') {
+        res.statusCode = 405;
+        res.setHeader('Allow', 'POST');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Method not allowed.' }));
+        return;
+      }
+
+      let body = '';
+      req.setEncoding('utf8');
+      req.on('data', (chunk) => {
+        body += chunk;
+      });
+      req.on('end', () => {
+        try {
+          const parsed = body.trim().length > 0 ? JSON.parse(body) : null;
+          const tasks = Array.isArray(parsed?.tasks) ? parsed.tasks : null;
+          const lists = Array.isArray(parsed?.lists) ? parsed.lists : null;
+          const completed = Array.isArray(parsed?.completed) ? parsed.completed : null;
+
+          if (!tasks || !lists || !completed) {
+            res.statusCode = 400;
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Invalid import payload.' }));
+            return;
+          }
+
+          writeJsonToDisk('tasks.json', tasks);
+          writeJsonToDisk('lists.json', lists);
+          writeJsonToDisk('completed.json', completed);
+          res.statusCode = 204;
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+          res.end();
+        } catch (error) {
+          res.statusCode = 400;
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Invalid JSON payload.' }));
+        }
+      });
+      req.on('error', (error) => {
+        console.error('Failed to process import request', error);
+        res.statusCode = 500;
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Failed to process request.' }));
+      });
+      return;
+    }
+
     if (relativePath.startsWith('backups')) {
       if (req.method === 'OPTIONS') {
         res.statusCode = 204;
