@@ -31,6 +31,8 @@ const {
   activeCountsByList,
   sortedCompletedTasks,
   refreshFromStorage,
+  lastSavedAt,
+  storageStatus,
 } = useTaskStore();
 
 const showForm = ref(false);
@@ -64,8 +66,11 @@ const router = useRouter();
 
 const STANDUP_SETTING_STORAGE_KEY = 'todo-list.standup-enabled';
 const FONT_SIZE_SETTING_STORAGE_KEY = 'todo-list.font-size';
+const FORCE_STORAGE_FAILURE_KEY = 'todo-list.force-storage-failure';
 const isStandupEnabled = ref(true);
 const fontSizeSetting = ref('large');
+const showStorageFailureToggle = import.meta.env.DEV;
+const forceStorageFailure = ref(false);
 const showCompletionNotesModal = ref(false);
 const completionNotesTargetId = ref(null);
 const completionNotesInitial = ref('');
@@ -75,6 +80,57 @@ const backupSnapshots = ref([]);
 const backupLoading = ref(false);
 const backupError = ref('');
 const backupRestoringId = ref(null);
+const lastBackupAt = ref(null);
+const lastSavedLabel = computed(() => {
+  if (!lastSavedAt.value) {
+    return 'Not saved yet';
+  }
+  const parsed = new Date(lastSavedAt.value);
+  if (Number.isNaN(parsed.valueOf())) {
+    return 'Not saved yet';
+  }
+  return `Saved ${parsed.toLocaleString()}`;
+});
+const lastBackupLabel = computed(() => {
+  if (!lastBackupAt.value) {
+    return 'Last backup: Not available';
+  }
+  const parsed = new Date(lastBackupAt.value);
+  if (Number.isNaN(parsed.valueOf())) {
+    return 'Last backup: Not available';
+  }
+  return `Last backup: ${parsed.toLocaleString()}`;
+});
+const storageBannerVisible = ref(false);
+const storageBannerMessage = ref('');
+let storageBannerTimer = null;
+
+watch(
+  storageStatus,
+  (status) => {
+    if (!status?.ok && status?.message) {
+      storageBannerMessage.value = status.message;
+      storageBannerVisible.value = true;
+      if (storageBannerTimer) {
+        window.clearTimeout(storageBannerTimer);
+        storageBannerTimer = null;
+      }
+      return;
+    }
+
+    if (storageBannerVisible.value) {
+      if (storageBannerTimer) {
+        window.clearTimeout(storageBannerTimer);
+      }
+      storageBannerTimer = window.setTimeout(() => {
+        storageBannerVisible.value = false;
+        storageBannerMessage.value = '';
+        storageBannerTimer = null;
+      }, 2000);
+    }
+  },
+  { immediate: true, deep: true }
+);
 
 const applyFontSizeSetting = (value) => {
   const root = document.documentElement;
@@ -94,6 +150,11 @@ if (storedStandupSetting === 'false') {
 const storedFontSize = window.localStorage.getItem(FONT_SIZE_SETTING_STORAGE_KEY);
 if (storedFontSize === 'small' || storedFontSize === 'large') {
   fontSizeSetting.value = storedFontSize;
+}
+
+const storedForceFailure = window.localStorage.getItem(FORCE_STORAGE_FAILURE_KEY);
+if (storedForceFailure === 'true') {
+  forceStorageFailure.value = true;
 }
 
 const clampSidebarWidth = (value) =>
@@ -442,9 +503,11 @@ const loadBackupSnapshots = async () => {
   const result = await listBackupSnapshots();
   if (result.ok) {
     backupSnapshots.value = Array.isArray(result.snapshots) ? result.snapshots : [];
+    lastBackupAt.value = backupSnapshots.value[0]?.createdAt ?? null;
   } else {
     backupError.value = 'Unable to load backups.';
     backupSnapshots.value = [];
+    lastBackupAt.value = null;
   }
   backupLoading.value = false;
 };
@@ -536,6 +599,7 @@ watch(
 onMounted(() => {
   document.addEventListener('pointerdown', handleSettingsPointerDown);
   document.addEventListener('keydown', handleSettingsKeydown);
+  loadBackupSnapshots();
 });
 
 watch(isSidebarCollapsed, (collapsed) => {
@@ -570,6 +634,13 @@ watch(
   { immediate: true }
 );
 
+watch(forceStorageFailure, (value) => {
+  if (!showStorageFailureToggle) {
+    return;
+  }
+  window.localStorage.setItem(FORCE_STORAGE_FAILURE_KEY, value ? 'true' : 'false');
+});
+
 watch(
   showBackupModal,
   (open) => {
@@ -591,6 +662,9 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <div v-if="storageBannerVisible" class="storage-banner" role="alert">
+    <span class="storage-banner__text">{{ storageBannerMessage }}</span>
+  </div>
   <TaskNotifications
     :notifications="notifications"
     @dismiss="dismissNotification"
@@ -818,6 +892,28 @@ onUnmounted(() => {
             >
               Restore backup
             </button>
+            <p class="settings-menu__status" :class="{ 'settings-menu__status--error': !storageStatus.ok }">
+              {{ storageStatus.ok ? lastSavedLabel : storageStatus.message }}
+            </p>
+            <p class="settings-menu__status">
+              {{ lastBackupLabel }}
+            </p>
+            <label
+              v-if="showStorageFailureToggle"
+              class="settings-menu__option settings-menu__option--inline"
+            >
+              <div class="settings-menu__option-text">
+                <span class="settings-menu__option-title">Force storage error</span>
+                <span class="settings-menu__option-hint">Dev only</span>
+              </div>
+              <input
+                v-model="forceStorageFailure"
+                type="checkbox"
+                class="settings-menu__toggle-input"
+                aria-label="Force storage failure"
+              />
+              <span class="settings-menu__toggle" aria-hidden="true"></span>
+            </label>
           </div>
         </div>
       </div>
@@ -1415,6 +1511,10 @@ onUnmounted(() => {
   cursor: pointer;
 }
 
+.settings-menu__option--inline {
+  margin-top: 0.35rem;
+}
+
 .settings-menu__option-text {
   display: flex;
   flex-direction: column;
@@ -1497,6 +1597,33 @@ onUnmounted(() => {
 .settings-menu__action:focus-visible {
   outline: 2px solid theme.$color-accent;
   outline-offset: 2px;
+}
+
+.settings-menu__status {
+  margin: 0;
+  font-size: 0.75rem;
+  color: theme.$color-text-muted;
+}
+
+.settings-menu__status--error {
+  color: #fca5a5;
+}
+
+.storage-banner {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgba(239, 68, 68, 0.92);
+  color: #1b1b1d;
+  padding: 0.75rem 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.01em;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.7);
+}
+
+.storage-banner__text {
+  display: inline-block;
 }
 
 .settings-menu__section-title {

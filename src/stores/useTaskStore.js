@@ -48,6 +48,8 @@ const reviveNotificationIds = new Map();
 const spawnedRecurringTaskIds = new Map();
 let broadcastChannel = null;
 let isApplyingRemoteUpdate = false;
+const lastSavedAt = ref(null);
+const storageStatus = ref({ ok: true, message: '' });
 const dismissNotification = (id) => {
   baseDismissNotification(id);
   completionNotificationIds.forEach((notificationId, completedId) => {
@@ -374,34 +376,58 @@ const postStorageUpdate = () => {
 
 const persistTasks = async (value) => {
   try {
-    await writeJsonFile(TASKS_FILE_NAME, value);
+    const result = await writeJsonFile(TASKS_FILE_NAME, value);
+    if (result?.ok === false) {
+      storageStatus.value = { ok: false, message: result.message ?? 'Failed to save tasks.' };
+      return;
+    }
+    storageStatus.value = { ok: true, message: '' };
+    lastSavedAt.value = new Date().toISOString();
     if (watchersReady && !isApplyingRemoteUpdate) {
       postStorageUpdate();
     }
   } catch (error) {
     console.error('Failed to persist tasks to JSON file', error);
+    storageStatus.value = { ok: false, message: 'Failed to save tasks.' };
   }
 };
 
 const persistLists = async (value) => {
   try {
-    await writeJsonFile(LISTS_FILE_NAME, value);
+    const result = await writeJsonFile(LISTS_FILE_NAME, value);
+    if (result?.ok === false) {
+      storageStatus.value = { ok: false, message: result.message ?? 'Failed to save lists.' };
+      return;
+    }
+    storageStatus.value = { ok: true, message: '' };
+    lastSavedAt.value = new Date().toISOString();
     if (watchersReady && !isApplyingRemoteUpdate) {
       postStorageUpdate();
     }
   } catch (error) {
     console.error('Failed to persist lists to JSON file', error);
+    storageStatus.value = { ok: false, message: 'Failed to save lists.' };
   }
 };
 
 const persistCompleted = async (value) => {
   try {
-    await writeJsonFile(COMPLETED_FILE_NAME, value);
+    const result = await writeJsonFile(COMPLETED_FILE_NAME, value);
+    if (result?.ok === false) {
+      storageStatus.value = {
+        ok: false,
+        message: result.message ?? 'Failed to save completed tasks.',
+      };
+      return;
+    }
+    storageStatus.value = { ok: true, message: '' };
+    lastSavedAt.value = new Date().toISOString();
     if (watchersReady && !isApplyingRemoteUpdate) {
       postStorageUpdate();
     }
   } catch (error) {
     console.error('Failed to persist completed tasks to JSON file', error);
+    storageStatus.value = { ok: false, message: 'Failed to save completed tasks.' };
   }
 };
 
@@ -1524,6 +1550,7 @@ const loadFromStorage = async () => {
     const listsResult = await readJsonFile(LISTS_FILE_NAME, null);
     if (!listsResult.ok) {
       storageReadFailed = true;
+      storageStatus.value = { ok: false, message: 'Failed to read lists data.' };
     }
     const parsedLists = listsResult.data;
     if (Array.isArray(parsedLists)) {
@@ -1549,6 +1576,7 @@ const loadFromStorage = async () => {
   } catch (error) {
     console.error('Failed to load lists from JSON storage', error);
     storageReadFailed = true;
+    storageStatus.value = { ok: false, message: 'Failed to read lists data.' };
     lists.value = [DEFAULT_LIST];
   }
 
@@ -1558,11 +1586,13 @@ const loadFromStorage = async () => {
     const completedResult = await readJsonFile(COMPLETED_FILE_NAME, []);
     if (!completedResult.ok) {
       storageReadFailed = true;
+      storageStatus.value = { ok: false, message: 'Failed to read completed tasks.' };
     }
     completedTasks.value = sanitizeCompletedEntries(completedResult.data);
   } catch (error) {
     console.error('Failed to load completed tasks from JSON storage', error);
     storageReadFailed = true;
+    storageStatus.value = { ok: false, message: 'Failed to read completed tasks.' };
     completedTasks.value = [];
   }
 
@@ -1570,6 +1600,7 @@ const loadFromStorage = async () => {
     const tasksResult = await readJsonFile(TASKS_FILE_NAME, []);
     if (!tasksResult.ok) {
       storageReadFailed = true;
+      storageStatus.value = { ok: false, message: 'Failed to read tasks data.' };
     }
     const parsed = tasksResult.data;
 
@@ -1609,6 +1640,7 @@ const loadFromStorage = async () => {
   } catch (error) {
     console.error('Failed to load tasks from JSON storage', error);
     storageReadFailed = true;
+    storageStatus.value = { ok: false, message: 'Failed to read tasks data.' };
     tasks.value = [];
   }
 
@@ -1696,6 +1728,8 @@ export const useTaskStore = () => {
     sortedCompletedTasks,
     notifications,
     dismissNotification,
+    lastSavedAt,
+    storageStatus,
     addList,
     reorderList,
     removeList,
