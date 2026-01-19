@@ -542,6 +542,10 @@ const createRecurringTask = (task) => {
   }
 
   const nextDue = computeNextDueDate(task.due, recurrence);
+  const normalizedSubtasks = sanitizeSubtasks(task.subtasks).map((subtask) => ({
+    ...subtask,
+    completed: false,
+  }));
 
   return {
     id: initialId++,
@@ -552,7 +556,7 @@ const createRecurringTask = (task) => {
     recurrence,
     listId: normalizeListId(task.listId),
     reminderOffsetMinutes: normalizeReminderOffsetMinutes(task.reminderOffsetMinutes),
-    subtasks: [],
+    subtasks: normalizedSubtasks,
   };
 };
 
