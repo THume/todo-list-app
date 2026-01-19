@@ -13,20 +13,20 @@ export async function readJsonFile(fileName, fallbackValue) {
 
     if (!response.ok) {
       if (response.status === 404) {
-        return fallbackValue;
+        return { ok: true, data: fallbackValue };
       }
       throw new Error(`Failed to read JSON file "${fileName}": ${response.statusText}`);
     }
 
     const text = await response.text();
     if (!text) {
-      return fallbackValue;
+      return { ok: true, data: fallbackValue };
     }
 
-    return JSON.parse(text);
+    return { ok: true, data: JSON.parse(text) };
   } catch (error) {
     console.error(`Failed to read JSON file "${fileName}"`, error);
-    return fallbackValue;
+    return { ok: false, data: fallbackValue, error };
   }
 }
 

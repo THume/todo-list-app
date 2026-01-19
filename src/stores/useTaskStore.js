@@ -42,6 +42,7 @@ let currentTimeTimer = null;
 let listInitialId = 1;
 let completedInitialId = 1;
 let subtaskInitialId = 1;
+let storageReadFailed = false;
 const completionNotificationIds = new Map();
 const reviveNotificationIds = new Map();
 const spawnedRecurringTaskIds = new Map();
@@ -1502,7 +1503,11 @@ const sortedCompletedTasks = computed(() => {
 
 const loadFromStorage = async () => {
   try {
-    const parsedLists = await readJsonFile(LISTS_FILE_NAME, null);
+    const listsResult = await readJsonFile(LISTS_FILE_NAME, null);
+    if (!listsResult.ok) {
+      storageReadFailed = true;
+    }
+    const parsedLists = listsResult.data;
     if (Array.isArray(parsedLists)) {
       const sanitized = parsedLists
         .map((entry, index) => {
@@ -1525,21 +1530,30 @@ const loadFromStorage = async () => {
     }
   } catch (error) {
     console.error('Failed to load lists from JSON storage', error);
+    storageReadFailed = true;
     lists.value = [DEFAULT_LIST];
   }
 
   ensureDefaultList();
 
   try {
-    const parsedCompleted = await readJsonFile(COMPLETED_FILE_NAME, []);
-    completedTasks.value = sanitizeCompletedEntries(parsedCompleted);
+    const completedResult = await readJsonFile(COMPLETED_FILE_NAME, []);
+    if (!completedResult.ok) {
+      storageReadFailed = true;
+    }
+    completedTasks.value = sanitizeCompletedEntries(completedResult.data);
   } catch (error) {
     console.error('Failed to load completed tasks from JSON storage', error);
+    storageReadFailed = true;
     completedTasks.value = [];
   }
 
   try {
-    const parsed = await readJsonFile(TASKS_FILE_NAME, []);
+    const tasksResult = await readJsonFile(TASKS_FILE_NAME, []);
+    if (!tasksResult.ok) {
+      storageReadFailed = true;
+    }
+    const parsed = tasksResult.data;
 
     if (Array.isArray(parsed)) {
       const active = [];
@@ -1576,6 +1590,7 @@ const loadFromStorage = async () => {
     }
   } catch (error) {
     console.error('Failed to load tasks from JSON storage', error);
+    storageReadFailed = true;
     tasks.value = [];
   }
 
@@ -1625,12 +1640,11 @@ const initialize = async () => {
   }
 
   startCurrentTimeTicker();
+  storageReadFailed = false;
   await loadFromStorage();
-  await Promise.all([
-    persistTasks(tasks.value),
-    persistLists(lists.value),
-    persistCompleted(completedTasks.value),
-  ]);
+  if (storageReadFailed) {
+    console.warn('Skipping initial storage persist because reads failed.');
+  }
   checkDueTasks();
   startDueWatcher();
   setupBroadcastChannel();

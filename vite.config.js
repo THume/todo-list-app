@@ -83,16 +83,17 @@ const maybeBackupBeforeWrite = () => {
 };
 
 const readJsonFromDisk = (fileName) => {
+  const filePath = resolveFilePath(fileName);
+  if (!fs.existsSync(filePath)) {
+    return { ok: true, exists: false, data: null };
+  }
+
   try {
-    const filePath = resolveFilePath(fileName);
-    if (!fs.existsSync(filePath)) {
-      return null;
-    }
     const raw = fs.readFileSync(filePath, 'utf-8');
-    return raw ? JSON.parse(raw) : null;
+    return { ok: true, exists: true, data: raw ? JSON.parse(raw) : null };
   } catch (error) {
     console.error(`Failed to read storage file "${fileName}"`, error);
-    return null;
+    return { ok: false, exists: true, data: null, error };
   }
 };
 
@@ -135,15 +136,27 @@ const createJsonStorageMiddleware = () => {
     }
 
     if (req.method === 'GET') {
-      const data = readJsonFromDisk(fileName);
-      if (data === null && !fs.existsSync(resolveFilePath(fileName))) {
+      const result = readJsonFromDisk(fileName);
+      if (!result.exists) {
         res.statusCode = 404;
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        res.end('');
+        return;
+      }
+
+      if (!result.ok) {
+        res.statusCode = 500;
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Failed to read storage file.' }));
+        return;
       } else {
         res.statusCode = 200;
       }
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify(data));
+      res.end(JSON.stringify(result.data));
       return;
     }
 
