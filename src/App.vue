@@ -6,7 +6,9 @@ import ConfirmDialog from './components/ConfirmDialog.vue';
 import TaskNotifications from './components/TaskNotifications.vue';
 import CompletionNotesModal from './components/CompletionNotesModal.vue';
 import IconGlyph from './components/IconGlyph.vue';
+import BackupRestoreModal from './components/BackupRestoreModal.vue';
 import { useTaskStore } from './stores/useTaskStore';
+import { listBackupSnapshots, restoreBackupSnapshot } from './services/jsonStorage';
 
 const {
   notifications,
@@ -28,6 +30,7 @@ const {
   reorderList,
   activeCountsByList,
   sortedCompletedTasks,
+  refreshFromStorage,
 } = useTaskStore();
 
 const showForm = ref(false);
@@ -67,6 +70,11 @@ const showCompletionNotesModal = ref(false);
 const completionNotesTargetId = ref(null);
 const completionNotesInitial = ref('');
 const completionNotesTaskTitle = ref('');
+const showBackupModal = ref(false);
+const backupSnapshots = ref([]);
+const backupLoading = ref(false);
+const backupError = ref('');
+const backupRestoringId = ref(null);
 
 const applyFontSizeSetting = (value) => {
   const root = document.documentElement;
@@ -428,6 +436,48 @@ const handleNotificationAction = ({ id, action }) => {
   dismissNotification(id);
 };
 
+const loadBackupSnapshots = async () => {
+  backupLoading.value = true;
+  backupError.value = '';
+  const result = await listBackupSnapshots();
+  if (result.ok) {
+    backupSnapshots.value = Array.isArray(result.snapshots) ? result.snapshots : [];
+  } else {
+    backupError.value = 'Unable to load backups.';
+    backupSnapshots.value = [];
+  }
+  backupLoading.value = false;
+};
+
+const openBackupModal = () => {
+  showBackupModal.value = true;
+  closeSettingsMenu();
+  loadBackupSnapshots();
+};
+
+const closeBackupModal = () => {
+  showBackupModal.value = false;
+  backupError.value = '';
+  backupRestoringId.value = null;
+};
+
+const handleRestoreBackup = async (snapshotId) => {
+  if (!snapshotId) {
+    return;
+  }
+  backupRestoringId.value = snapshotId;
+  backupError.value = '';
+  const result = await restoreBackupSnapshot(snapshotId);
+  if (!result.ok) {
+    backupError.value = 'Backup restore failed.';
+    backupRestoringId.value = null;
+    return;
+  }
+  await refreshFromStorage();
+  backupRestoringId.value = null;
+  closeBackupModal();
+};
+
 const closeSettingsMenu = () => {
   showSettingsMenu.value = false;
 };
@@ -449,6 +499,12 @@ const handleSettingsPointerDown = (event) => {
 const handleSettingsKeydown = (event) => {
   if (event.key === 'Escape') {
     closeSettingsMenu();
+  }
+};
+
+const handleBackupKeydown = (event) => {
+  if (event.key === 'Escape') {
+    closeBackupModal();
   }
 };
 
@@ -514,11 +570,23 @@ watch(
   { immediate: true }
 );
 
+watch(
+  showBackupModal,
+  (open) => {
+    if (open) {
+      document.addEventListener('keydown', handleBackupKeydown);
+    } else {
+      document.removeEventListener('keydown', handleBackupKeydown);
+    }
+  }
+);
+
 onUnmounted(() => {
   stopSidebarResize();
   teardown();
   document.removeEventListener('pointerdown', handleSettingsPointerDown);
   document.removeEventListener('keydown', handleSettingsKeydown);
+  document.removeEventListener('keydown', handleBackupKeydown);
 });
 </script>
 
@@ -741,6 +809,16 @@ onUnmounted(() => {
               </label>
             </div>
           </div>
+          <div class="settings-menu__section">
+            <p class="settings-menu__section-title">Data</p>
+            <button
+              type="button"
+              class="settings-menu__action"
+              @click="openBackupModal"
+            >
+              Restore backup
+            </button>
+          </div>
         </div>
       </div>
       <div
@@ -776,6 +854,15 @@ onUnmounted(() => {
     message="Deleting a list moves all of its tasks back into My Tasks."
     @confirm="handleConfirmDeleteList"
     @cancel="handleCancelDeleteList"
+  />
+  <BackupRestoreModal
+    :visible="showBackupModal"
+    :snapshots="backupSnapshots"
+    :loading="backupLoading"
+    :error="backupError"
+    :restoring-id="backupRestoringId"
+    @close="closeBackupModal"
+    @restore="handleRestoreBackup"
   />
 </template>
 
@@ -1387,6 +1474,29 @@ onUnmounted(() => {
   margin-top: 0.25rem;
   display: grid;
   gap: 0.5rem;
+}
+
+.settings-menu__action {
+  border: 1px solid theme.$color-border-muted;
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.85rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: theme.$color-text-primary;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.settings-menu__action:hover {
+  border-color: theme.$color-accent;
+  background: rgba(239, 68, 68, 0.18);
+  color: theme.$color-text-heading;
+}
+
+.settings-menu__action:focus-visible {
+  outline: 2px solid theme.$color-accent;
+  outline-offset: 2px;
 }
 
 .settings-menu__section-title {

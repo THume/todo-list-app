@@ -451,6 +451,20 @@ const applyRemoteUpdateFromBroadcast = async () => {
   }
 };
 
+const refreshFromStorage = async () => {
+  if (isApplyingRemoteUpdate) {
+    return;
+  }
+
+  isApplyingRemoteUpdate = true;
+  try {
+    await loadFromStorage();
+    checkDueTasks();
+  } finally {
+    isApplyingRemoteUpdate = false;
+  }
+};
+
 const syncInitialId = () => {
   const taskMax = tasks.value.reduce((acc, task) => Math.max(acc, Number(task.id) || 0), 0);
   const completedMax = completedTasks.value.reduce(
@@ -1707,5 +1721,6 @@ export const useTaskStore = () => {
     initialize,
     teardown,
     buildDueDate,
+    refreshFromStorage,
   };
 };

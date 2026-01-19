@@ -50,3 +50,54 @@ export async function writeJsonFile(fileName, data) {
     return false;
   }
 }
+
+export async function listBackupSnapshots() {
+  try {
+    const response = await fetch(`${API_BASE}/backups`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to list backups: ${response.statusText}`);
+    }
+
+    const payload = await response.json();
+    return { ok: true, snapshots: payload?.snapshots ?? [] };
+  } catch (error) {
+    console.error('Failed to list backup snapshots', error);
+    return { ok: false, snapshots: [], error };
+  }
+}
+
+export async function restoreBackupSnapshot(snapshotId) {
+  try {
+    const response = await fetch(`${API_BASE}/backups/restore`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id: snapshotId }),
+    });
+
+    if (!response.ok) {
+      let message = response.statusText;
+      try {
+        const payload = await response.json();
+        if (payload?.error) {
+          message = payload.error;
+        }
+      } catch (error) {
+        // ignore payload parsing errors
+      }
+      throw new Error(`Failed to restore backup: ${message}`);
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error('Failed to restore backup snapshot', error);
+    return { ok: false, error };
+  }
+}
