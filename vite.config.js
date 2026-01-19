@@ -4,6 +4,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const DATA_DIRECTORY = path.resolve(process.cwd(), 'data');
+const BACKUP_DIRECTORY = path.join(DATA_DIRECTORY, 'backups');
+const BACKUP_INTERVAL_MS = 30 * 60 * 1000;
+const MAX_BACKUP_SNAPSHOTS = 20;
+const BACKUP_FILES = ['tasks.json', 'lists.json', 'completed.json'];
+let lastBackupTime = 0;
 
 const ensureDataDirectory = () => {
   if (!fs.existsSync(DATA_DIRECTORY)) {
@@ -11,9 +16,70 @@ const ensureDataDirectory = () => {
   }
 };
 
+const ensureBackupDirectory = () => {
+  ensureDataDirectory();
+  if (!fs.existsSync(BACKUP_DIRECTORY)) {
+    fs.mkdirSync(BACKUP_DIRECTORY, { recursive: true });
+  }
+};
+
 const resolveFilePath = (fileName) => {
   ensureDataDirectory();
   return path.join(DATA_DIRECTORY, fileName);
+};
+
+const buildBackupFolderName = (timestamp) => timestamp.replace(/[:.]/g, '-');
+
+const listBackupSnapshots = () => {
+  ensureBackupDirectory();
+  return fs
+    .readdirSync(BACKUP_DIRECTORY)
+    .map((entry) => path.join(BACKUP_DIRECTORY, entry))
+    .filter((entry) => fs.statSync(entry).isDirectory());
+};
+
+const pruneBackupSnapshots = () => {
+  const backups = listBackupSnapshots()
+    .map((filePath) => ({
+      filePath,
+      mtimeMs: fs.statSync(filePath).mtimeMs,
+    }))
+    .sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+  backups.slice(MAX_BACKUP_SNAPSHOTS).forEach(({ filePath }) => {
+    try {
+      fs.rmSync(filePath, { recursive: true, force: true });
+    } catch (error) {
+      console.error(`Failed to remove backup "${filePath}"`, error);
+    }
+  });
+};
+
+const maybeBackupBeforeWrite = () => {
+  const now = Date.now();
+  if (now - lastBackupTime < BACKUP_INTERVAL_MS) {
+    return;
+  }
+
+  ensureBackupDirectory();
+  const timestamp = new Date(now).toISOString();
+  const snapshotFolder = path.join(BACKUP_DIRECTORY, buildBackupFolderName(timestamp));
+
+  try {
+    fs.mkdirSync(snapshotFolder, { recursive: true });
+    BACKUP_FILES.forEach((backupFile) => {
+      const sourcePath = resolveFilePath(backupFile);
+      if (!fs.existsSync(sourcePath)) {
+        return;
+      }
+      const targetPath = path.join(snapshotFolder, backupFile);
+      fs.copyFileSync(sourcePath, targetPath);
+    });
+    lastBackupTime = now;
+    pruneBackupSnapshots();
+  } catch (error) {
+    console.error('Failed to create backup snapshot', error);
+  }
 };
 
 const readJsonFromDisk = (fileName) => {
@@ -32,6 +98,7 @@ const readJsonFromDisk = (fileName) => {
 
 const writeJsonToDisk = (fileName, data) => {
   try {
+    maybeBackupBeforeWrite();
     const filePath = resolveFilePath(fileName);
     fs.writeFileSync(filePath, JSON.stringify(data ?? null, null, 2), 'utf-8');
   } catch (error) {
