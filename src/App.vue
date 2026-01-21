@@ -13,6 +13,8 @@ import {
   restoreBackupSnapshot,
   exportDataBundle,
   importDataBundle,
+  getStorageSettings,
+  updateStorageSettings,
 } from './services/jsonStorage';
 
 const {
@@ -76,6 +78,11 @@ const isStandupEnabled = ref(true);
 const fontSizeSetting = ref('large');
 const showStorageFailureToggle = import.meta.env.DEV;
 const forceStorageFailure = ref(false);
+const duplicateDirectory = ref('');
+const duplicateDirectoryDraft = ref('');
+const duplicateDirectoryStatus = ref('');
+const duplicateDirectoryStatusIsError = ref(false);
+const duplicateDirectorySaving = ref(false);
 const showCompletionNotesModal = ref(false);
 const completionNotesTargetId = ref(null);
 const completionNotesInitial = ref('');
@@ -628,6 +635,61 @@ const handleImportFileChange = (event) => {
   reader.readAsText(file);
 };
 
+const applyDuplicateDirectory = (value) => {
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  duplicateDirectory.value = normalized;
+  duplicateDirectoryDraft.value = normalized;
+};
+
+const loadStorageSettings = async () => {
+  duplicateDirectoryStatus.value = '';
+  duplicateDirectoryStatusIsError.value = false;
+  const result = await getStorageSettings();
+  if (result.ok) {
+    const value =
+      typeof result.settings?.duplicateDirectory === 'string'
+        ? result.settings.duplicateDirectory
+        : '';
+    applyDuplicateDirectory(value);
+  } else {
+    duplicateDirectoryStatus.value = 'Unable to load duplicate directory.';
+    duplicateDirectoryStatusIsError.value = true;
+  }
+};
+
+const handleDuplicateDirectorySave = async () => {
+  if (duplicateDirectorySaving.value) {
+    return;
+  }
+  duplicateDirectorySaving.value = true;
+  duplicateDirectoryStatus.value = '';
+  duplicateDirectoryStatusIsError.value = false;
+  const nextValue = typeof duplicateDirectoryDraft.value === 'string'
+    ? duplicateDirectoryDraft.value.trim()
+    : '';
+  const result = await updateStorageSettings({ duplicateDirectory: nextValue });
+  if (result.ok) {
+    const value =
+      typeof result.settings?.duplicateDirectory === 'string'
+        ? result.settings.duplicateDirectory
+        : '';
+    applyDuplicateDirectory(value);
+    duplicateDirectoryStatus.value = value
+      ? 'Duplicate directory saved.'
+      : 'Duplicate directory cleared.';
+  } else {
+    duplicateDirectoryStatus.value =
+      result.error?.message ?? 'Unable to save duplicate directory.';
+    duplicateDirectoryStatusIsError.value = true;
+  }
+  duplicateDirectorySaving.value = false;
+};
+
+const handleDuplicateDirectoryClear = async () => {
+  duplicateDirectoryDraft.value = '';
+  await handleDuplicateDirectorySave();
+};
+
 const handleConfirmImport = async () => {
   if (!pendingImportBundle.value) {
     showImportConfirm.value = false;
@@ -713,6 +775,7 @@ onMounted(() => {
   document.addEventListener('pointerdown', handleSettingsPointerDown);
   document.addEventListener('keydown', handleSettingsKeydown);
   loadBackupSnapshots();
+  loadStorageSettings();
 });
 
 watch(isSidebarCollapsed, (collapsed) => {
@@ -1019,6 +1082,52 @@ onUnmounted(() => {
             >
               Restore backup
             </button>
+            <div class="settings-menu__field">
+              <label class="settings-menu__field-label" for="duplicate-directory-input">
+                Directory to store duplicate of data
+              </label>
+              <p class="settings-menu__field-hint">
+                Optional path for a mirrored copy of the data folder.
+              </p>
+              <input
+                id="duplicate-directory-input"
+                v-model="duplicateDirectoryDraft"
+                type="text"
+                class="settings-menu__input"
+                placeholder="C:\\Users\\you\\OneDrive\\TodoBackups"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <div class="settings-menu__field-actions">
+                <button
+                  type="button"
+                  class="settings-menu__action settings-menu__action--inline"
+                  :disabled="duplicateDirectorySaving"
+                  @click="handleDuplicateDirectorySave"
+                >
+                  {{ duplicateDirectorySaving ? 'Saving...' : 'Save directory' }}
+                </button>
+                <button
+                  type="button"
+                  class="settings-menu__action settings-menu__action--inline"
+                  :disabled="duplicateDirectorySaving"
+                  @click="handleDuplicateDirectoryClear"
+                >
+                  Clear
+                </button>
+              </div>
+              <p
+                class="settings-menu__status"
+                :class="{ 'settings-menu__status--error': duplicateDirectoryStatusIsError }"
+              >
+                {{
+                  duplicateDirectoryStatus
+                    || (duplicateDirectory
+                      ? 'Duplicate directory is active.'
+                      : 'No duplicate directory set.')
+                }}
+              </p>
+            </div>
             <p v-if="exportError" class="settings-menu__status settings-menu__status--error">
               {{ exportError }}
             </p>
@@ -1747,6 +1856,52 @@ onUnmounted(() => {
 .settings-menu__action:focus-visible {
   outline: 2px solid theme.$color-accent;
   outline-offset: 2px;
+}
+
+.settings-menu__action--inline {
+  width: auto;
+  padding: 0.45rem 0.7rem;
+}
+
+.settings-menu__field {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.settings-menu__field-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: theme.$color-text-primary;
+}
+
+.settings-menu__field-hint {
+  margin: 0;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: theme.$color-text-muted;
+}
+
+.settings-menu__input {
+  width: 100%;
+  border: 1px solid theme.$color-border-muted;
+  border-radius: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: theme.$color-text-primary;
+  font-size: 0.85rem;
+}
+
+.settings-menu__input:focus-visible {
+  outline: 2px solid theme.$color-accent;
+  outline-offset: 2px;
+}
+
+.settings-menu__field-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .settings-menu__status {

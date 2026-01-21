@@ -8,9 +8,25 @@ const BACKUP_DIRECTORY = path.join(DATA_DIRECTORY, 'backups');
 const BACKUP_INTERVAL_MS = 30 * 60 * 1000;
 const BACKUP_WRITE_THRESHOLD = 20;
 const MAX_BACKUP_SNAPSHOTS = 20;
-const BACKUP_FILES = ['tasks.json', 'lists.json', 'completed.json'];
+const BACKUP_FILES = ['tasks.json', 'lists.json', 'completed.json', 'meta.json'];
+const SETTINGS_FILE_NAME = 'settings.json';
+const DEFAULT_SETTINGS = Object.freeze({ duplicateDirectory: '' });
 let lastBackupTime = 0;
 let writesSinceBackup = 0;
+const SCHEMA_VERSION = 1;
+let storageSettings = { ...DEFAULT_SETTINGS };
+
+const buildDefaultMeta = () => ({
+  schemaVersion: SCHEMA_VERSION,
+  updatedAt: new Date().toISOString(),
+});
+
+const normalizeDuplicateDirectory = (value) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.trim();
+};
 
 const ensureDataDirectory = () => {
   if (!fs.existsSync(DATA_DIRECTORY)) {
@@ -28,6 +44,131 @@ const ensureBackupDirectory = () => {
 const resolveFilePath = (fileName) => {
   ensureDataDirectory();
   return path.join(DATA_DIRECTORY, fileName);
+};
+
+const isSameOrChildPath = (parentPath, candidatePath) => {
+  const resolvedParent = path.resolve(parentPath);
+  const resolvedCandidate = path.resolve(candidatePath);
+  const relative = path.relative(resolvedParent, resolvedCandidate);
+  if (!relative) {
+    return true;
+  }
+  return !relative.startsWith('..') && !path.isAbsolute(relative);
+};
+
+const ensureDirectory = (directoryPath) => {
+  fs.mkdirSync(directoryPath, { recursive: true });
+};
+
+const loadSettingsFromDisk = () => {
+  const settingsPath = resolveFilePath(SETTINGS_FILE_NAME);
+  if (!fs.existsSync(settingsPath)) {
+    storageSettings = { ...DEFAULT_SETTINGS };
+    return storageSettings;
+  }
+  try {
+    const raw = fs.readFileSync(settingsPath, 'utf-8');
+    const parsed = raw ? JSON.parse(raw) : {};
+    const duplicateDirectory = normalizeDuplicateDirectory(parsed?.duplicateDirectory);
+    storageSettings = { duplicateDirectory };
+    return storageSettings;
+  } catch (error) {
+    console.error('Failed to read storage settings', error);
+    storageSettings = { ...DEFAULT_SETTINGS };
+    return storageSettings;
+  }
+};
+
+const writeSettingsToDisk = (nextSettings) => {
+  storageSettings = {
+    ...DEFAULT_SETTINGS,
+    ...nextSettings,
+  };
+  writeJsonToDisk(SETTINGS_FILE_NAME, storageSettings);
+  return storageSettings;
+};
+
+const resolveDuplicateDirectory = () => {
+  if (!storageSettings) {
+    loadSettingsFromDisk();
+  }
+  const normalized = normalizeDuplicateDirectory(storageSettings?.duplicateDirectory);
+  return normalized.length > 0 ? path.resolve(normalized) : '';
+};
+
+const duplicateDataFile = (fileName) => {
+  const duplicateRoot = resolveDuplicateDirectory();
+  if (!duplicateRoot) {
+    return;
+  }
+  if (isSameOrChildPath(DATA_DIRECTORY, duplicateRoot)) {
+    return;
+  }
+
+  try {
+    ensureDirectory(duplicateRoot);
+  } catch (error) {
+    console.error('Failed to ensure duplicate directory', error);
+    return;
+  }
+
+  const sourcePath = resolveFilePath(fileName);
+  if (!fs.existsSync(sourcePath)) {
+    return;
+  }
+
+  const targetPath = path.join(duplicateRoot, fileName);
+  try {
+    fs.copyFileSync(sourcePath, targetPath);
+  } catch (error) {
+    console.error(`Failed to duplicate "${fileName}"`, error);
+  }
+};
+
+const duplicateBackupSnapshot = (snapshotFolder, snapshotName) => {
+  const duplicateRoot = resolveDuplicateDirectory();
+  if (!duplicateRoot) {
+    return;
+  }
+  if (isSameOrChildPath(DATA_DIRECTORY, duplicateRoot)) {
+    return;
+  }
+
+  const backupRoot = path.join(duplicateRoot, 'backups');
+  const targetFolder = path.join(backupRoot, snapshotName);
+  try {
+    ensureDirectory(targetFolder);
+    BACKUP_FILES.forEach((backupFile) => {
+      const sourcePath = path.join(snapshotFolder, backupFile);
+      if (!fs.existsSync(sourcePath)) {
+        return;
+      }
+      const targetPath = path.join(targetFolder, backupFile);
+      fs.copyFileSync(sourcePath, targetPath);
+    });
+  } catch (error) {
+    console.error('Failed to duplicate backup snapshot', error);
+  }
+};
+
+const duplicateDataDirectory = () => {
+  const duplicateRoot = resolveDuplicateDirectory();
+  if (!duplicateRoot) {
+    return { ok: true };
+  }
+
+  if (isSameOrChildPath(DATA_DIRECTORY, duplicateRoot)) {
+    return { ok: false, error: 'Duplicate directory cannot be inside the data directory.' };
+  }
+
+  try {
+    ensureDirectory(duplicateRoot);
+    fs.cpSync(DATA_DIRECTORY, duplicateRoot, { recursive: true, force: true });
+    return { ok: true };
+  } catch (error) {
+    console.error('Failed to duplicate data directory', error);
+    return { ok: false, error: 'Failed to duplicate data directory.' };
+  }
 };
 
 const buildBackupFolderName = (timestamp) => timestamp.replace(/[:.]/g, '-');
@@ -105,6 +246,7 @@ const restoreBackupSnapshot = (snapshotId) => {
       }
       const targetPath = resolveFilePath(fileName);
       fs.copyFileSync(sourcePath, targetPath);
+      duplicateDataFile(fileName);
     });
     return { ok: true };
   } catch (error) {
@@ -124,6 +266,12 @@ const pruneBackupSnapshots = () => {
   backups.slice(MAX_BACKUP_SNAPSHOTS).forEach(({ filePath }) => {
     try {
       fs.rmSync(filePath, { recursive: true, force: true });
+      const duplicateRoot = resolveDuplicateDirectory();
+      if (duplicateRoot && !isSameOrChildPath(DATA_DIRECTORY, duplicateRoot)) {
+        const folderName = path.basename(filePath);
+        const duplicatePath = path.join(duplicateRoot, 'backups', folderName);
+        fs.rmSync(duplicatePath, { recursive: true, force: true });
+      }
     } catch (error) {
       console.error(`Failed to remove backup "${filePath}"`, error);
     }
@@ -141,7 +289,8 @@ const maybeBackupBeforeWrite = () => {
 
   ensureBackupDirectory();
   const timestamp = new Date(now).toISOString();
-  const snapshotFolder = path.join(BACKUP_DIRECTORY, buildBackupFolderName(timestamp));
+  const snapshotName = buildBackupFolderName(timestamp);
+  const snapshotFolder = path.join(BACKUP_DIRECTORY, snapshotName);
 
   try {
     fs.mkdirSync(snapshotFolder, { recursive: true });
@@ -153,6 +302,7 @@ const maybeBackupBeforeWrite = () => {
       const targetPath = path.join(snapshotFolder, backupFile);
       fs.copyFileSync(sourcePath, targetPath);
     });
+    duplicateBackupSnapshot(snapshotFolder, snapshotName);
     lastBackupTime = now;
     writesSinceBackup = 0;
     pruneBackupSnapshots();
@@ -182,6 +332,7 @@ const writeJsonToDisk = (fileName, data) => {
     maybeBackupBeforeWrite();
     const filePath = resolveFilePath(fileName);
     fs.writeFileSync(filePath, JSON.stringify(data ?? null, null, 2), 'utf-8');
+    duplicateDataFile(fileName);
   } catch (error) {
     console.error(`Failed to write storage file "${fileName}"`, error);
   }
@@ -190,6 +341,8 @@ const writeJsonToDisk = (fileName, data) => {
 const isValidFileName = (fileName) => /^[\w.-]+$/.test(fileName);
 
 const createJsonStorageMiddleware = () => {
+  loadSettingsFromDisk();
+
   return async (req, res, next) => {
     if (!req.url || !req.url.startsWith('/api/storage/')) {
       next();
@@ -220,8 +373,9 @@ const createJsonStorageMiddleware = () => {
       const tasksResult = readJsonFromDisk('tasks.json');
       const listsResult = readJsonFromDisk('lists.json');
       const completedResult = readJsonFromDisk('completed.json');
+      const metaResult = readJsonFromDisk('meta.json');
 
-      if (!tasksResult.ok || !listsResult.ok || !completedResult.ok) {
+      if (!tasksResult.ok || !listsResult.ok || !completedResult.ok || !metaResult.ok) {
         res.statusCode = 500;
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Content-Type', 'application/json');
@@ -235,6 +389,7 @@ const createJsonStorageMiddleware = () => {
         tasks: Array.isArray(tasksResult.data) ? tasksResult.data : [],
         lists: Array.isArray(listsResult.data) ? listsResult.data : [],
         completed: Array.isArray(completedResult.data) ? completedResult.data : [],
+        meta: metaResult.data ?? buildDefaultMeta(),
       };
 
       res.statusCode = 200;
@@ -274,6 +429,8 @@ const createJsonStorageMiddleware = () => {
           const tasks = Array.isArray(parsed?.tasks) ? parsed.tasks : null;
           const lists = Array.isArray(parsed?.lists) ? parsed.lists : null;
           const completed = Array.isArray(parsed?.completed) ? parsed.completed : null;
+          const meta =
+            parsed?.meta && typeof parsed.meta === 'object' ? parsed.meta : buildDefaultMeta();
 
           if (!tasks || !lists || !completed) {
             res.statusCode = 400;
@@ -286,6 +443,7 @@ const createJsonStorageMiddleware = () => {
           writeJsonToDisk('tasks.json', tasks);
           writeJsonToDisk('lists.json', lists);
           writeJsonToDisk('completed.json', completed);
+          writeJsonToDisk('meta.json', meta);
           res.statusCode = 204;
           res.setHeader('Access-Control-Allow-Origin', '*');
           res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -305,6 +463,107 @@ const createJsonStorageMiddleware = () => {
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ error: 'Failed to process request.' }));
       });
+      return;
+    }
+
+    if (relativePath === 'settings') {
+      if (req.method === 'OPTIONS') {
+        res.statusCode = 204;
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.end();
+        return;
+      }
+
+      if (req.method === 'GET') {
+        const settings = loadSettingsFromDisk();
+        res.statusCode = 200;
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ settings }));
+        return;
+      }
+
+      if (req.method === 'PUT') {
+        let body = '';
+        req.setEncoding('utf8');
+        req.on('data', (chunk) => {
+          body += chunk;
+        });
+        req.on('end', () => {
+          try {
+            const parsed = body.trim().length > 0 ? JSON.parse(body) : {};
+            const rawDirectory = normalizeDuplicateDirectory(parsed?.duplicateDirectory);
+            if (rawDirectory) {
+              const resolved = path.resolve(rawDirectory);
+              if (isSameOrChildPath(DATA_DIRECTORY, resolved)) {
+                res.statusCode = 400;
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Directory cannot be inside data.' }));
+                return;
+              }
+
+              try {
+                const stat = fs.existsSync(resolved) ? fs.statSync(resolved) : null;
+                if (stat && !stat.isDirectory()) {
+                  res.statusCode = 400;
+                  res.setHeader('Access-Control-Allow-Origin', '*');
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'Directory path is not a folder.' }));
+                  return;
+                }
+                if (!stat) {
+                  ensureDirectory(resolved);
+                }
+              } catch (error) {
+                res.statusCode = 400;
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Unable to access directory.' }));
+                return;
+              }
+
+              writeSettingsToDisk({ duplicateDirectory: resolved });
+              const duplicateResult = duplicateDataDirectory();
+              if (!duplicateResult.ok) {
+                res.statusCode = 400;
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: duplicateResult.error }));
+                return;
+              }
+            } else {
+              writeSettingsToDisk({ duplicateDirectory: '' });
+            }
+
+            res.statusCode = 200;
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ settings: storageSettings }));
+          } catch (error) {
+            res.statusCode = 400;
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Invalid JSON payload.' }));
+          }
+        });
+        req.on('error', (error) => {
+          console.error('Failed to process settings request', error);
+          res.statusCode = 500;
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Failed to process request.' }));
+        });
+        return;
+      }
+
+      res.statusCode = 405;
+      res.setHeader('Allow', 'GET, PUT');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Method not allowed.' }));
       return;
     }
 

@@ -182,3 +182,61 @@ export async function importDataBundle(bundle) {
     return { ok: false, error };
   }
 }
+
+export async function getStorageSettings() {
+  try {
+    if (isForcedStorageFailure()) {
+      throw new Error('Forced storage settings read failure.');
+    }
+    const response = await fetch(`${API_BASE}/settings`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to read settings: ${response.statusText}`);
+    }
+
+    const payload = await response.json();
+    return { ok: true, settings: payload?.settings ?? {} };
+  } catch (error) {
+    console.error('Failed to read storage settings', error);
+    return { ok: false, settings: {}, error };
+  }
+}
+
+export async function updateStorageSettings(settings) {
+  try {
+    if (isForcedStorageFailure()) {
+      throw new Error('Forced storage settings write failure.');
+    }
+    const response = await fetch(`${API_BASE}/settings`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(settings ?? {}),
+    });
+
+    if (!response.ok) {
+      let message = response.statusText;
+      try {
+        const payload = await response.json();
+        if (payload?.error) {
+          message = payload.error;
+        }
+      } catch (error) {
+        // ignore payload parsing errors
+      }
+      throw new Error(`Failed to update settings: ${message}`);
+    }
+
+    const payload = await response.json();
+    return { ok: true, settings: payload?.settings ?? {} };
+  } catch (error) {
+    console.error('Failed to update storage settings', error);
+    return { ok: false, settings: {}, error };
+  }
+}
