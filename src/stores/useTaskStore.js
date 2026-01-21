@@ -5,6 +5,8 @@ import { readJsonFile, writeJsonFile } from '../services/jsonStorage';
 const TASKS_FILE_NAME = 'tasks.json';
 const LISTS_FILE_NAME = 'lists.json';
 const COMPLETED_FILE_NAME = 'completed.json';
+const META_FILE_NAME = 'meta.json';
+const SCHEMA_VERSION = 1;
 const DEFAULT_LIST_ID = 'default';
 const DEFAULT_LIST_NAME = 'My Tasks';
 const DEFAULT_LIST = Object.freeze({
@@ -61,6 +63,46 @@ const dismissNotification = (id) => {
 
 const VALID_RECURRENCE = new Set(['daily', 'weekdays', 'weekly', 'monthly', 'quarterly', 'yearly']);
 const VALID_REMINDER_MINUTES = new Set([5, 10, 15, 30, 60, 120, 240, 1440]);
+
+const buildDefaultMeta = () => ({
+  schemaVersion: SCHEMA_VERSION,
+  updatedAt: new Date().toISOString(),
+});
+
+const normalizeSchemaVersion = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return null;
+  }
+  return Math.floor(numeric);
+};
+
+const migrateStorageData = ({ meta, tasks: rawTasks, lists: rawLists, completed: rawCompleted }) => {
+  let version = normalizeSchemaVersion(meta?.schemaVersion) ?? 0;
+  let tasks = rawTasks;
+  let lists = rawLists;
+  let completed = rawCompleted;
+  let changed = false;
+
+  if (version < SCHEMA_VERSION) {
+    tasks = Array.isArray(tasks) ? tasks : [];
+    lists = Array.isArray(lists) ? lists : [];
+    completed = Array.isArray(completed) ? completed : [];
+    version = SCHEMA_VERSION;
+    changed = true;
+  }
+
+  const nextMeta = buildDefaultMeta();
+  nextMeta.schemaVersion = version;
+
+  return {
+    meta: nextMeta,
+    tasks,
+    lists,
+    completed,
+    changed,
+  };
+};
 
 const createListId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -1546,13 +1588,28 @@ const sortedCompletedTasks = computed(() => {
 });
 
 const loadFromStorage = async () => {
+  let metaResult = { ok: true, data: null };
+  try {
+    metaResult = await readJsonFile(META_FILE_NAME, null);
+    if (!metaResult.ok) {
+      storageReadFailed = true;
+      storageStatus.value = { ok: false, message: 'Failed to read storage metadata.' };
+    }
+  } catch (error) {
+    console.error('Failed to load meta from JSON storage', error);
+    storageReadFailed = true;
+    storageStatus.value = { ok: false, message: 'Failed to read storage metadata.' };
+  }
+
+  let rawLists = null;
   try {
     const listsResult = await readJsonFile(LISTS_FILE_NAME, null);
     if (!listsResult.ok) {
       storageReadFailed = true;
       storageStatus.value = { ok: false, message: 'Failed to read lists data.' };
     }
-    const parsedLists = listsResult.data;
+    rawLists = listsResult.data;
+    const parsedLists = rawLists;
     if (Array.isArray(parsedLists)) {
       const sanitized = parsedLists
         .map((entry, index) => {
@@ -1582,13 +1639,15 @@ const loadFromStorage = async () => {
 
   ensureDefaultList();
 
+  let rawCompleted = [];
   try {
     const completedResult = await readJsonFile(COMPLETED_FILE_NAME, []);
     if (!completedResult.ok) {
       storageReadFailed = true;
       storageStatus.value = { ok: false, message: 'Failed to read completed tasks.' };
     }
-    completedTasks.value = sanitizeCompletedEntries(completedResult.data);
+    rawCompleted = completedResult.data;
+    completedTasks.value = sanitizeCompletedEntries(rawCompleted);
   } catch (error) {
     console.error('Failed to load completed tasks from JSON storage', error);
     storageReadFailed = true;
@@ -1596,13 +1655,15 @@ const loadFromStorage = async () => {
     completedTasks.value = [];
   }
 
+  let rawTasks = [];
   try {
     const tasksResult = await readJsonFile(TASKS_FILE_NAME, []);
     if (!tasksResult.ok) {
       storageReadFailed = true;
       storageStatus.value = { ok: false, message: 'Failed to read tasks data.' };
     }
-    const parsed = tasksResult.data;
+    rawTasks = tasksResult.data;
+    const parsed = rawTasks;
 
     if (Array.isArray(parsed)) {
       const active = [];
@@ -1647,6 +1708,22 @@ const loadFromStorage = async () => {
   ensureDefaultList();
   syncInitialId();
   syncCompletedInitialId();
+
+  const migration = migrateStorageData({
+    meta: metaResult.data,
+    tasks: rawTasks,
+    lists: rawLists,
+    completed: rawCompleted,
+  });
+
+  if (!storageReadFailed && migration.changed) {
+    await writeJsonFile(TASKS_FILE_NAME, migration.tasks);
+    await writeJsonFile(LISTS_FILE_NAME, migration.lists);
+    await writeJsonFile(COMPLETED_FILE_NAME, migration.completed);
+    await writeJsonFile(META_FILE_NAME, migration.meta);
+  } else if (!storageReadFailed && !metaResult.data) {
+    await writeJsonFile(META_FILE_NAME, migration.meta);
+  }
 };
 
 watch(
