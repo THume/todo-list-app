@@ -61,7 +61,15 @@ const dismissNotification = (id) => {
   });
 };
 
-const VALID_RECURRENCE = new Set(['daily', 'weekdays', 'weekly', 'monthly', 'quarterly', 'yearly']);
+const VALID_RECURRENCE = new Set([
+  'daily',
+  'weekdays',
+  'weekly',
+  'biweekly',
+  'monthly',
+  'quarterly',
+  'yearly',
+]);
 const VALID_REMINDER_MINUTES = new Set([5, 10, 15, 30, 60, 120, 240, 1440]);
 
 const buildDefaultMeta = () => ({
@@ -579,6 +587,9 @@ const advanceDateByRecurrence = (date, recurrence) => {
     }
     case 'weekly':
       date.setDate(date.getDate() + 7);
+      break;
+    case 'biweekly':
+      date.setDate(date.getDate() + 14);
       break;
     case 'monthly':
       date.setMonth(date.getMonth() + 1);

@@ -124,6 +124,8 @@ const recurrenceLabel = computed(() => {
       return 'Repeats on weekdays';
     case 'weekly':
       return 'Repeats weekly';
+    case 'biweekly':
+      return 'Repeats every 2 weeks';
     case 'monthly':
       return 'Repeats monthly';
     case 'quarterly':

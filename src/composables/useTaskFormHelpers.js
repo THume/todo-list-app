@@ -3,6 +3,7 @@ const recurrenceOptions = Object.freeze([
   { value: 'daily', label: 'Daily' },
   { value: 'weekdays', label: 'Weekdays' },
   { value: 'weekly', label: 'Weekly' },
+  { value: 'biweekly', label: 'Every 2 weeks' },
   { value: 'monthly', label: 'Monthly' },
   { value: 'quarterly', label: 'Every 3 Months' },
   { value: 'yearly', label: 'Yearly' },
