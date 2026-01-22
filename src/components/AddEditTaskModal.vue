@@ -51,6 +51,8 @@ const subtaskInput = ref('');
 const appliedDefaultDueDate = ref(null);
 const lastTaskId = ref(null);
 const subtasks = ref([]);
+const draggedSubtaskId = ref(null);
+const dragOverSubtaskId = ref(null);
 let subtaskLocalId = 0;
 let isApplyingDefaultDueDate = false;
 
@@ -105,6 +107,8 @@ const applyTask = (task) => {
     selectedListId.value = resolveListId(listOptions.value, null);
     reminderOffset.value = 'none';
     subtasks.value = [];
+    draggedSubtaskId.value = null;
+    dragOverSubtaskId.value = null;
     return;
   }
 
@@ -126,6 +130,8 @@ const applyTask = (task) => {
         }))
     : [];
   subtasks.value = mappedSubtasks;
+  draggedSubtaskId.value = null;
+  dragOverSubtaskId.value = null;
 
   const minutes = Number(task.reminderOffsetMinutes);
   if (Number.isFinite(minutes) && minutes > 0 && task.due) {
@@ -165,6 +171,8 @@ const resetForm = () => {
   reminderOffset.value = 'none';
   lastTaskId.value = null;
   subtasks.value = [];
+  draggedSubtaskId.value = null;
+  dragOverSubtaskId.value = null;
   subtaskLocalId = 0;
   subtaskInput.value = '';
   if (props.defaultDueDate) {
@@ -261,6 +269,57 @@ const toggleSubtask = (id) => {
   subtasks.value = subtasks.value.map((entry) =>
     entry.id === id ? { ...entry, completed: !entry.completed } : entry
   );
+};
+
+const moveSubtask = (sourceId, targetId) => {
+  if (!sourceId || !targetId || sourceId === targetId) {
+    return;
+  }
+  const current = [...subtasks.value];
+  const sourceIndex = current.findIndex((entry) => entry.id === sourceId);
+  const targetIndex = current.findIndex((entry) => entry.id === targetId);
+  if (sourceIndex < 0 || targetIndex < 0) {
+    return;
+  }
+  const [moving] = current.splice(sourceIndex, 1);
+  const insertIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+  current.splice(insertIndex, 0, moving);
+  subtasks.value = current;
+};
+
+const handleSubtaskDragStart = (subtask, event) => {
+  if (!subtask?.id) {
+    return;
+  }
+  draggedSubtaskId.value = subtask.id;
+  if (event?.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', subtask.id);
+  }
+};
+
+const handleSubtaskDragEnter = (subtask) => {
+  if (!draggedSubtaskId.value || !subtask?.id) {
+    return;
+  }
+  if (subtask.id === draggedSubtaskId.value) {
+    return;
+  }
+  dragOverSubtaskId.value = subtask.id;
+};
+
+const handleSubtaskDrop = (subtask) => {
+  if (!draggedSubtaskId.value || !subtask?.id) {
+    return;
+  }
+  moveSubtask(draggedSubtaskId.value, subtask.id);
+  draggedSubtaskId.value = null;
+  dragOverSubtaskId.value = null;
+};
+
+const handleSubtaskDragEnd = () => {
+  draggedSubtaskId.value = null;
+  dragOverSubtaskId.value = null;
 };
 
 const closeModal = () => {
@@ -580,7 +639,22 @@ watch(
                 </button>
               </div>
               <ul v-if="hasSubtasks" class="add-task__subtask-list">
-                <li v-for="subtask in subtasks" :key="subtask.id" class="add-task__subtask">
+                <li
+                  v-for="subtask in subtasks"
+                  :key="subtask.id"
+                  class="add-task__subtask"
+                  :class="{
+                    'add-task__subtask--drag-over': dragOverSubtaskId === subtask.id,
+                    'add-task__subtask--dragging': draggedSubtaskId === subtask.id,
+                  }"
+                  draggable="true"
+                  @dragstart="handleSubtaskDragStart(subtask, $event)"
+                  @dragenter="handleSubtaskDragEnter(subtask)"
+                  @dragover.prevent
+                  @drop.prevent="handleSubtaskDrop(subtask)"
+                  @dragend="handleSubtaskDragEnd"
+                >
+                  <span class="add-task__subtask-handle" aria-hidden="true">::</span>
                   <label class="add-task__subtask-label">
                     <input
                       type="checkbox"
@@ -1156,6 +1230,21 @@ $remove-hover: #f87171;
     display: flex;
     align-items: center;
     gap: 0.6rem;
+    padding: 0.35rem 0.4rem;
+    border-radius: 0.65rem;
+    cursor: grab;
+    border: 1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  &__subtask--drag-over {
+    border-color: $button-bg;
+    background: rgba(239, 68, 68, 0.12);
+  }
+
+  &__subtask--dragging {
+    opacity: 0.7;
+    cursor: grabbing;
   }
 
   &__subtask-label {
@@ -1165,6 +1254,14 @@ $remove-hover: #f87171;
     flex: 1 1 auto;
     color: $input-text;
     font-weight: 600;
+  }
+
+  &__subtask-handle {
+    color: theme.$color-text-muted;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: grab;
+    user-select: none;
   }
 
   &__subtask-checkbox {
