@@ -6,16 +6,7 @@ import ConfirmDialog from './components/ConfirmDialog.vue';
 import TaskNotifications from './components/TaskNotifications.vue';
 import CompletionNotesModal from './components/CompletionNotesModal.vue';
 import IconGlyph from './components/IconGlyph.vue';
-import BackupRestoreModal from './components/BackupRestoreModal.vue';
 import { useTaskStore } from './stores/useTaskStore';
-import {
-  listBackupSnapshots,
-  restoreBackupSnapshot,
-  exportDataBundle,
-  importDataBundle,
-  getStorageSettings,
-  updateStorageSettings,
-} from './services/jsonStorage';
 
 const {
   notifications,
@@ -57,8 +48,7 @@ const pointerStartX = ref(0);
 const pointerStartWidth = ref(DEFAULT_SIDEBAR_WIDTH);
 const showListDeleteDialog = ref(false);
 const listPendingDelete = ref(null);
-const showSettingsMenu = ref(false);
-const settingsMenuRef = ref(null);
+
 const draggedListId = ref(null);
 const dragOverListId = ref(null);
 const layoutStyle = computed(() => {
@@ -73,52 +63,12 @@ const router = useRouter();
 
 const STANDUP_SETTING_STORAGE_KEY = 'todo-list.standup-enabled';
 const FONT_SIZE_SETTING_STORAGE_KEY = 'todo-list.font-size';
-const FORCE_STORAGE_FAILURE_KEY = 'todo-list.force-storage-failure';
 const isStandupEnabled = ref(true);
 const fontSizeSetting = ref('large');
-const showStorageFailureToggle = import.meta.env.DEV;
-const forceStorageFailure = ref(false);
-const duplicateDirectory = ref('');
-const duplicateDirectoryDraft = ref('');
-const duplicateDirectoryStatus = ref('');
-const duplicateDirectoryStatusIsError = ref(false);
-const duplicateDirectorySaving = ref(false);
 const showCompletionNotesModal = ref(false);
 const completionNotesTargetId = ref(null);
 const completionNotesInitial = ref('');
 const completionNotesTaskTitle = ref('');
-const showBackupModal = ref(false);
-const backupSnapshots = ref([]);
-const backupLoading = ref(false);
-const backupError = ref('');
-const backupRestoringId = ref(null);
-const lastBackupAt = ref(null);
-const exportError = ref('');
-const importError = ref('');
-const importFileRef = ref(null);
-const pendingImportBundle = ref(null);
-const importSummary = ref('');
-const showImportConfirm = ref(false);
-const lastSavedLabel = computed(() => {
-  if (!lastSavedAt.value) {
-    return 'Not saved yet';
-  }
-  const parsed = new Date(lastSavedAt.value);
-  if (Number.isNaN(parsed.valueOf())) {
-    return 'Not saved yet';
-  }
-  return `Saved ${parsed.toLocaleString()}`;
-});
-const lastBackupLabel = computed(() => {
-  if (!lastBackupAt.value) {
-    return 'Last backup: Not available';
-  }
-  const parsed = new Date(lastBackupAt.value);
-  if (Number.isNaN(parsed.valueOf())) {
-    return 'Last backup: Not available';
-  }
-  return `Last backup: ${parsed.toLocaleString()}`;
-});
 const storageBannerVisible = ref(false);
 const storageBannerMessage = ref('');
 let storageBannerTimer = null;
@@ -168,11 +118,6 @@ if (storedStandupSetting === 'false') {
 const storedFontSize = window.localStorage.getItem(FONT_SIZE_SETTING_STORAGE_KEY);
 if (storedFontSize === 'small' || storedFontSize === 'large') {
   fontSizeSetting.value = storedFontSize;
-}
-
-const storedForceFailure = window.localStorage.getItem(FORCE_STORAGE_FAILURE_KEY);
-if (storedForceFailure === 'true') {
-  forceStorageFailure.value = true;
 }
 
 const clampSidebarWidth = (value) =>
@@ -515,237 +460,6 @@ const handleNotificationAction = ({ id, action }) => {
   dismissNotification(id);
 };
 
-const loadBackupSnapshots = async () => {
-  backupLoading.value = true;
-  backupError.value = '';
-  const result = await listBackupSnapshots();
-  if (result.ok) {
-    backupSnapshots.value = Array.isArray(result.snapshots) ? result.snapshots : [];
-    lastBackupAt.value = backupSnapshots.value[0]?.createdAt ?? null;
-  } else {
-    backupError.value = 'Unable to load backups.';
-    backupSnapshots.value = [];
-    lastBackupAt.value = null;
-  }
-  backupLoading.value = false;
-};
-
-const openBackupModal = () => {
-  showBackupModal.value = true;
-  closeSettingsMenu();
-  loadBackupSnapshots();
-};
-
-const closeBackupModal = () => {
-  showBackupModal.value = false;
-  backupError.value = '';
-  backupRestoringId.value = null;
-};
-
-const handleRestoreBackup = async (snapshotId) => {
-  if (!snapshotId) {
-    return;
-  }
-  backupRestoringId.value = snapshotId;
-  backupError.value = '';
-  const result = await restoreBackupSnapshot(snapshotId);
-  if (!result.ok) {
-    backupError.value = 'Backup restore failed.';
-    backupRestoringId.value = null;
-    return;
-  }
-  await refreshFromStorage();
-  backupRestoringId.value = null;
-  closeBackupModal();
-};
-
-const buildExportFileName = () => {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  return `todo-backup-${timestamp}.json`;
-};
-
-const handleExportData = async () => {
-  exportError.value = '';
-  const result = await exportDataBundle();
-  if (!result.ok) {
-    exportError.value = 'Export failed.';
-    return;
-  }
-
-  const blob = new Blob([JSON.stringify(result.data, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = buildExportFileName();
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  URL.revokeObjectURL(url);
-};
-
-const openImportPicker = () => {
-  importError.value = '';
-  pendingImportBundle.value = null;
-  importSummary.value = '';
-  if (importFileRef.value) {
-    importFileRef.value.value = '';
-    importFileRef.value.click();
-  }
-};
-
-const buildImportSummary = (bundle) => {
-  const tasksCount = Array.isArray(bundle?.tasks) ? bundle.tasks.length : 0;
-  const listsCount = Array.isArray(bundle?.lists) ? bundle.lists.length : 0;
-  const completedCount = Array.isArray(bundle?.completed) ? bundle.completed.length : 0;
-  return `Tasks: ${tasksCount}, Lists: ${listsCount}, Completed: ${completedCount}.`;
-};
-
-const handleImportFileChange = (event) => {
-  const file = event.target?.files?.[0];
-  if (!file) {
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const raw = String(reader.result ?? '').trim();
-      const parsed = raw.length > 0 ? JSON.parse(raw) : null;
-      if (
-        !parsed
-        || !Array.isArray(parsed.tasks)
-        || !Array.isArray(parsed.lists)
-        || !Array.isArray(parsed.completed)
-      ) {
-        importError.value = 'Invalid backup file.';
-        return;
-      }
-      pendingImportBundle.value = parsed;
-      importSummary.value = buildImportSummary(parsed);
-      showImportConfirm.value = true;
-    } catch (error) {
-      importError.value = 'Invalid JSON file.';
-    }
-  };
-  reader.onerror = () => {
-    importError.value = 'Unable to read file.';
-  };
-  reader.readAsText(file);
-};
-
-const applyDuplicateDirectory = (value) => {
-  const normalized = typeof value === 'string' ? value.trim() : '';
-  duplicateDirectory.value = normalized;
-  duplicateDirectoryDraft.value = normalized;
-};
-
-const loadStorageSettings = async () => {
-  duplicateDirectoryStatus.value = '';
-  duplicateDirectoryStatusIsError.value = false;
-  const result = await getStorageSettings();
-  if (result.ok) {
-    const value =
-      typeof result.settings?.duplicateDirectory === 'string'
-        ? result.settings.duplicateDirectory
-        : '';
-    applyDuplicateDirectory(value);
-  } else {
-    duplicateDirectoryStatus.value = 'Unable to load duplicate directory.';
-    duplicateDirectoryStatusIsError.value = true;
-  }
-};
-
-const handleDuplicateDirectorySave = async () => {
-  if (duplicateDirectorySaving.value) {
-    return;
-  }
-  duplicateDirectorySaving.value = true;
-  duplicateDirectoryStatus.value = '';
-  duplicateDirectoryStatusIsError.value = false;
-  const nextValue = typeof duplicateDirectoryDraft.value === 'string'
-    ? duplicateDirectoryDraft.value.trim()
-    : '';
-  const result = await updateStorageSettings({ duplicateDirectory: nextValue });
-  if (result.ok) {
-    const value =
-      typeof result.settings?.duplicateDirectory === 'string'
-        ? result.settings.duplicateDirectory
-        : '';
-    applyDuplicateDirectory(value);
-    duplicateDirectoryStatus.value = value
-      ? 'Duplicate directory saved.'
-      : 'Duplicate directory cleared.';
-  } else {
-    duplicateDirectoryStatus.value =
-      result.error?.message ?? 'Unable to save duplicate directory.';
-    duplicateDirectoryStatusIsError.value = true;
-  }
-  duplicateDirectorySaving.value = false;
-};
-
-const handleDuplicateDirectoryClear = async () => {
-  duplicateDirectoryDraft.value = '';
-  await handleDuplicateDirectorySave();
-};
-
-const handleConfirmImport = async () => {
-  if (!pendingImportBundle.value) {
-    showImportConfirm.value = false;
-    return;
-  }
-  importError.value = '';
-  const result = await importDataBundle(pendingImportBundle.value);
-  if (!result.ok) {
-    importError.value = 'Import failed.';
-    pendingImportBundle.value = null;
-    importSummary.value = '';
-    return;
-  }
-  showImportConfirm.value = false;
-  pendingImportBundle.value = null;
-  importSummary.value = '';
-  await refreshFromStorage();
-  loadBackupSnapshots();
-};
-
-const handleCancelImport = () => {
-  showImportConfirm.value = false;
-  pendingImportBundle.value = null;
-  importSummary.value = '';
-};
-
-const closeSettingsMenu = () => {
-  showSettingsMenu.value = false;
-};
-
-const toggleSettingsMenu = () => {
-  showSettingsMenu.value = !showSettingsMenu.value;
-};
-
-const handleSettingsPointerDown = (event) => {
-  if (!showSettingsMenu.value) {
-    return;
-  }
-  const root = settingsMenuRef.value;
-  if (root && !root.contains(event.target)) {
-    closeSettingsMenu();
-  }
-};
-
-const handleSettingsKeydown = (event) => {
-  if (event.key === 'Escape') {
-    closeSettingsMenu();
-  }
-};
-
-const handleBackupKeydown = (event) => {
-  if (event.key === 'Escape') {
-    closeBackupModal();
-  }
-};
-
 watch(
   isStandupEnabled,
   (enabled) => {
@@ -764,18 +478,7 @@ watch(
   { immediate: true }
 );
 
-watch(
-  () => route.path,
-  () => {
-    closeSettingsMenu();
-  }
-);
-
 onMounted(() => {
-  document.addEventListener('pointerdown', handleSettingsPointerDown);
-  document.addEventListener('keydown', handleSettingsKeydown);
-  loadBackupSnapshots();
-  loadStorageSettings();
 });
 
 watch(isSidebarCollapsed, (collapsed) => {
@@ -810,30 +513,9 @@ watch(
   { immediate: true }
 );
 
-watch(forceStorageFailure, (value) => {
-  if (!showStorageFailureToggle) {
-    return;
-  }
-  window.localStorage.setItem(FORCE_STORAGE_FAILURE_KEY, value ? 'true' : 'false');
-});
-
-watch(
-  showBackupModal,
-  (open) => {
-    if (open) {
-      document.addEventListener('keydown', handleBackupKeydown);
-    } else {
-      document.removeEventListener('keydown', handleBackupKeydown);
-    }
-  }
-);
-
 onUnmounted(() => {
   stopSidebarResize();
   teardown();
-  document.removeEventListener('pointerdown', handleSettingsPointerDown);
-  document.removeEventListener('keydown', handleSettingsKeydown);
-  document.removeEventListener('keydown', handleBackupKeydown);
 });
 </script>
 
@@ -996,169 +678,15 @@ onUnmounted(() => {
           <span class="layout__add-task-text">Add a Task</span>
         </button>
       </div>
-      <div ref="settingsMenuRef" class="settings-menu">
-        <button
-          v-tooltip="isSidebarCollapsed ? 'Settings' : undefined"
-          type="button"
-          class="settings-menu__trigger"
-          :aria-expanded="showSettingsMenu"
-          aria-haspopup="menu"
-          :aria-label="showSettingsMenu ? 'Close settings menu' : 'Open settings menu'"
-          @click="toggleSettingsMenu"
-        >
-          <IconGlyph name="settings" size="22" aria-hidden="true" />
-          <span class="settings-menu__trigger-text">Settings</span>
-        </button>
-        <div
-          v-if="showSettingsMenu"
-          class="settings-menu__dropdown"
-          role="menu"
-        >
-          <p class="settings-menu__heading">Settings</p>
-          <label class="settings-menu__option">
-            <div class="settings-menu__option-text">
-              <span class="settings-menu__option-title">Standup page</span>
-              <span class="settings-menu__option-hint">
-                {{ isStandupEnabled ? 'Enabled' : 'Hidden' }}
-              </span>
-            </div>
-            <input
-              v-model="isStandupEnabled"
-              type="checkbox"
-              class="settings-menu__toggle-input"
-              aria-label="Toggle Standup page visibility"
-            />
-            <span class="settings-menu__toggle" aria-hidden="true"></span>
-          </label>
-          <div class="settings-menu__section">
-            <p class="settings-menu__section-title">Font size</p>
-            <div class="settings-menu__radio-group" role="group" aria-label="Font size">
-              <label class="settings-menu__radio">
-                <input
-                  v-model="fontSizeSetting"
-                  type="radio"
-                  class="settings-menu__radio-input"
-                  value="large"
-                  aria-label="Use large font size"
-                />
-                <span class="settings-menu__radio-label">
-                  <span class="settings-menu__radio-title">Large</span>
-                </span>
-              </label>
-              <label class="settings-menu__radio">
-                <input
-                  v-model="fontSizeSetting"
-                  type="radio"
-                  class="settings-menu__radio-input"
-                  value="small"
-                  aria-label="Use small font size"
-                />
-                <span class="settings-menu__radio-label">
-                  <span class="settings-menu__radio-title">Small</span>
-                </span>
-              </label>
-            </div>
-          </div>
-          <div class="settings-menu__section">
-            <p class="settings-menu__section-title">Data</p>
-            <button
-              type="button"
-              class="settings-menu__action"
-              @click="handleExportData"
-            >
-              Export data
-            </button>
-            <button
-              type="button"
-              class="settings-menu__action"
-              @click="openImportPicker"
-            >
-              Import data
-            </button>
-            <button
-              type="button"
-              class="settings-menu__action"
-              @click="openBackupModal"
-            >
-              Restore backup
-            </button>
-            <div class="settings-menu__field">
-              <label class="settings-menu__field-label" for="duplicate-directory-input">
-                Directory to store duplicate of data
-              </label>
-              <p class="settings-menu__field-hint">
-                Optional path for a mirrored copy of the data folder.
-              </p>
-              <input
-                id="duplicate-directory-input"
-                v-model="duplicateDirectoryDraft"
-                type="text"
-                class="settings-menu__input"
-                placeholder="C:\\Users\\you\\OneDrive\\TodoBackups"
-                autocomplete="off"
-                spellcheck="false"
-              />
-              <div class="settings-menu__field-actions">
-                <button
-                  type="button"
-                  class="settings-menu__action settings-menu__action--inline"
-                  :disabled="duplicateDirectorySaving"
-                  @click="handleDuplicateDirectorySave"
-                >
-                  {{ duplicateDirectorySaving ? 'Saving...' : 'Save directory' }}
-                </button>
-                <button
-                  type="button"
-                  class="settings-menu__action settings-menu__action--inline"
-                  :disabled="duplicateDirectorySaving"
-                  @click="handleDuplicateDirectoryClear"
-                >
-                  Clear
-                </button>
-              </div>
-              <p
-                class="settings-menu__status"
-                :class="{ 'settings-menu__status--error': duplicateDirectoryStatusIsError }"
-              >
-                {{
-                  duplicateDirectoryStatus
-                    || (duplicateDirectory
-                      ? 'Duplicate directory is active.'
-                      : 'No duplicate directory set.')
-                }}
-              </p>
-            </div>
-            <p v-if="exportError" class="settings-menu__status settings-menu__status--error">
-              {{ exportError }}
-            </p>
-            <p v-if="importError" class="settings-menu__status settings-menu__status--error">
-              {{ importError }}
-            </p>
-            <p class="settings-menu__status" :class="{ 'settings-menu__status--error': !storageStatus.ok }">
-              {{ storageStatus.ok ? lastSavedLabel : storageStatus.message }}
-            </p>
-            <p class="settings-menu__status">
-              {{ lastBackupLabel }}
-            </p>
-            <label
-              v-if="showStorageFailureToggle"
-              class="settings-menu__option settings-menu__option--inline"
-            >
-              <div class="settings-menu__option-text">
-                <span class="settings-menu__option-title">Force storage error</span>
-                <span class="settings-menu__option-hint">Dev only</span>
-              </div>
-              <input
-                v-model="forceStorageFailure"
-                type="checkbox"
-                class="settings-menu__toggle-input"
-                aria-label="Force storage failure"
-              />
-              <span class="settings-menu__toggle" aria-hidden="true"></span>
-            </label>
-          </div>
-        </div>
-      </div>
+      <RouterLink
+        v-tooltip="isSidebarCollapsed ? 'Settings' : undefined"
+        to="/settings"
+        class="layout__link layout__settings-link"
+        active-class="layout__link--active"
+      >
+        <IconGlyph name="settings" size="22" aria-hidden="true" />
+        <span class="layout__nav-label">Settings</span>
+      </RouterLink>
       <div
         v-show="!isSidebarCollapsed"
         class="layout__resize-handle"
@@ -1176,14 +704,6 @@ onUnmounted(() => {
       <RouterView />
     </main>
   </div>
-  <input
-    ref="importFileRef"
-    type="file"
-    accept="application/json"
-    class="sr-only"
-    aria-hidden="true"
-    @change="handleImportFileChange"
-  />
   <AddEditTaskModal
     v-model:visible="showForm"
     :default-due-date="defaultDueDate"
@@ -1200,24 +720,6 @@ onUnmounted(() => {
     message="Deleting a list moves all of its tasks back into My Tasks."
     @confirm="handleConfirmDeleteList"
     @cancel="handleCancelDeleteList"
-  />
-  <ConfirmDialog
-    v-model:open="showImportConfirm"
-    title="Import backup?"
-    confirm-label="Import"
-    cancel-label="Cancel"
-    :message="`This will replace all tasks, lists, and completed history. ${importSummary}`"
-    @confirm="handleConfirmImport"
-    @cancel="handleCancelImport"
-  />
-  <BackupRestoreModal
-    :visible="showBackupModal"
-    :snapshots="backupSnapshots"
-    :loading="backupLoading"
-    :error="backupError"
-    :restoring-id="backupRestoringId"
-    @close="closeBackupModal"
-    @restore="handleRestoreBackup"
   />
 </template>
 
@@ -1606,15 +1108,6 @@ onUnmounted(() => {
   padding: 0.75rem;
 }
 
-.layout--collapsed .settings-menu__trigger {
-  justify-content: center;
-  padding: 0.55rem;
-}
-
-.layout--collapsed .settings-menu__trigger-text {
-  display: none;
-}
-
 .layout__link--active .layout__nav-icon {
   color: #1b1b1d;
 }
@@ -1686,232 +1179,9 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
-.settings-menu {
-  position: relative;
+.layout__settings-link {
   width: 100%;
   margin-top: auto;
-}
-
-.settings-menu__trigger {
-  border: 1px solid theme.$color-border-muted;
-  border-radius: 0.75rem;
-  padding: 0.55rem 0.9rem;
-  background: transparent;
-  color: theme.$color-text-muted;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.75rem;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1rem;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
-}
-
-.settings-menu__trigger:hover {
-  color: theme.$color-text-heading;
-  border-color: theme.$color-border-muted;
-  background: rgba(255, 255, 255, 0.04);
-  transform: translateX(2px);
-}
-
-.settings-menu__trigger:focus-visible {
-  outline: 2px solid theme.$color-accent;
-  outline-offset: 2px;
-}
-
-.settings-menu__trigger-text {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-}
-
-.settings-menu__dropdown {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  right: 0;
-  margin-bottom: 0.5rem;
-  background: rgba(19, 21, 24, 0.98);
-  border: 1px solid theme.$color-border-strong;
-  border-radius: 0.75rem;
-  padding: 1rem;
-  box-shadow: 0 20px 40px -24px rgba(0, 0, 0, 0.9);
-  display: grid;
-  gap: 0.75rem;
-  z-index: 5;
-}
-
-.layout--collapsed .settings-menu__dropdown {
-  left: 0;
-  right: auto;
-  min-width: 15rem;
-}
-
-.settings-menu__heading {
-  margin: 0;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: theme.$color-text-muted;
-}
-
-.settings-menu__option {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.75rem;
-  align-items: center;
-  font-weight: 600;
-  color: theme.$color-text-primary;
-  cursor: pointer;
-}
-
-.settings-menu__option--inline {
-  margin-top: 0.35rem;
-}
-
-.settings-menu__option-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-.settings-menu__option-title {
-  font-size: 0.95rem;
-}
-
-.settings-menu__option-hint {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: theme.$color-text-muted;
-}
-
-.settings-menu__toggle-input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.settings-menu__toggle {
-  width: 2.75rem;
-  height: 1.4rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.15);
-  position: relative;
-  transition: background 0.2s ease;
-}
-
-.settings-menu__toggle::after {
-  content: '';
-  position: absolute;
-  top: 0.2rem;
-  left: 0.2rem;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform 0.2s ease, background 0.2s ease;
-}
-
-.settings-menu__option input:checked + .settings-menu__toggle {
-  background: rgba(34, 197, 94, 0.4);
-}
-
-.settings-menu__option input:checked + .settings-menu__toggle::after {
-  transform: translateX(1.35rem);
-  background: #ecfccb;
-}
-
-.settings-menu__section {
-  border-top: 1px solid theme.$color-border-muted;
-  padding-top: 0.75rem;
-  margin-top: 0.25rem;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.settings-menu__action {
-  border: 1px solid theme.$color-border-muted;
-  border-radius: 0.65rem;
-  padding: 0.55rem 0.85rem;
-  background: rgba(255, 255, 255, 0.04);
-  color: theme.$color-text-primary;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
-}
-
-.settings-menu__action:hover {
-  border-color: theme.$color-accent;
-  background: rgba(239, 68, 68, 0.18);
-  color: theme.$color-text-heading;
-}
-
-.settings-menu__action:focus-visible {
-  outline: 2px solid theme.$color-accent;
-  outline-offset: 2px;
-}
-
-.settings-menu__action--inline {
-  width: auto;
-  padding: 0.45rem 0.7rem;
-}
-
-.settings-menu__field {
-  display: grid;
-  gap: 0.4rem;
-  margin-top: 0.25rem;
-}
-
-.settings-menu__field-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: theme.$color-text-primary;
-}
-
-.settings-menu__field-hint {
-  margin: 0;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: theme.$color-text-muted;
-}
-
-.settings-menu__input {
-  width: 100%;
-  border: 1px solid theme.$color-border-muted;
-  border-radius: 0.6rem;
-  padding: 0.5rem 0.7rem;
-  background: rgba(255, 255, 255, 0.05);
-  color: theme.$color-text-primary;
-  font-size: 0.85rem;
-}
-
-.settings-menu__input:focus-visible {
-  outline: 2px solid theme.$color-accent;
-  outline-offset: 2px;
-}
-
-.settings-menu__field-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.settings-menu__status {
-  margin: 0;
-  font-size: 0.75rem;
-  color: theme.$color-text-muted;
-}
-
-.settings-menu__status--error {
-  color: #fca5a5;
 }
 
 .sr-only {
@@ -1941,49 +1211,6 @@ onUnmounted(() => {
 
 .storage-banner__text {
   display: inline-block;
-}
-
-.settings-menu__section-title {
-  margin: 0;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: theme.$color-text-muted;
-}
-
-.settings-menu__radio-group {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.settings-menu__radio {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.6rem;
-  align-items: center;
-  padding: 0.35rem 0.2rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.settings-menu__radio:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.settings-menu__radio-input {
-  accent-color: theme.$color-accent;
-}
-
-.settings-menu__radio-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-.settings-menu__radio-title {
-  font-size: 0.95rem;
-  color: theme.$color-text-primary;
 }
 
 </style>
