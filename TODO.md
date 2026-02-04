@@ -6,3 +6,5 @@
 - Integration with Google calendar for task reminders
 - Add a route for editing a task so details can remain open after refresh
 - Evaluate if Tailwind would be better used for styling
+- Add logic to default new task settings based on list
+    - When adding to Meetings list auto-add reminder
