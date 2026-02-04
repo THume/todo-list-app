@@ -1180,7 +1180,6 @@ onUnmounted(() => {
 }
 
 .layout__settings-link {
-  width: 100%;
   margin-top: auto;
 }
 
