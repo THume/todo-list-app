@@ -5,6 +5,7 @@ import Task from '../components/Task.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import AddEditTaskModal from '../components/AddEditTaskModal.vue';
 import { useTaskStore } from '../stores/useTaskStore';
+import { findListBySlug, getListPath } from '../utils/listSlug';
 
 const route = useRoute();
 const router = useRouter();
@@ -36,17 +37,17 @@ const dragOverTaskId = ref(null);
 const dropIndicatorIndex = ref(-1);
 const showDeleteListDialog = ref(false);
 
-const activeListId = computed(() => {
-  const id = route.params.id;
-  return typeof id === 'string' ? id : null;
-});
-
 const activeList = computed(() => {
-  if (!activeListId.value) {
+  const nameSlug = route.params.name;
+  if (typeof nameSlug !== 'string' || !nameSlug.trim()) {
     return null;
   }
   const availableLists = Array.isArray(lists.value) ? lists.value : [];
-  return availableLists.find((list) => list.id === activeListId.value) ?? null;
+  return findListBySlug(availableLists, nameSlug);
+});
+
+const activeListId = computed(() => {
+  return activeList.value?.id ?? null;
 });
 
 const listTasks = computed(() => {
@@ -91,7 +92,7 @@ const navigateToDefaultList = () => {
     router.push('/today');
     return;
   }
-  router.push(`/lists/${availableLists[0].id}`);
+  router.push(getListPath(availableLists[0]));
 };
 
 const handleRenameList = () => {
@@ -134,7 +135,7 @@ const confirmDeleteList = () => {
   );
 
   if (remainingLists.length > 0) {
-    router.push(`/lists/${remainingLists[0].id}`);
+    router.push(getListPath(remainingLists[0]));
   } else {
     router.push('/today');
   }

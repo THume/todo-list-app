@@ -7,6 +7,7 @@ import TaskNotifications from './components/TaskNotifications.vue';
 import CompletionNotesModal from './components/CompletionNotesModal.vue';
 import IconGlyph from './components/IconGlyph.vue';
 import { useTaskStore } from './stores/useTaskStore';
+import { findListBySlug, getListPath, listNameToSlug } from './utils/listSlug';
 
 const {
   notifications,
@@ -145,10 +146,12 @@ const defaultDueDate = computed(() => {
 const shortDateFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 const listCounts = computed(() => activeCountsByList.value ?? {});
 const activeListId = computed(() => {
-  if (typeof route.params?.id !== 'string') {
+  if (!route.path.startsWith('/lists/') || typeof route.params?.name !== 'string') {
     return null;
   }
-  return route.path.startsWith('/lists/') ? route.params.id : null;
+  const availableLists = Array.isArray(lists.value) ? lists.value : [];
+  const list = findListBySlug(availableLists, route.params.name);
+  return list?.id ?? null;
 });
 const defaultListIdForForm = computed(() => {
   const availableLists = Array.isArray(lists.value) ? lists.value : [];
@@ -231,7 +234,7 @@ const handleCreateList = () => {
   }
   const created = addList(name);
   if (created) {
-    router.push(`/lists/${created.id}`);
+    router.push(getListPath(created));
   }
 };
 
@@ -275,12 +278,13 @@ const handleConfirmDeleteList = () => {
     return;
   }
 
-  if (route.path === `/lists/${targetId}`) {
+  const deletedListSlug = listNameToSlug(listPendingDelete.value?.name ?? '');
+  if (deletedListSlug && route.path === `/lists/${deletedListSlug}`) {
     const remainingLists = (Array.isArray(lists.value) ? lists.value : []).filter(
       (list) => list.id !== targetId
     );
     if (remainingLists.length > 0) {
-      router.push(`/lists/${remainingLists[0].id}`);
+      router.push(getListPath(remainingLists[0]));
     } else {
       router.push('/today');
     }
@@ -648,7 +652,7 @@ onUnmounted(() => {
               >
                 <RouterLink
                   v-tooltip="isSidebarCollapsed ? list.name : undefined"
-                  :to="`/lists/${list.id}`"
+                  :to="getListPath(list)"
                   class="layout__link layout__link--list"
                   active-class="layout__link--active"
                 >

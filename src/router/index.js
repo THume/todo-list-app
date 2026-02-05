@@ -22,7 +22,7 @@ const routes = [
     component: TomorrowsTasksView,
   },
   {
-    path: '/lists/:id',
+    path: '/lists/:name',
     component: TaskListView,
   },
   {
