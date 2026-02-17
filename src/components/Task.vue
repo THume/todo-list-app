@@ -18,6 +18,7 @@ const emit = defineEmits([
   'move-to-today',
   'move-to-tomorrow',
   'worked-on',
+  'long-term-worked-on',
   'skip-recurrence',
   'adjust-completion-date',
   'edit-completion-notes',
@@ -154,6 +155,90 @@ const reminderLabel = computed(() => {
   return `${minutes} minutes before`;
 });
 
+const isLongTerm = computed(() => Boolean(props.task?.isLongTerm));
+
+const startDateObj = computed(() => {
+  if (!props.task?.startDate) {
+    return null;
+  }
+
+  const date = new Date(props.task.startDate);
+  return Number.isNaN(date.getTime()) ? null : date;
+});
+
+const formattedStartDate = computed(() => {
+  if (!startDateObj.value) {
+    return '';
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: startDateObj.value.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+  }).format(startDateObj.value);
+});
+
+const deadlineDate = computed(() => {
+  // For long-term tasks, use the due field as the deadline
+  if (!isLongTerm.value || !props.task.due) {
+    return null;
+  }
+
+  const date = new Date(props.task.due);
+  return Number.isNaN(date.getTime()) ? null : date;
+});
+
+const formattedDeadline = computed(() => {
+  if (!deadlineDate.value) {
+    return '';
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: deadlineDate.value.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+  }).format(deadlineDate.value);
+});
+
+const daysRemaining = computed(() => {
+  if (!deadlineDate.value) {
+    return null;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const deadline = new Date(deadlineDate.value);
+  deadline.setHours(0, 0, 0, 0);
+  
+  const diffTime = deadline.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return diffDays;
+});
+
+const daysRemainingLabel = computed(() => {
+  const days = daysRemaining.value;
+  
+  if (days === null) {
+    return '';
+  }
+  
+  if (days < 0) {
+    return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue`;
+  }
+  
+  if (days === 0) {
+    return 'Due today';
+  }
+  
+  if (days === 1) {
+    return '1 day remaining';
+  }
+  
+  return `${days} days remaining`;
+});
+
 const listLabel = computed(() => {
   const raw = props.listName;
   if (typeof raw !== 'string') {
@@ -192,10 +277,13 @@ const isDueToday = computed(() => {
   );
 });
 
-const showMoveToTomorrow = computed(() => !props.isCompletedPage && isDueToday.value);
-const showMoveToToday = computed(() => !props.isCompletedPage && !isDueToday.value);
+const showMoveToTomorrow = computed(() => !props.isCompletedPage && !isLongTerm.value && isDueToday.value);
+const showMoveToToday = computed(() => !props.isCompletedPage && !isLongTerm.value && !isDueToday.value);
 const showWorkedOnAction = computed(
-  () => !props.isCompletedPage && props.showWorkedOnAction && Boolean(props.workedOnActionLabel)
+  () => !props.isCompletedPage && !isLongTerm.value && props.showWorkedOnAction && Boolean(props.workedOnActionLabel)
+);
+const showLongTermWorkedOn = computed(
+  () => !props.isCompletedPage && isLongTerm.value
 );
 const canSkipRecurrence = computed(
   () => !props.isCompletedPage && props.showSkipRecurrenceAction && Boolean(props.task.recurrence) && !props.task.completed
@@ -300,6 +388,11 @@ const handleMoveToTomorrow = () => {
 
 const handleWorkedOn = () => {
   emit('worked-on', props.task);
+  closeMenu();
+};
+
+const handleLongTermWorkedOn = () => {
+  emit('long-term-worked-on', props.task);
   closeMenu();
 };
 
@@ -461,6 +554,16 @@ watch(descriptionText, () => {
                   {{ workedOnActionLabel }}
                 </button>
               </li>
+              <li v-if="showLongTermWorkedOn" role="none">
+                <button
+                  type="button"
+                  class="task__menu-item"
+                  role="menuitem"
+                  @click="handleLongTermWorkedOn"
+                >
+                  Mark as Worked on
+                </button>
+              </li>
               <li v-if="canSkipRecurrence" role="none">
                 <button
                   type="button"
@@ -570,7 +673,23 @@ watch(descriptionText, () => {
       </div>
     </div>
 
-    <time v-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">Due {{ formattedDueLabel }}</time>
+    <div v-if="isLongTerm" class="task__long-term">
+      <span v-if="formattedStartDate" class="task__long-term-date">
+        Start {{ formattedStartDate }}
+      </span>
+      <span v-if="formattedDeadline" class="task__long-term-date">
+        • Deadline {{ formattedDeadline }}
+      </span>
+      <span v-if="daysRemainingLabel" class="task__days-remaining" :class="{
+        'task__days-remaining--overdue': daysRemaining !== null && daysRemaining < 0,
+        'task__days-remaining--today': daysRemaining === 0,
+        'task__days-remaining--soon': daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 3
+      }">
+        ({{ daysRemainingLabel }})
+      </span>
+    </div>
+
+    <time v-else-if="formattedDueLabel" class="task__due" :datetime="dueDateIso">Due {{ formattedDueLabel }}</time>
 
     <time v-if="formattedCompletedLabel" class="task__completed-date" :datetime="completedDateIso">Completed {{ formattedCompletedLabel }}</time>
 
@@ -912,6 +1031,38 @@ $remove-hover: theme.$color-accent-hover;
 
 .task__due {
   color: $task-due;
+}
+
+.task__long-term {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: $task-due;
+}
+
+.task__long-term-date {
+  color: $task-due;
+}
+
+.task__days-remaining {
+  color: $task-muted;
+  font-size: 0.9rem;
+}
+
+.task__days-remaining--overdue {
+  color: $task-due;
+  font-weight: 600;
+}
+
+.task__days-remaining--today {
+  color: #facc15;
+  font-weight: 600;
+}
+
+.task__days-remaining--soon {
+  color: #fb923c;
+  font-weight: 600;
 }
 
 .task__completed-date {

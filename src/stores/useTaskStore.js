@@ -244,6 +244,8 @@ const sanitizeCompletedEntries = (entries) => {
           ...subtask,
           completed: Boolean(subtask.completed),
         })),
+        isLongTerm: Boolean(entry?.isLongTerm),
+        startDate: entry?.startDate ?? null,
       };
     })
     .filter(Boolean);
@@ -312,6 +314,8 @@ const buildCompletedEntry = (task, completedAt = null, { workedOn = false } = {}
     subtasks: workedOn
       ? sanitizeSubtasks(task.subtasks)
       : sanitizeSubtasks(task.subtasks).map((subtask) => ({ ...subtask, completed: true })),
+    isLongTerm: Boolean(task.isLongTerm),
+    startDate: task.startDate ?? null,
   };
 };
 
@@ -632,6 +636,11 @@ const computeNextDueDate = (currentDue, recurrence) => {
 };
 
 const createRecurringTask = (task) => {
+  // Long-term tasks don't support recurrence
+  if (task.isLongTerm) {
+    return null;
+  }
+  
   const recurrence = normalizeRecurrence(task.recurrence);
   if (!recurrence) {
     return null;
@@ -653,6 +662,8 @@ const createRecurringTask = (task) => {
     listId: normalizeListId(task.listId),
     reminderOffsetMinutes: normalizeReminderOffsetMinutes(task.reminderOffsetMinutes),
     subtasks: normalizedSubtasks,
+    isLongTerm: false,
+    startDate: null,
   };
 };
 
@@ -820,6 +831,25 @@ const markTaskWorkedOn = (taskId, { dayOffset = 1 } = {}) => {
   return duplicate;
 };
 
+const markLongTermTaskWorkedOn = (taskId) => {
+  const targetIndex = tasks.value.findIndex((item) => item.id === taskId);
+  if (targetIndex < 0) {
+    return;
+  }
+
+  const targetTask = tasks.value[targetIndex];
+  if (!targetTask || targetTask.completed || !targetTask.isLongTerm) {
+    return;
+  }
+
+  // Create a completed entry copy with workedOn flag
+  // The original task remains in the active list
+  const completedEntry = buildCompletedEntry(targetTask, null, { workedOn: true });
+  addCompletedEntry(completedEntry);
+
+  syncCompletedInitialId();
+};
+
 const moveOverdueTasksToToday = () => {
   const overdueList = Array.isArray(tasksOverdue.value) ? [...tasksOverdue.value] : [];
   let updatedCount = 0;
@@ -913,9 +943,11 @@ const addTask = ({
   reminderOffsetMinutes,
   completed = false,
   subtasks = [],
+  isLongTerm = false,
+  startDate = null,
 }) => {
   const due = buildDueDate(dueDate, dueTime);
-  const recurrenceValue = normalizeRecurrence(recurrence);
+  const recurrenceValue = isLongTerm ? null : normalizeRecurrence(recurrence);
   const normalizedSubtasks = sanitizeSubtasks(subtasks);
   const resolvedSubtasks =
     Boolean(completed) && normalizedSubtasks.length > 0
@@ -924,7 +956,7 @@ const addTask = ({
   const hasIncompleteSubtasks =
     resolvedSubtasks.length > 0 && !areAllSubtasksCompleted(resolvedSubtasks);
   const isCompleted = Boolean(completed) && !hasIncompleteSubtasks;
-  const reminderValue = due ? normalizeReminderOffsetMinutes(reminderOffsetMinutes) : null;
+  const reminderValue = isLongTerm ? null : (due ? normalizeReminderOffsetMinutes(reminderOffsetMinutes) : null);
   const newTask = {
     id: initialId++,
     title,
@@ -935,6 +967,8 @@ const addTask = ({
     listId: normalizeListId(listId),
     reminderOffsetMinutes: reminderValue,
     subtasks: resolvedSubtasks,
+    isLongTerm: Boolean(isLongTerm),
+    startDate: isLongTerm && startDate ? buildDueDate(startDate, null) : null,
   };
 
   if (isCompleted) {
@@ -964,6 +998,8 @@ const updateTask = ({
   listId,
   reminderOffsetMinutes,
   subtasks,
+  isLongTerm,
+  startDate,
 }) => {
   const targetIndex = tasks.value.findIndex((item) => item.id === id);
   if (targetIndex < 0) {
@@ -975,6 +1011,7 @@ const updateTask = ({
     return false;
   }
 
+  const isTaskLongTerm = isLongTerm !== undefined ? Boolean(isLongTerm) : Boolean(target.isLongTerm);
   const resolvedReminder =
     reminderOffsetMinutes === undefined
       ? target.reminderOffsetMinutes
@@ -988,15 +1025,24 @@ const updateTask = ({
     title: typeof title === 'string' && title.trim().length > 0 ? title : target.title,
     description: typeof description === 'string' ? description : target.description,
     due: buildDueDate(dueDate, dueTime),
-    recurrence: normalizeRecurrence(recurrence),
+    recurrence: isTaskLongTerm ? null : normalizeRecurrence(recurrence),
     listId: normalizeListId(listId ?? target.listId),
-    reminderOffsetMinutes: resolvedReminder,
+    reminderOffsetMinutes: isTaskLongTerm ? null : resolvedReminder,
     subtasks: resolvedSubtasks,
+    isLongTerm: isTaskLongTerm,
+    startDate: isTaskLongTerm && startDate !== undefined 
+      ? (startDate ? buildDueDate(startDate, null) : target.startDate)
+      : null,
   };
 
   if (!dueDate) {
     updatedTask.due = null;
     updatedTask.reminderOffsetMinutes = null;
+  }
+  
+  // Clear long-term specific fields if not long-term
+  if (!updatedTask.isLongTerm) {
+    updatedTask.startDate = null;
   }
 
   const resolvedCompleted = updatedTask.subtasks.length > 0
@@ -1404,6 +1450,8 @@ const duplicateTask = (taskId) => {
       ...subtask,
       completed: false,
     })),
+    isLongTerm: Boolean(original.isLongTerm),
+    startDate: original.startDate ?? null,
   };
 
   const updatedTasks = [...tasks.value];
@@ -1456,6 +1504,20 @@ const tasksDueToday = computed(() => {
       return false;
     }
 
+    // Handle long-term tasks
+    if (task.isLongTerm && task.startDate) {
+      const startTimestamp = Date.parse(task.startDate);
+      const dueTimestamp = Date.parse(task.due);
+
+      if (Number.isNaN(startTimestamp) || Number.isNaN(dueTimestamp)) {
+        return false;
+      }
+
+      // Show if today falls within the task's date range
+      return startTimestamp <= todayStartTimestamp && dueTimestamp >= todayStartTimestamp;
+    }
+
+    // Handle regular tasks
     const dueTimestamp = Date.parse(task.due);
 
     if (Number.isNaN(dueTimestamp)) {
@@ -1511,12 +1573,33 @@ const tasksDueTomorrow = computed(() => {
   const now = currentTime.value;
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStart = getStartOfDay(tomorrow);
+  
+  if (!(tomorrowStart instanceof Date) || Number.isNaN(tomorrowStart.valueOf())) {
+    return [];
+  }
+
+  const tomorrowStartTimestamp = tomorrowStart.getTime();
 
   return currentTasks.filter((task) => {
     if (!task || task.completed || !task.due) {
       return false;
     }
 
+    // Handle long-term tasks
+    if (task.isLongTerm && task.startDate) {
+      const startTimestamp = Date.parse(task.startDate);
+      const dueTimestamp = Date.parse(task.due);
+
+      if (Number.isNaN(startTimestamp) || Number.isNaN(dueTimestamp)) {
+        return false;
+      }
+
+      // Show if tomorrow falls within the task's date range
+      return startTimestamp <= tomorrowStartTimestamp && dueTimestamp >= tomorrowStartTimestamp;
+    }
+
+    // Handle regular tasks
     const dueDate = new Date(task.due);
     const dueTimestamp = dueDate.getTime();
 
@@ -1730,6 +1813,8 @@ const loadFromStorage = async () => {
           reminderOffsetMinutes:
             task.due !== null ? normalizeReminderOffsetMinutes(task.reminderOffsetMinutes) : null,
           subtasks: sanitizeSubtasks(task.subtasks),
+          isLongTerm: Boolean(task.isLongTerm),
+          startDate: task.startDate ?? null,
         };
 
         if (base.completed) {
@@ -1875,6 +1960,7 @@ export const useTaskStore = () => {
     moveTaskToToday,
     moveTaskToTomorrow,
     markTaskWorkedOn,
+    markLongTermTaskWorkedOn,
     moveOverdueTasksToToday,
     postponeTasksUntil,
     skipTaskRecurrence,

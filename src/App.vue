@@ -17,6 +17,7 @@ const {
   addTask,
   toggleTaskCompletion,
   reviveCompletedTask,
+  deleteCompletedTask,
   updateCompletedTaskNotes,
   tasksDueToday,
   tasksDueTodayPastDue,
@@ -424,6 +425,19 @@ const handleNotificationAction = ({ id, action }) => {
     const taskId = action.payload?.taskId ?? null;
 
     if (completedId) {
+      // Check if this is a long-term task marked as worked on
+      const completedEntry = sortedCompletedTasks.value?.find(
+        (entry) => entry.id === completedId
+      ) || null;
+      
+      if (completedEntry?.isLongTerm && completedEntry?.workedOn) {
+        // For long-term worked-on tasks, just delete the completed entry
+        // without reviving it (the original task is still active)
+        deleteCompletedTask(completedId);
+        dismissNotification(id);
+        return;
+      }
+      
       reviveCompletedTask(completedId, { suppressNotification: true });
       dismissNotification(id);
       return;
@@ -435,6 +449,11 @@ const handleNotificationAction = ({ id, action }) => {
           (entry) => entry.id === taskId || entry.taskId === taskId
         ) || null;
       if (match) {
+        if (match.isLongTerm && match.workedOn) {
+          deleteCompletedTask(match.id);
+          dismissNotification(id);
+          return;
+        }
         reviveCompletedTask(match.id, { suppressNotification: true });
         dismissNotification(id);
         return;

@@ -20,6 +20,7 @@ const {
   moveTaskToToday,
   moveTaskToTomorrow,
   markTaskWorkedOn,
+  markLongTermTaskWorkedOn,
   lists,
 } = useTaskStore();
 
@@ -144,6 +145,10 @@ const handleMoveToTomorrow = (task) => {
 
 const handleWorkedOnTomorrow = (task) => {
   markTaskWorkedOn(task.id, { dayOffset: 1 });
+};
+
+const handleLongTermWorkedOn = (task) => {
+  markLongTermTaskWorkedOn(task.id);
 };
 
 const getWorkedOnActionLabel = (task) => {
@@ -321,6 +326,7 @@ watch(showDuplicateDialog, (isOpen) => {
             @move-to-today="handleMoveToToday"
             @move-to-tomorrow="handleMoveToTomorrow"
             @worked-on="handleWorkedOnTomorrow"
+            @long-term-worked-on="handleLongTermWorkedOn"
             @toggle-subtask="handleToggleSubtask"
           />
         </li>
@@ -380,6 +386,7 @@ watch(showDuplicateDialog, (isOpen) => {
             @move-to-today="handleMoveToToday"
             @move-to-tomorrow="handleMoveToTomorrow"
             @worked-on="handleWorkedOnTomorrow"
+            @long-term-worked-on="handleLongTermWorkedOn"
             @toggle-subtask="handleToggleSubtask"
           />
         </li>

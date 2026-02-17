@@ -18,9 +18,11 @@ const { lastSavedAt, storageStatus, refreshFromStorage } = useTaskStore();
 
 const STANDUP_SETTING_STORAGE_KEY = 'todo-list.standup-enabled';
 const FONT_SIZE_SETTING_STORAGE_KEY = 'todo-list.font-size';
+const LONG_TERM_TASKS_SETTING_STORAGE_KEY = 'todo-list.long-term-tasks-enabled';
 const FORCE_STORAGE_FAILURE_KEY = 'todo-list.force-storage-failure';
 
 const isStandupEnabled = ref(true);
+const isLongTermTasksEnabled = ref(false);
 const fontSizeSetting = ref('large');
 const showStorageFailureToggle = import.meta.env.DEV;
 const forceStorageFailure = ref(false);
@@ -85,6 +87,13 @@ if (storedFontSize === 'small' || storedFontSize === 'large') {
   fontSizeSetting.value = storedFontSize;
 }
 
+const storedLongTermTasks = window.localStorage.getItem(LONG_TERM_TASKS_SETTING_STORAGE_KEY);
+if (storedLongTermTasks === 'true') {
+  isLongTermTasksEnabled.value = true;
+} else if (storedLongTermTasks === 'false') {
+  isLongTermTasksEnabled.value = false;
+}
+
 const storedForceFailure = window.localStorage.getItem(FORCE_STORAGE_FAILURE_KEY);
 if (storedForceFailure === 'true') {
   forceStorageFailure.value = true;
@@ -94,6 +103,14 @@ watch(
   isStandupEnabled,
   (enabled) => {
     window.localStorage.setItem(STANDUP_SETTING_STORAGE_KEY, String(enabled));
+  },
+  { immediate: true }
+);
+
+watch(
+  isLongTermTasksEnabled,
+  (enabled) => {
+    window.localStorage.setItem(LONG_TERM_TASKS_SETTING_STORAGE_KEY, String(enabled));
   },
   { immediate: true }
 );
@@ -361,6 +378,21 @@ onMounted(() => {
           type="checkbox"
           class="settings-page__toggle-input"
           aria-label="Toggle Standup page visibility"
+        />
+        <span class="settings-page__toggle" aria-hidden="true"></span>
+      </label>
+      <label class="settings-page__option">
+        <div class="settings-page__option-text">
+          <span class="settings-page__option-title">Long-term tasks</span>
+          <span class="settings-page__option-hint">
+            {{ isLongTermTasksEnabled ? 'Enabled' : 'Disabled' }}
+          </span>
+        </div>
+        <input
+          v-model="isLongTermTasksEnabled"
+          type="checkbox"
+          class="settings-page__toggle-input"
+          aria-label="Toggle long-term tasks feature"
         />
         <span class="settings-page__toggle" aria-hidden="true"></span>
       </label>

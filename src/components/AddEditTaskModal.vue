@@ -46,6 +46,9 @@ const recurrence = ref('none');
 const selectedListId = ref('');
 const markCompleted = ref(false);
 const reminderOffset = ref('none');
+const isLongTerm = ref(false);
+const startDate = ref('');
+const isLongTermTasksEnabled = ref(false);
 const titleField = ref(null);
 const subtaskInput = ref('');
 const appliedDefaultDueDate = ref(null);
@@ -56,6 +59,10 @@ const dragOverSubtaskId = ref(null);
 const showReminderWarning = ref(false);
 let subtaskLocalId = 0;
 let isApplyingDefaultDueDate = false;
+
+// Check if long-term tasks feature is enabled
+const storedLongTermSetting = window.localStorage.getItem('todo-list.long-term-tasks-enabled');
+isLongTermTasksEnabled.value = storedLongTermSetting === 'true';
 
 const isEditMode = computed(() => props.mode === 'edit');
 const isDuplicateMode = computed(() => props.mode === 'duplicate');
@@ -107,6 +114,8 @@ const applyTask = (task) => {
     lastTaskId.value = null;
     selectedListId.value = resolveListId(listOptions.value, null);
     reminderOffset.value = 'none';
+    isLongTerm.value = false;
+    startDate.value = '';
     subtasks.value = [];
     draggedSubtaskId.value = null;
     dragOverSubtaskId.value = null;
@@ -120,6 +129,8 @@ const applyTask = (task) => {
   recurrence.value = task.recurrence ?? 'none';
   lastTaskId.value = task.id ?? null;
   selectedListId.value = resolveListId(listOptions.value, task.listId);
+  isLongTerm.value = Boolean(task.isLongTerm);
+  startDate.value = formatDateInput(task.startDate);
   subtaskInput.value = '';
   const mappedSubtasks = Array.isArray(task.subtasks)
     ? task.subtasks
@@ -177,6 +188,8 @@ const resetForm = () => {
   recurrence.value = 'none';
   markCompleted.value = false;
   reminderOffset.value = 'none';
+  isLongTerm.value = false;
+  startDate.value = '';
   lastTaskId.value = null;
   subtasks.value = [];
   draggedSubtaskId.value = null;
@@ -228,11 +241,13 @@ const handleSubmit = (shouldCloseModal = false) => {
       title: trimmedTitle,
       description: description.value.trim(),
       dueDate: dueDate.value || null,
-      dueTime: dueTime.value || null,
+      dueTime: isLongTerm.value ? null : (dueTime.value || null),
       recurrence: recurrence.value,
       listId: selectedListId.value || null,
       reminderOffsetMinutes: reminderOffset.value === 'none' ? null : Number(reminderOffset.value),
       subtasks: sanitizedSubtasks,
+      isLongTerm: isLongTerm.value,
+      startDate: startDate.value || null,
     });
     closeModal();
   } else {
@@ -241,12 +256,14 @@ const handleSubmit = (shouldCloseModal = false) => {
       title: trimmedTitle,
       description: description.value.trim(),
       dueDate: dueDate.value || null,
-      dueTime: dueTime.value || null,
+      dueTime: isLongTerm.value ? null : (dueTime.value || null),
       recurrence: recurrence.value,
       listId: selectedListId.value || null,
       completed: markCompleted.value,
       reminderOffsetMinutes: reminderOffset.value === 'none' ? null : Number(reminderOffset.value),
       subtasks: sanitizedSubtasks.map((entry) => ({ ...entry, completed: false })),
+      isLongTerm: isLongTerm.value,
+      startDate: startDate.value || null,
     });
 
     if (shouldCloseModal) {
@@ -458,6 +475,19 @@ watch(reminderOffset, (value) => {
   }
 });
 
+watch(isLongTerm, (value) => {
+  // When switching to long-term mode, clear time, recurrence, and reminder
+  if (value) {
+    dueTime.value = '';
+    recurrence.value = 'none';
+    reminderOffset.value = 'none';
+  }
+  // When switching from long-term to regular, clear start date
+  if (!value) {
+    startDate.value = '';
+  }
+});
+
 watch(
   () => props.defaultDueDate,
   (newDefault, oldDefault) => {
@@ -583,7 +613,48 @@ watch(
                 </option>
               </select>
             </label>
+            <div v-if="isLongTermTasksEnabled" class="add-task__long-term">
+              <label class="add-task__checkbox">
+                <input
+                  v-model="isLongTerm"
+                  type="checkbox"
+                  class="add-task__checkbox-input"
+                  name="longTerm"
+                  aria-label="This is a long-term task"
+                />
+                <span class="add-task__checkbox-box" aria-hidden="true">
+                  <IconGlyph
+                    v-if="isLongTerm"
+                    name="check"
+                    size="14"
+                    class="add-task__checkbox-icon"
+                  />
+                </span>
+                <span class="add-task__checkbox-label">This is a long-term task</span>
+              </label>
+              <p class="add-task__checkbox-hint">
+                Long-term tasks have a start date and deadline, with no specific time.
+              </p>
+            </div>
             <div class="add-task__due-row">
+              <label v-if="isLongTerm" class="add-task__due-label">
+                <span class="add-task__label-heading">
+                  <IconGlyph
+                    name="calendar"
+                    size="14"
+                    class="add-task__label-icon"
+                    aria-hidden="true"
+                  />
+                  <span>Start date</span>
+                </span>
+                <input
+                  v-model="startDate"
+                  type="date"
+                  name="startDate"
+                  class="add-task__due-input"
+                  aria-label="Start date"
+                />
+              </label>
               <label class="add-task__due-label">
                 <span class="add-task__label-heading">
                   <IconGlyph
@@ -592,7 +663,7 @@ watch(
                     class="add-task__label-icon"
                     aria-hidden="true"
                   />
-                  <span>Due date</span>
+                  <span>{{ isLongTerm ? 'Deadline' : 'Due date' }}</span>
                 </span>
                 <div class="add-task__due-input-wrapper">
                   <input
@@ -611,7 +682,7 @@ watch(
                   </button>
                 </div>
               </label>
-              <label class="add-task__due-label">
+              <label v-if="!isLongTerm" class="add-task__due-label">
                 <span class="add-task__label-heading">
                   <IconGlyph
                     name="clock"
@@ -631,7 +702,7 @@ watch(
                 />
               </label>
             </div>
-            <label class="add-task__due-label add-task__reminder">
+            <label v-if="!isLongTerm" class="add-task__due-label add-task__reminder">
               <span class="add-task__label-heading">
                 <IconGlyph
                   name="alert"
@@ -733,7 +804,7 @@ watch(
                 </li>
               </ul>
             </div>
-            <label class="add-task__due-label add-task__recurrence">
+            <label v-if="!isLongTerm" class="add-task__due-label add-task__recurrence">
               <span class="add-task__label-heading">
                 <IconGlyph
                   name="repeat"
