@@ -12,6 +12,7 @@ const DEFAULT_LIST_NAME = 'My Tasks';
 const DEFAULT_LIST = Object.freeze({
   id: DEFAULT_LIST_ID,
   name: DEFAULT_LIST_NAME,
+  defaultReminderOffsetMinutes: null,
 });
 
 const tasks = ref([]);
@@ -1272,6 +1273,7 @@ const addList = (name) => {
   const newList = {
     id: createListId(),
     name: trimmed,
+    defaultReminderOffsetMinutes: null,
   };
 
   lists.value = [...lists.value, newList];
@@ -1327,6 +1329,34 @@ const renameList = (listId, name) => {
 
   const updated = [...lists.value];
   updated[existingIndex] = { ...updated[existingIndex], name: trimmed };
+  lists.value = updated;
+  return true;
+};
+
+const updateListSettings = (listId, settings) => {
+  const targetId = typeof listId === 'string' ? listId.trim() : '';
+  if (!targetId) {
+    return false;
+  }
+
+  const existingIndex = lists.value.findIndex((list) => list.id === targetId);
+  if (existingIndex < 0) {
+    return false;
+  }
+
+  const updated = [...lists.value];
+  const currentList = updated[existingIndex];
+  
+  const newSettings = {};
+  if (settings && typeof settings === 'object') {
+    if ('defaultReminderOffsetMinutes' in settings) {
+      const value = settings.defaultReminderOffsetMinutes;
+      newSettings.defaultReminderOffsetMinutes = 
+        value === null ? null : normalizeReminderOffsetMinutes(value);
+    }
+  }
+  
+  updated[existingIndex] = { ...currentList, ...newSettings };
   lists.value = updated;
   return true;
 };
@@ -1631,7 +1661,15 @@ const loadFromStorage = async () => {
             typeof entry?.name === 'string' && entry.name.trim().length > 0
               ? entry.name.trim()
               : `List ${index + 1}`;
-          return { id, name };
+          const defaultReminderOffsetMinutes =
+            entry?.defaultReminderOffsetMinutes ?? null;
+          return { 
+            id, 
+            name, 
+            defaultReminderOffsetMinutes: defaultReminderOffsetMinutes === null 
+              ? null 
+              : normalizeReminderOffsetMinutes(defaultReminderOffsetMinutes)
+          };
         })
         .filter(
           (item, index, array) => array.findIndex((other) => other.id === item.id) === index
@@ -1821,6 +1859,7 @@ export const useTaskStore = () => {
     reorderList,
     removeList,
     renameList,
+    updateListSettings,
     addTask,
     reviveCompletedTask,
     deleteCompletedTask,

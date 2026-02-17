@@ -53,6 +53,7 @@ const lastTaskId = ref(null);
 const subtasks = ref([]);
 const draggedSubtaskId = ref(null);
 const dragOverSubtaskId = ref(null);
+const showReminderWarning = ref(false);
 let subtaskLocalId = 0;
 let isApplyingDefaultDueDate = false;
 
@@ -143,6 +144,13 @@ const applyTask = (task) => {
 
 const listOptions = computed(() => normalizeTaskLists(props.lists));
 
+const selectedList = computed(() => {
+  if (!selectedListId.value) {
+    return null;
+  }
+  return listOptions.value.find((list) => list.id === selectedListId.value) ?? null;
+});
+
 const canSubmit = computed(() => title.value.trim().length > 0);
 
 const dialogTitle = computed(() => isEditMode.value ? 'Edit Task' : 'Add a Task');
@@ -194,6 +202,14 @@ const handleSubmit = (shouldCloseModal = false) => {
   if (!trimmedTitle) {
     return;
   }
+
+  // Check if reminder is set but no due date
+  if (reminderOffset.value !== 'none' && !dueDate.value) {
+    showReminderWarning.value = true;
+    return;
+  }
+  
+  showReminderWarning.value = false;
 
   const sanitizedSubtasks = subtasks.value
     .map((entry) => ({
@@ -406,8 +422,39 @@ watch(dueDate, (value) => {
     reminderOffset.value = 'none';
   }
 
+  // Clear warning if due date is now set
+  if (value && showReminderWarning.value) {
+    showReminderWarning.value = false;
+  }
+
   if (!isEditMode.value && !isApplyingDefaultDueDate && appliedDefaultDueDate.value && value !== appliedDefaultDueDate.value) {
     appliedDefaultDueDate.value = null;
+  }
+});
+
+watch(selectedListId, () => {
+  // Only apply default reminder in add mode (not edit or duplicate)
+  if (isEditMode.value || isDuplicateMode.value) {
+    return;
+  }
+
+  // Apply the list's default reminder if it has one
+  if (selectedList.value?.defaultReminderOffsetMinutes) {
+    const minutes = Number(selectedList.value.defaultReminderOffsetMinutes);
+    if (Number.isFinite(minutes) && minutes > 0) {
+      reminderOffset.value = String(minutes);
+      return;
+    }
+  }
+  
+  // Otherwise reset to none
+  reminderOffset.value = 'none';
+});
+
+watch(reminderOffset, (value) => {
+  // Clear warning if reminder is set to none
+  if (value === 'none' && showReminderWarning.value) {
+    showReminderWarning.value = false;
   }
 });
 
@@ -598,6 +645,7 @@ watch(
                 v-model="reminderOffset"
                 name="reminder"
                 class="add-task__select"
+                :class="{ 'add-task__select--error': showReminderWarning }"
                 aria-label="Reminder time"
                 :disabled="!dueDate"
               >
@@ -605,6 +653,9 @@ watch(
                   {{ option.label }}
                 </option>
               </select>
+              <p v-if="showReminderWarning" class="add-task__warning">
+                Please set a due date to use reminders
+              </p>
             </label>
             <div class="add-task__subtasks">
               <div class="add-task__subtasks-header">
@@ -1129,6 +1180,20 @@ $remove-hover: #f87171;
       box-shadow: 0 0 0 3px $focus-outline;
       background: $input-bg-focus;
     }
+
+    &--error {
+      border-color: theme.$color-accent;
+      box-shadow: 0 0 0 3px theme.$color-accent-focus-soft;
+    }
+  }
+
+  &__warning {
+    margin: 0;
+    padding: 0.5rem 0;
+    color: theme.$color-accent;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.4;
   }
 
   &__today-button {
