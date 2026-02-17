@@ -804,10 +804,7 @@ const markTaskWorkedOn = (taskId, { dayOffset = 1 } = {}) => {
     reminderOffsetMinutes: nextDue
       ? normalizeReminderOffsetMinutes(targetTask.reminderOffsetMinutes)
       : null,
-    subtasks: sanitizeSubtasks(targetTask.subtasks).map((subtask) => ({
-      ...subtask,
-      completed: false,
-    })),
+    subtasks: sanitizeSubtasks(targetTask.subtasks),
   };
 
   const updatedTasks = [...tasks.value];
