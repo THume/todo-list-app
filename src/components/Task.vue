@@ -8,6 +8,7 @@ import {
   watch,
 } from 'vue';
 import IconGlyph from './IconGlyph.vue';
+import ConfirmDialog from './ConfirmDialog.vue';
 
 const emit = defineEmits([
   'toggle',
@@ -171,7 +172,12 @@ const subtasks = computed(() =>
   Array.isArray(props.task?.subtasks) ? props.task.subtasks : []
 );
 const hasSubtasks = computed(() => subtasks.value.length > 0);
-const isCheckboxDisabled = computed(() => hasSubtasks.value && !props.isCompletedPage);
+const hasIncompleteSubtasks = computed(() => 
+  subtasks.value.some((subtask) => !subtask.completed)
+);
+const isCheckboxDisabled = computed(() => props.isCompletedPage);
+const showIncompleteSubtasksConfirm = ref(false);
+const pendingToggleTask = ref(null);
 
 const isDueToday = computed(() => {
   if (!dueDate.value) {
@@ -236,8 +242,32 @@ onBeforeUnmount(() => {
 });
 
 const handleToggle = () => {
+  // If task has incomplete subtasks and is not completed, show confirmation
+  if (!props.task.completed && hasSubtasks.value && hasIncompleteSubtasks.value) {
+    pendingToggleTask.value = props.task;
+    showIncompleteSubtasksConfirm.value = true;
+    return;
+  }
+  
   emit('toggle', props.task);
 };
+
+const handleConfirmIncompleteSubtasks = () => {
+  showIncompleteSubtasksConfirm.value = false;
+  if (pendingToggleTask.value) {
+    emit('toggle', pendingToggleTask.value);
+    pendingToggleTask.value = null;
+  }
+};
+
+const handleCancelIncompleteSubtasks = () => {
+  showIncompleteSubtasksConfirm.value = false;
+  pendingToggleTask.value = null;
+};
+
+const incompleteSubtasksCount = computed(() => 
+  subtasks.value.filter((subtask) => !subtask.completed).length
+);
 
 const handleRemove = () => {
   emit('remove', props.task);
@@ -567,6 +597,16 @@ watch(descriptionText, () => {
         <IconGlyph name="alert" size="14" aria-hidden="true" />
       </span>
     </footer>
+
+    <ConfirmDialog
+      v-model:open="showIncompleteSubtasksConfirm"
+      title="Complete with incomplete subtasks?"
+      :message="`This task has ${incompleteSubtasksCount} incomplete subtask${incompleteSubtasksCount === 1 ? '' : 's'}. Completing it will mark all subtasks as complete. Continue?`"
+      confirm-label="Complete Task"
+      cancel-label="Cancel"
+      @confirm="handleConfirmIncompleteSubtasks"
+      @cancel="handleCancelIncompleteSubtasks"
+    />
   </article>
 </template>
 
