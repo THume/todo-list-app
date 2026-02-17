@@ -348,7 +348,7 @@ onMounted(() => {
     <h1 class="settings-page__title">Settings</h1>
 
     <section class="settings-page__section">
-      <h2 class="settings-page__section-title">Appearance</h2>
+      <h2 class="settings-page__section-title">Features</h2>
       <label class="settings-page__option">
         <div class="settings-page__option-text">
           <span class="settings-page__option-title">Standup page</span>
@@ -364,7 +364,10 @@ onMounted(() => {
         />
         <span class="settings-page__toggle" aria-hidden="true"></span>
       </label>
+    </section>
 
+    <section class="settings-page__section">
+      <h2 class="settings-page__section-title">Appearance</h2>
       <div class="settings-page__field">
         <p class="settings-page__field-title">Font size</p>
         <div class="settings-page__radio-group" role="group" aria-label="Font size">
@@ -468,13 +471,14 @@ onMounted(() => {
       <p class="settings-page__status">
         {{ lastBackupLabel }}
       </p>
-      <label
-        v-if="showStorageFailureToggle"
-        class="settings-page__option settings-page__option--inline"
-      >
+    </section>
+
+    <section v-if="showStorageFailureToggle" class="settings-page__section">
+      <h2 class="settings-page__section-title">Dev</h2>
+      <label class="settings-page__option">
         <div class="settings-page__option-text">
           <span class="settings-page__option-title">Force storage error</span>
-          <span class="settings-page__option-hint">Dev only</span>
+          <span class="settings-page__option-hint">Simulate storage failures</span>
         </div>
         <input
           v-model="forceStorageFailure"

@@ -1,7 +1,8 @@
 ﻿<script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 import IconGlyph from '../components/IconGlyph.vue';
 import { useTaskStore } from '../stores/useTaskStore';
+import { getStorageSettings, updateStorageSettings } from '../services/jsonStorage';
 
 const STANDUP_HIDDEN_STORAGE_KEY = 'todo-list.standup-hidden';
 const STANDUP_SHOW_ALL_STORAGE_KEY = 'todo-list.standup-show-all';
@@ -594,6 +595,45 @@ watch(showAll, (value) => {
     // ignore storage errors
   }
 }, { immediate: true });
+
+// Standup notes
+const standupNotes = ref('');
+const standupNotesSaving = ref(false);
+let saveNotesTimeout = null;
+
+const saveStandupNotes = async () => {
+  standupNotesSaving.value = true;
+  await updateStorageSettings({ standupNotes: standupNotes.value });
+  standupNotesSaving.value = false;
+};
+
+const handleNotesInput = () => {
+  if (saveNotesTimeout) {
+    clearTimeout(saveNotesTimeout);
+  }
+  saveNotesTimeout = setTimeout(() => {
+    saveStandupNotes();
+  }, 500);
+};
+
+const clearNotes = async () => {
+  standupNotes.value = '';
+  if (saveNotesTimeout) {
+    clearTimeout(saveNotesTimeout);
+  }
+  await saveStandupNotes();
+};
+
+const loadStandupNotes = async () => {
+  const result = await getStorageSettings();
+  if (result.ok && typeof result.settings?.standupNotes === 'string') {
+    standupNotes.value = result.settings.standupNotes;
+  }
+};
+
+onMounted(() => {
+  loadStandupNotes();
+});
 </script>
 
 <template>
@@ -1034,6 +1074,29 @@ watch(showAll, (value) => {
         </div>
       </article>
     </div>
+
+    <article class="standup__notes-section">
+      <header class="standup__notes-header">
+        <h2 class="standup__notes-title">Notes</h2>
+        <button
+          type="button"
+          class="standup__notes-clear"
+          :disabled="!standupNotes.trim() || standupNotesSaving"
+          @click="clearNotes"
+        >
+          Clear
+        </button>
+      </header>
+      <textarea
+        v-model="standupNotes"
+        class="standup__notes-textarea"
+        placeholder="Add your standup notes here..."
+        @input="handleNotesInput"
+      ></textarea>
+      <p v-if="standupNotesSaving" class="standup__notes-status">
+        Saving...
+      </p>
+    </article>
   </section>
 </template>
 
@@ -1041,8 +1104,11 @@ watch(showAll, (value) => {
 @use '../styles/theme' as theme;
 
 .standup {
+  height: 100%;
   display: grid;
+  grid-template-rows: auto auto 1fr auto;
   gap: 1.5rem;
+  overflow: hidden;
 }
 
 .standup__header {
@@ -1097,6 +1163,8 @@ watch(showAll, (value) => {
   display: grid;
   gap: 1.5rem;
   grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  min-height: 0;
+  overflow: hidden;
 }
 
 .standup__section {
@@ -1107,7 +1175,9 @@ watch(showAll, (value) => {
   padding: 1.25rem;
   display: grid;
   gap: 1rem;
-  grid-template-rows: repeat(3, min-content);
+  grid-template-rows: auto auto 1fr;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .standup__section-header {
@@ -1222,12 +1292,16 @@ watch(showAll, (value) => {
   display: grid;
   gap: 0.75rem;
   grid-auto-rows: min-content;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .standup__groups {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .standup__group {
@@ -1254,6 +1328,8 @@ watch(showAll, (value) => {
 .standup__focus {
   display: grid;
   gap: 1.25rem;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .standup__focus-group {
@@ -1499,5 +1575,89 @@ watch(showAll, (value) => {
 
 .standup__drop-zone--active {
   border-color: theme.$color-accent;
+}
+
+.standup__notes-section {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border-radius: 0.5rem;
+  background: rgba(23, 23, 24, 0.6);
+  border: 1px solid theme.$color-border-strong;
+  grid-template-rows: auto 1fr auto;
+  min-height: 20rem;
+  max-height: 28rem;
+}
+
+.standup__notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.standup__notes-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: theme.$color-text-heading;
+}
+
+.standup__notes-clear {
+  border: 1px solid theme.$color-border-input;
+  background: transparent;
+  color: theme.$color-text-primary;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.4rem 1rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+
+  &:hover:not(:disabled) {
+    color: theme.$color-text-heading;
+    border-color: rgba(239, 68, 68, 0.6);
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.standup__notes-textarea {
+  padding: 0.75rem;
+  border: 1px solid theme.$color-border-input;
+  border-radius: 0.375rem;
+  background: rgba(12, 12, 13, 0.6);
+  color: theme.$color-text-primary;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  resize: none;
+  min-height: 0;
+
+  &:focus {
+    outline: none;
+    border-color: theme.$color-accent;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+  }
+
+  &::placeholder {
+    color: theme.$color-text-muted;
+  }
+}
+
+.standup__notes-status {
+  margin: 0;
+  font-size: 0.85rem;
+  color: theme.$color-text-muted;
+  font-style: italic;
 }
 </style>

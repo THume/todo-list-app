@@ -10,7 +10,7 @@ const BACKUP_WRITE_THRESHOLD = 20;
 const MAX_BACKUP_SNAPSHOTS = 20;
 const BACKUP_FILES = ['tasks.json', 'lists.json', 'completed.json', 'meta.json'];
 const SETTINGS_FILE_NAME = 'settings.json';
-const DEFAULT_SETTINGS = Object.freeze({ duplicateDirectory: '' });
+const DEFAULT_SETTINGS = Object.freeze({ duplicateDirectory: '', standupNotes: '' });
 let lastBackupTime = 0;
 let writesSinceBackup = 0;
 const SCHEMA_VERSION = 1;
@@ -70,7 +70,8 @@ const loadSettingsFromDisk = () => {
     const raw = fs.readFileSync(settingsPath, 'utf-8');
     const parsed = raw ? JSON.parse(raw) : {};
     const duplicateDirectory = normalizeDuplicateDirectory(parsed?.duplicateDirectory);
-    storageSettings = { duplicateDirectory };
+    const standupNotes = typeof parsed?.standupNotes === 'string' ? parsed.standupNotes : '';
+    storageSettings = { duplicateDirectory, standupNotes };
     return storageSettings;
   } catch (error) {
     console.error('Failed to read storage settings', error);
@@ -494,49 +495,66 @@ const createJsonStorageMiddleware = () => {
         req.on('end', () => {
           try {
             const parsed = body.trim().length > 0 ? JSON.parse(body) : {};
+            
+            // Load current settings to merge with updates
+            const currentSettings = loadSettingsFromDisk();
+            
+            // Handle standupNotes update
+            const standupNotes = typeof parsed?.standupNotes === 'string' 
+              ? parsed.standupNotes 
+              : currentSettings.standupNotes;
+            
+            // Handle duplicateDirectory update with validation
             const rawDirectory = normalizeDuplicateDirectory(parsed?.duplicateDirectory);
-            if (rawDirectory) {
-              const resolved = path.resolve(rawDirectory);
-              if (isSameOrChildPath(DATA_DIRECTORY, resolved)) {
-                res.statusCode = 400;
-                res.setHeader('Access-Control-Allow-Origin', '*');
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ error: 'Directory cannot be inside data.' }));
-                return;
-              }
-
-              try {
-                const stat = fs.existsSync(resolved) ? fs.statSync(resolved) : null;
-                if (stat && !stat.isDirectory()) {
+            let duplicateDirectory = currentSettings.duplicateDirectory;
+            
+            if ('duplicateDirectory' in parsed) {
+              if (rawDirectory) {
+                const resolved = path.resolve(rawDirectory);
+                if (isSameOrChildPath(DATA_DIRECTORY, resolved)) {
                   res.statusCode = 400;
                   res.setHeader('Access-Control-Allow-Origin', '*');
                   res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: 'Directory path is not a folder.' }));
+                  res.end(JSON.stringify({ error: 'Directory cannot be inside data.' }));
                   return;
                 }
-                if (!stat) {
-                  ensureDirectory(resolved);
-                }
-              } catch (error) {
-                res.statusCode = 400;
-                res.setHeader('Access-Control-Allow-Origin', '*');
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ error: 'Unable to access directory.' }));
-                return;
-              }
 
-              writeSettingsToDisk({ duplicateDirectory: resolved });
-              const duplicateResult = duplicateDataDirectory();
-              if (!duplicateResult.ok) {
-                res.statusCode = 400;
-                res.setHeader('Access-Control-Allow-Origin', '*');
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ error: duplicateResult.error }));
-                return;
+                try {
+                  const stat = fs.existsSync(resolved) ? fs.statSync(resolved) : null;
+                  if (stat && !stat.isDirectory()) {
+                    res.statusCode = 400;
+                    res.setHeader('Access-Control-Allow-Origin', '*');
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ error: 'Directory path is not a folder.' }));
+                    return;
+                  }
+                  if (!stat) {
+                    ensureDirectory(resolved);
+                  }
+                } catch (error) {
+                  res.statusCode = 400;
+                  res.setHeader('Access-Control-Allow-Origin', '*');
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'Unable to access directory.' }));
+                  return;
+                }
+
+                duplicateDirectory = resolved;
+                const duplicateResult = duplicateDataDirectory();
+                if (!duplicateResult.ok) {
+                  res.statusCode = 400;
+                  res.setHeader('Access-Control-Allow-Origin', '*');
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: duplicateResult.error }));
+                  return;
+                }
+              } else {
+                duplicateDirectory = '';
               }
-            } else {
-              writeSettingsToDisk({ duplicateDirectory: '' });
             }
+
+            // Save all settings
+            writeSettingsToDisk({ duplicateDirectory, standupNotes });
 
             res.statusCode = 200;
             res.setHeader('Access-Control-Allow-Origin', '*');
