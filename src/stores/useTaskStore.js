@@ -308,7 +308,9 @@ const buildCompletedEntry = (task, completedAt = null, { workedOn = false } = {}
     listId: normalizeListId(task.listId),
     reminderOffsetMinutes: normalizeReminderOffsetMinutes(task.reminderOffsetMinutes),
     completionNotes: typeof task?.completionNotes === 'string' ? task.completionNotes : '',
-    subtasks: sanitizeSubtasks(task.subtasks).map((subtask) => ({ ...subtask, completed: true })),
+    subtasks: workedOn
+      ? sanitizeSubtasks(task.subtasks)
+      : sanitizeSubtasks(task.subtasks).map((subtask) => ({ ...subtask, completed: true })),
   };
 };
 
