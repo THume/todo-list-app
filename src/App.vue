@@ -7,6 +7,7 @@ import TaskNotifications from './components/TaskNotifications.vue';
 import CompletionNotesModal from './components/CompletionNotesModal.vue';
 import IconGlyph from './components/IconGlyph.vue';
 import { useTaskStore } from './stores/useTaskStore';
+import { useUiSettings } from './stores/useUiSettings';
 import { findListBySlug, getListPath, listNameToSlug } from './utils/listSlug';
 
 const {
@@ -64,10 +65,7 @@ let hasInitializedVisibility = false;
 const route = useRoute();
 const router = useRouter();
 
-const STANDUP_SETTING_STORAGE_KEY = 'todo-list.standup-enabled';
-const FONT_SIZE_SETTING_STORAGE_KEY = 'todo-list.font-size';
-const isStandupEnabled = ref(true);
-const fontSizeSetting = ref('large');
+const { isStandupEnabled, isSummaryEnabled, fontSizeSetting } = useUiSettings();
 const showCompletionNotesModal = ref(false);
 const completionNotesTargetId = ref(null);
 const completionNotesInitial = ref('');
@@ -102,26 +100,6 @@ watch(
   },
   { immediate: true, deep: true }
 );
-
-const applyFontSizeSetting = (value) => {
-  const root = document.documentElement;
-  if (!root) {
-    return;
-  }
-  root.style.fontSize = value === 'small' ? '80%' : '100%';
-};
-
-const storedStandupSetting = window.localStorage.getItem(STANDUP_SETTING_STORAGE_KEY);
-if (storedStandupSetting === 'false') {
-  isStandupEnabled.value = false;
-} else if (storedStandupSetting === 'true') {
-  isStandupEnabled.value = true;
-}
-
-const storedFontSize = window.localStorage.getItem(FONT_SIZE_SETTING_STORAGE_KEY);
-if (storedFontSize === 'small' || storedFontSize === 'large') {
-  fontSizeSetting.value = storedFontSize;
-}
 
 const clampSidebarWidth = (value) =>
   Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, value));
@@ -225,6 +203,15 @@ const primaryNavLinks = computed(() => {
       count: null,
     }
   );
+
+  if (isSummaryEnabled.value) {
+    links.push({
+      to: '/summary',
+      label: 'Summary',
+      icon: 'text',
+      count: null,
+    });
+  }
 
   return links;
 });
@@ -497,17 +484,19 @@ const handleNotificationAction = ({ id, action }) => {
 };
 
 watch(
-  isStandupEnabled,
-  (enabled) => {
-    window.localStorage.setItem(STANDUP_SETTING_STORAGE_KEY, String(enabled));
+  [isStandupEnabled, () => route.path],
+  ([enabled, currentPath]) => {
+    if (!enabled && typeof currentPath === 'string' && currentPath.startsWith('/standup')) {
+      router.replace('/today');
+    }
   },
   { immediate: true }
 );
 
 watch(
-  [isStandupEnabled, () => route.path],
+  [isSummaryEnabled, () => route.path],
   ([enabled, currentPath]) => {
-    if (!enabled && typeof currentPath === 'string' && currentPath.startsWith('/standup')) {
+    if (!enabled && typeof currentPath === 'string' && currentPath.startsWith('/summary')) {
       router.replace('/today');
     }
   },
@@ -543,15 +532,6 @@ watch(
     if (Array.isArray(value) && value.length === 0) {
       showForm.value = true;
     }
-  },
-  { immediate: true }
-);
-
-watch(
-  fontSizeSetting,
-  (value) => {
-    window.localStorage.setItem(FONT_SIZE_SETTING_STORAGE_KEY, value);
-    applyFontSizeSetting(value);
   },
   { immediate: true }
 );
@@ -1424,7 +1404,7 @@ onUnmounted(() => {
   }
 
   .layout--collapsed .layout__link {
-    justif-content: space-between;
+    justify-content: space-between;
     padding: 0.55rem 0.9rem;
   }
 

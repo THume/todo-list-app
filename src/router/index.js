@@ -6,6 +6,7 @@ import TaskListView from '../views/TaskListView.vue';
 import OverdueTasksView from '../views/OverdueTasksView.vue';
 import CompletedTasksView from '../views/CompletedTasksView.vue';
 import StandupView from '../views/StandupView.vue';
+import SummaryView from '../views/SummaryView.vue';
 import SettingsView from '../views/SettingsView.vue';
 
 const routes = [
@@ -32,6 +33,10 @@ const routes = [
   {
     path: '/standup',
     component: StandupView,
+  },
+  {
+    path: '/summary',
+    component: SummaryView,
   },
   {
     path: '/all',

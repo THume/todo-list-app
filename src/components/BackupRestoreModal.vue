@@ -6,6 +6,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  showSummaries: {
+    type: Boolean,
+    default: false,
+  },
   snapshots: {
     type: Array,
     default: () => [],
@@ -93,6 +97,9 @@ const restoreSnapshot = (snapshotId) => {
               <p class="backup-modal__item-counts">
                 Tasks: {{ snapshot.counts?.tasks ?? 0 }} · Lists: {{ snapshot.counts?.lists ?? 0 }}
                 · Completed: {{ snapshot.counts?.completed ?? 0 }}
+                <template v-if="showSummaries">
+                  · Summaries: {{ snapshot.counts?.summaries ?? 0 }}
+                </template>
               </p>
             </div>
             <button

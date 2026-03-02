@@ -7,6 +7,7 @@ import {
   recurrenceOptions,
 } from '../composables/useTaskFormHelpers';
 import IconGlyph from './IconGlyph.vue';
+import { useUiSettings } from '../stores/useUiSettings';
 
 const props = defineProps({
   visible: {
@@ -48,7 +49,7 @@ const markCompleted = ref(false);
 const reminderOffset = ref('none');
 const isLongTerm = ref(false);
 const startDate = ref('');
-const isLongTermTasksEnabled = ref(false);
+const { isLongTermTasksEnabled } = useUiSettings();
 const titleField = ref(null);
 const subtaskInput = ref('');
 const appliedDefaultDueDate = ref(null);
@@ -59,10 +60,6 @@ const dragOverSubtaskId = ref(null);
 const showReminderWarning = ref(false);
 let subtaskLocalId = 0;
 let isApplyingDefaultDueDate = false;
-
-// Check if long-term tasks feature is enabled
-const storedLongTermSetting = window.localStorage.getItem('todo-list.long-term-tasks-enabled');
-isLongTermTasksEnabled.value = storedLongTermSetting === 'true';
 
 const isEditMode = computed(() => props.mode === 'edit');
 const isDuplicateMode = computed(() => props.mode === 'duplicate');

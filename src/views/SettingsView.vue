@@ -12,18 +12,13 @@ import {
 } from '../services/jsonStorage';
 import BackupRestoreModal from '../components/BackupRestoreModal.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
+import { useUiSettings } from '../stores/useUiSettings';
 
 const router = useRouter();
 const { lastSavedAt, storageStatus, refreshFromStorage } = useTaskStore();
-
-const STANDUP_SETTING_STORAGE_KEY = 'todo-list.standup-enabled';
-const FONT_SIZE_SETTING_STORAGE_KEY = 'todo-list.font-size';
-const LONG_TERM_TASKS_SETTING_STORAGE_KEY = 'todo-list.long-term-tasks-enabled';
 const FORCE_STORAGE_FAILURE_KEY = 'todo-list.force-storage-failure';
 
-const isStandupEnabled = ref(true);
-const isLongTermTasksEnabled = ref(false);
-const fontSizeSetting = ref('large');
+const { isStandupEnabled, isSummaryEnabled, isLongTermTasksEnabled, fontSizeSetting } = useUiSettings();
 const showStorageFailureToggle = import.meta.env.DEV;
 const forceStorageFailure = ref(false);
 const duplicateDirectory = ref('');
@@ -66,73 +61,10 @@ const lastBackupLabel = computed(() => {
   return `Last backup: ${parsed.toLocaleString()}`;
 });
 
-const applyFontSizeSetting = (value) => {
-  const root = document.documentElement;
-  if (!root) {
-    return;
-  }
-  root.style.fontSize = value === 'small' ? '80%' : '100%';
-};
-
-// Initialize settings from localStorage
-const storedStandupSetting = window.localStorage.getItem(STANDUP_SETTING_STORAGE_KEY);
-if (storedStandupSetting === 'false') {
-  isStandupEnabled.value = false;
-} else if (storedStandupSetting === 'true') {
-  isStandupEnabled.value = true;
-}
-
-const storedFontSize = window.localStorage.getItem(FONT_SIZE_SETTING_STORAGE_KEY);
-if (storedFontSize === 'small' || storedFontSize === 'large') {
-  fontSizeSetting.value = storedFontSize;
-}
-
-const storedLongTermTasks = window.localStorage.getItem(LONG_TERM_TASKS_SETTING_STORAGE_KEY);
-if (storedLongTermTasks === 'true') {
-  isLongTermTasksEnabled.value = true;
-} else if (storedLongTermTasks === 'false') {
-  isLongTermTasksEnabled.value = false;
-}
-
 const storedForceFailure = window.localStorage.getItem(FORCE_STORAGE_FAILURE_KEY);
 if (storedForceFailure === 'true') {
   forceStorageFailure.value = true;
 }
-
-watch(
-  isStandupEnabled,
-  (enabled) => {
-    window.localStorage.setItem(STANDUP_SETTING_STORAGE_KEY, String(enabled));
-  },
-  { immediate: true }
-);
-
-watch(
-  isLongTermTasksEnabled,
-  (enabled) => {
-    window.localStorage.setItem(LONG_TERM_TASKS_SETTING_STORAGE_KEY, String(enabled));
-  },
-  { immediate: true }
-);
-
-watch(
-  [isStandupEnabled, () => router.currentRoute.value.path],
-  ([enabled, currentPath]) => {
-    if (!enabled && typeof currentPath === 'string' && currentPath.startsWith('/standup')) {
-      router.replace('/today');
-    }
-  },
-  { immediate: true }
-);
-
-watch(
-  fontSizeSetting,
-  (value) => {
-    window.localStorage.setItem(FONT_SIZE_SETTING_STORAGE_KEY, value);
-    applyFontSizeSetting(value);
-  },
-  { immediate: true }
-);
 
 watch(forceStorageFailure, (value) => {
   if (!showStorageFailureToggle) {
@@ -383,6 +315,21 @@ onMounted(() => {
       </label>
       <label class="settings-page__option">
         <div class="settings-page__option-text">
+          <span class="settings-page__option-title">Summary page</span>
+          <span class="settings-page__option-hint">
+            {{ isSummaryEnabled ? 'Enabled' : 'Hidden' }}
+          </span>
+        </div>
+        <input
+          v-model="isSummaryEnabled"
+          type="checkbox"
+          class="settings-page__toggle-input"
+          aria-label="Toggle Summary page visibility"
+        />
+        <span class="settings-page__toggle" aria-hidden="true"></span>
+      </label>
+      <label class="settings-page__option">
+        <div class="settings-page__option-text">
           <span class="settings-page__option-title">Long-term tasks</span>
           <span class="settings-page__option-hint">
             {{ isLongTermTasksEnabled ? 'Enabled' : 'Disabled' }}
@@ -537,6 +484,7 @@ onMounted(() => {
       :loading="backupLoading"
       :error="backupError"
       :restoring-id="backupRestoringId"
+      :show-summaries="isSummaryEnabled"
       @restore="handleRestoreBackup"
       @close="closeBackupModal"
     />

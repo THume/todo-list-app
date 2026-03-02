@@ -8,9 +8,16 @@ const BACKUP_DIRECTORY = path.join(DATA_DIRECTORY, 'backups');
 const BACKUP_INTERVAL_MS = 30 * 60 * 1000;
 const BACKUP_WRITE_THRESHOLD = 20;
 const MAX_BACKUP_SNAPSHOTS = 20;
-const BACKUP_FILES = ['tasks.json', 'lists.json', 'completed.json', 'meta.json'];
+const SUMMARIES_FILE_NAME = 'summaries.json';
+const BACKUP_FILES = ['tasks.json', 'lists.json', 'completed.json', 'meta.json', SUMMARIES_FILE_NAME];
 const SETTINGS_FILE_NAME = 'settings.json';
-const DEFAULT_SETTINGS = Object.freeze({ duplicateDirectory: '', standupNotes: '' });
+const BACKUP_SETTINGS_FILES = [SETTINGS_FILE_NAME];
+const DEFAULT_SETTINGS = Object.freeze({
+  duplicateDirectory: '',
+  standupNotes: '',
+  summaryNotes: '',
+  summaryHistory: [],
+});
 let lastBackupTime = 0;
 let writesSinceBackup = 0;
 const SCHEMA_VERSION = 1;
@@ -69,9 +76,18 @@ const loadSettingsFromDisk = () => {
   try {
     const raw = fs.readFileSync(settingsPath, 'utf-8');
     const parsed = raw ? JSON.parse(raw) : {};
-    const duplicateDirectory = normalizeDuplicateDirectory(parsed?.duplicateDirectory);
-    const standupNotes = typeof parsed?.standupNotes === 'string' ? parsed.standupNotes : '';
-    storageSettings = { duplicateDirectory, standupNotes };
+    const base = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    const merged = {
+      ...DEFAULT_SETTINGS,
+      ...base,
+    };
+
+    merged.duplicateDirectory = normalizeDuplicateDirectory(merged.duplicateDirectory);
+    merged.standupNotes = typeof merged.standupNotes === 'string' ? merged.standupNotes : '';
+    merged.summaryNotes = typeof merged.summaryNotes === 'string' ? merged.summaryNotes : '';
+    merged.summaryHistory = Array.isArray(merged.summaryHistory) ? merged.summaryHistory : [];
+
+    storageSettings = merged;
     return storageSettings;
   } catch (error) {
     console.error('Failed to read storage settings', error);
@@ -139,7 +155,7 @@ const duplicateBackupSnapshot = (snapshotFolder, snapshotName) => {
   const targetFolder = path.join(backupRoot, snapshotName);
   try {
     ensureDirectory(targetFolder);
-    BACKUP_FILES.forEach((backupFile) => {
+    [...BACKUP_FILES, ...BACKUP_SETTINGS_FILES].forEach((backupFile) => {
       const sourcePath = path.join(snapshotFolder, backupFile);
       if (!fs.existsSync(sourcePath)) {
         return;
@@ -207,10 +223,32 @@ const readBackupCounts = (snapshotPath) => {
     }
   };
 
+  const readSummariesCount = () => {
+    const filePath = path.join(snapshotPath, SUMMARIES_FILE_NAME);
+    if (!fs.existsSync(filePath)) {
+      return 0;
+    }
+    try {
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(parsed)) {
+        return parsed.length;
+      }
+      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.history)) {
+        return parsed.history.length;
+      }
+      return 0;
+    } catch (error) {
+      console.error(`Failed to read backup file "${SUMMARIES_FILE_NAME}"`, error);
+      return 0;
+    }
+  };
+
   return {
     tasks: readCount('tasks.json'),
     lists: readCount('lists.json'),
     completed: readCount('completed.json'),
+    summaries: readSummariesCount(),
   };
 };
 
@@ -240,6 +278,10 @@ const restoreBackupSnapshot = (snapshotId) => {
 
   try {
     ensureDataDirectory();
+
+    const currentSettings = loadSettingsFromDisk();
+    const currentDuplicateDirectory = normalizeDuplicateDirectory(currentSettings?.duplicateDirectory);
+
     BACKUP_FILES.forEach((fileName) => {
       const sourcePath = path.join(snapshotPath, fileName);
       if (!fs.existsSync(sourcePath)) {
@@ -249,6 +291,24 @@ const restoreBackupSnapshot = (snapshotId) => {
       fs.copyFileSync(sourcePath, targetPath);
       duplicateDataFile(fileName);
     });
+
+    const settingsSourcePath = path.join(snapshotPath, SETTINGS_FILE_NAME);
+    if (fs.existsSync(settingsSourcePath)) {
+      try {
+        const raw = fs.readFileSync(settingsSourcePath, 'utf-8');
+        const parsed = raw ? JSON.parse(raw) : {};
+        const incoming = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+
+        writeSettingsToDisk({
+          ...currentSettings,
+          ...incoming,
+          duplicateDirectory: currentDuplicateDirectory,
+        });
+      } catch (error) {
+        console.error('Failed to restore settings file', error);
+      }
+    }
+
     return { ok: true };
   } catch (error) {
     console.error('Failed to restore backup snapshot', error);
@@ -295,7 +355,7 @@ const maybeBackupBeforeWrite = () => {
 
   try {
     fs.mkdirSync(snapshotFolder, { recursive: true });
-    BACKUP_FILES.forEach((backupFile) => {
+    [...BACKUP_FILES, ...BACKUP_SETTINGS_FILES].forEach((backupFile) => {
       const sourcePath = resolveFilePath(backupFile);
       if (!fs.existsSync(sourcePath)) {
         return;
@@ -375,8 +435,17 @@ const createJsonStorageMiddleware = () => {
       const listsResult = readJsonFromDisk('lists.json');
       const completedResult = readJsonFromDisk('completed.json');
       const metaResult = readJsonFromDisk('meta.json');
+      const summariesResult = readJsonFromDisk(SUMMARIES_FILE_NAME);
+      const settingsResult = readJsonFromDisk(SETTINGS_FILE_NAME);
 
-      if (!tasksResult.ok || !listsResult.ok || !completedResult.ok || !metaResult.ok) {
+      if (
+        !tasksResult.ok
+        || !listsResult.ok
+        || !completedResult.ok
+        || !metaResult.ok
+        || !summariesResult.ok
+        || !settingsResult.ok
+      ) {
         res.statusCode = 500;
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Content-Type', 'application/json');
@@ -391,6 +460,14 @@ const createJsonStorageMiddleware = () => {
         lists: Array.isArray(listsResult.data) ? listsResult.data : [],
         completed: Array.isArray(completedResult.data) ? completedResult.data : [],
         meta: metaResult.data ?? buildDefaultMeta(),
+        summaries:
+          summariesResult.data && typeof summariesResult.data === 'object'
+            ? summariesResult.data
+            : { notes: '', history: [] },
+        settings:
+          settingsResult.data && typeof settingsResult.data === 'object' && !Array.isArray(settingsResult.data)
+            ? settingsResult.data
+            : { ...DEFAULT_SETTINGS },
       };
 
       res.statusCode = 200;
@@ -430,8 +507,16 @@ const createJsonStorageMiddleware = () => {
           const tasks = Array.isArray(parsed?.tasks) ? parsed.tasks : null;
           const lists = Array.isArray(parsed?.lists) ? parsed.lists : null;
           const completed = Array.isArray(parsed?.completed) ? parsed.completed : null;
+          const incomingSummaries =
+            parsed?.summaries && typeof parsed.summaries === 'object' && !Array.isArray(parsed.summaries)
+              ? parsed.summaries
+              : null;
           const meta =
             parsed?.meta && typeof parsed.meta === 'object' ? parsed.meta : buildDefaultMeta();
+          const incomingSettings =
+            parsed?.settings && typeof parsed.settings === 'object' && !Array.isArray(parsed.settings)
+              ? parsed.settings
+              : null;
 
           if (!tasks || !lists || !completed) {
             res.statusCode = 400;
@@ -445,6 +530,29 @@ const createJsonStorageMiddleware = () => {
           writeJsonToDisk('lists.json', lists);
           writeJsonToDisk('completed.json', completed);
           writeJsonToDisk('meta.json', meta);
+
+          if (incomingSummaries) {
+            writeJsonToDisk(SUMMARIES_FILE_NAME, incomingSummaries);
+          } else if (incomingSettings) {
+            // Backward compat: older bundles stored summaries in settings.
+            const legacyNotes = typeof incomingSettings.summaryNotes === 'string' ? incomingSettings.summaryNotes : '';
+            const legacyHistory = Array.isArray(incomingSettings.summaryHistory)
+              ? incomingSettings.summaryHistory
+              : [];
+            if (legacyNotes || legacyHistory.length > 0) {
+              writeJsonToDisk(SUMMARIES_FILE_NAME, { notes: legacyNotes, history: legacyHistory });
+            }
+          }
+
+          if (incomingSettings) {
+            const currentSettings = loadSettingsFromDisk();
+            const currentDuplicateDirectory = normalizeDuplicateDirectory(currentSettings?.duplicateDirectory);
+            writeSettingsToDisk({
+              ...currentSettings,
+              ...incomingSettings,
+              duplicateDirectory: currentDuplicateDirectory,
+            });
+          }
           res.statusCode = 204;
           res.setHeader('Access-Control-Allow-Origin', '*');
           res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -494,20 +602,23 @@ const createJsonStorageMiddleware = () => {
         });
         req.on('end', () => {
           try {
-            const parsed = body.trim().length > 0 ? JSON.parse(body) : {};
-            
+            const payload = body.trim().length > 0 ? JSON.parse(body) : {};
+            const parsed =
+              payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
+
             // Load current settings to merge with updates
             const currentSettings = loadSettingsFromDisk();
-            
+
             // Handle standupNotes update
-            const standupNotes = typeof parsed?.standupNotes === 'string' 
-              ? parsed.standupNotes 
-              : currentSettings.standupNotes;
-            
+            const standupNotes =
+              typeof parsed?.standupNotes === 'string'
+                ? parsed.standupNotes
+                : currentSettings.standupNotes;
+
             // Handle duplicateDirectory update with validation
             const rawDirectory = normalizeDuplicateDirectory(parsed?.duplicateDirectory);
             let duplicateDirectory = currentSettings.duplicateDirectory;
-            
+
             if ('duplicateDirectory' in parsed) {
               if (rawDirectory) {
                 const resolved = path.resolve(rawDirectory);
@@ -539,6 +650,8 @@ const createJsonStorageMiddleware = () => {
                   return;
                 }
 
+                // Ensure duplication uses the updated directory.
+                storageSettings = { ...currentSettings, duplicateDirectory: resolved };
                 duplicateDirectory = resolved;
                 const duplicateResult = duplicateDataDirectory();
                 if (!duplicateResult.ok) {
@@ -554,7 +667,13 @@ const createJsonStorageMiddleware = () => {
             }
 
             // Save all settings
-            writeSettingsToDisk({ duplicateDirectory, standupNotes });
+            const nextSettings = {
+              ...currentSettings,
+              ...parsed,
+              duplicateDirectory,
+              standupNotes,
+            };
+            writeSettingsToDisk(nextSettings);
 
             res.statusCode = 200;
             res.setHeader('Access-Control-Allow-Origin', '*');

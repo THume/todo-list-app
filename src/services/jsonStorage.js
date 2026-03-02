@@ -1,5 +1,7 @@
 const API_BASE = '/api/storage';
 
+const SUMMARIES_FILE_NAME = 'summaries.json';
+
 const encodeFileName = (fileName) => encodeURIComponent(fileName);
 const FORCE_STORAGE_FAILURE_KEY = 'todo-list.force-storage-failure';
 
@@ -239,4 +241,28 @@ export async function updateStorageSettings(settings) {
     console.error('Failed to update storage settings', error);
     return { ok: false, settings: {}, error };
   }
+}
+
+const normalizeSummariesPayload = (value) => {
+  const base = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const notes = typeof base.notes === 'string' ? base.notes : '';
+  const history = Array.isArray(base.history) ? base.history : [];
+  return { notes, history };
+};
+
+export async function getSummariesData() {
+  const result = await readJsonFile(SUMMARIES_FILE_NAME, { notes: '', history: [] });
+  if (!result.ok) {
+    return { ok: false, summaries: { notes: '', history: [] }, error: result.error };
+  }
+  return { ok: true, summaries: normalizeSummariesPayload(result.data) };
+}
+
+export async function updateSummariesData(summaries) {
+  const normalized = normalizeSummariesPayload(summaries);
+  const result = await writeJsonFile(SUMMARIES_FILE_NAME, normalized);
+  if (!result.ok) {
+    return { ok: false, message: result.message ?? 'Failed to save summaries.' };
+  }
+  return { ok: true };
 }
