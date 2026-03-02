@@ -601,6 +601,9 @@ const standupNotes = ref('');
 const standupNotesSaving = ref(false);
 let saveNotesTimeout = null;
 
+// Mobile tabs
+const activeTab = ref('today'); // 'yesterday', 'today', 'notes'
+
 const saveStandupNotes = async () => {
   standupNotesSaving.value = true;
   await updateStorageSettings({ standupNotes: standupNotes.value });
@@ -655,8 +658,43 @@ onMounted(() => {
         Hidden tasks are highlighted. Use Show to unhide them.
       </span>
     </div>
-    <div class="standup__grid">
-      <article class="standup__section">
+    
+    <!-- Mobile tabs navigation -->
+    <nav class="standup__tabs" role="tablist">
+      <button
+        role="tab"
+        type="button"
+        class="standup__tab"
+        :class="{ 'standup__tab--active': activeTab === 'yesterday' }"
+        :aria-selected="activeTab === 'yesterday'"
+        @click="activeTab = 'yesterday'"
+      >
+        Yesterday
+      </button>
+      <button
+        role="tab"
+        type="button"
+        class="standup__tab"
+        :class="{ 'standup__tab--active': activeTab === 'today' }"
+        :aria-selected="activeTab === 'today'"
+        @click="activeTab = 'today'"
+      >
+        Today
+      </button>
+      <button
+        role="tab"
+        type="button"
+        class="standup__tab"
+        :class="{ 'standup__tab--active': activeTab === 'notes' }"
+        :aria-selected="activeTab === 'notes'"
+        @click="activeTab = 'notes'"
+      >
+        Notes
+      </button>
+    </nav>
+    
+    <div class="standup__grid" :class="{ 'standup__grid--tab-hidden': activeTab === 'notes' }">
+      <article class="standup__section" :class="{ 'standup__section--tab-hidden': activeTab !== 'yesterday' }">
         <header class="standup__section-header">
           <h2>Completed Yesterday</h2>
           <span class="standup__count">
@@ -818,7 +856,7 @@ onMounted(() => {
           ></div>
         </div>
       </article>
-      <article class="standup__section">
+      <article class="standup__section" :class="{ 'standup__section--tab-hidden': activeTab !== 'today' }">
         <header class="standup__section-header">
           <h2>Today&rsquo;s Focus</h2>
           <span class="standup__count">
@@ -1075,7 +1113,7 @@ onMounted(() => {
       </article>
     </div>
 
-    <article class="standup__notes-section">
+    <article class="standup__notes-section" :class="{ 'standup__notes-section--tab-hidden': activeTab !== 'notes' }">
       <header class="standup__notes-header">
         <h2 class="standup__notes-title">Notes</h2>
         <button
@@ -1659,5 +1697,101 @@ onMounted(() => {
   font-size: 0.85rem;
   color: theme.$color-text-muted;
   font-style: italic;
+}
+
+/* Mobile tabs - hidden on desktop */
+.standup__tabs {
+  display: none;
+}
+
+.standup__tab {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: rgba(27, 27, 29, 0.4);
+  color: theme.$color-text-muted;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  border-bottom: 2px solid transparent;
+
+  &:first-child {
+    border-radius: 0.5rem 0 0 0.5rem;
+  }
+
+  &:last-child {
+    border-radius: 0 0.5rem 0.5rem 0;
+  }
+
+  &:hover {
+    background: rgba(27, 27, 29, 0.6);
+    color: theme.$color-text-primary;
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: -2px;
+  }
+}
+
+.standup__tab--active {
+  background: rgba(34, 197, 94, 0.15);
+  color: theme.$color-accent;
+  border-bottom-color: theme.$color-accent;
+
+  &:hover {
+    background: rgba(34, 197, 94, 0.2);
+    color: theme.$color-accent;
+  }
+}
+
+/* Mobile responsive behavior */
+@media (max-width: 768px) {
+  .standup {
+    grid-template-rows: auto auto auto 1fr;
+  }
+
+  .standup__tabs {
+    display: flex;
+    gap: 0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid theme.$color-border-muted;
+  }
+
+  .standup__grid {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .standup__grid--tab-hidden {
+    display: none;
+  }
+
+  .standup__section--tab-hidden {
+    display: none;
+  }
+
+  .standup__notes-section {
+    max-height: none;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .standup__notes-section--tab-hidden {
+    display: none;
+  }
+
+  .standup__notes-textarea {
+    flex: 1;
+    min-height: 300px;
+  }
+
+  .standup__section {
+    grid-template-rows: auto auto 1fr;
+    overflow: hidden;
+  }
 }
 </style>

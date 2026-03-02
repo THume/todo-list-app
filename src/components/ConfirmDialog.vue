@@ -140,6 +140,8 @@ $danger-text: theme.$color-text-inverted;
   opacity: 0;
 }
 
+
+// Fixed unmatched curly brace and corrected nesting
 .confirm-dialog {
   position: fixed;
   inset: 0;
@@ -149,6 +151,11 @@ $danger-text: theme.$color-text-inverted;
   z-index: 1000;
   padding: 1.5rem;
   box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    align-items: flex-start;
+    padding-top: 72px;
+  }
 
   &__panel {
     width: min(100%, 24rem);

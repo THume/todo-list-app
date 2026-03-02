@@ -98,6 +98,13 @@ watch(
   padding: 1rem;
 }
 
+@media (max-width: 768px) {
+  .modal-backdrop {
+    align-items: flex-start;
+    padding-top: 72px;
+  }
+}
+
 .modal-panel {
   background: #1a1a1b;
   border: 1px solid theme.$color-border-strong;

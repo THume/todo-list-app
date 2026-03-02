@@ -211,6 +211,11 @@ $primary-text: theme.$color-text-inverted;
   padding: 1.5rem;
   box-sizing: border-box;
 
+  @media (max-width: 768px) {
+    align-items: flex-start;
+    padding-top: 72px;
+  }
+
   &__panel {
     width: min(100%, 28rem);
     background: $dialog-panel-bg;
@@ -276,24 +281,18 @@ $primary-text: theme.$color-text-inverted;
   }
 
   &__select {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid theme.$color-border-input;
-    border-radius: 0.65rem;
-    padding: 0.65rem;
+    border-radius: 0.5rem;
+    border: 1px solid $dialog-border;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
     color: $input-text;
-    font-size: 0.95rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: border-color 0.2s ease, background 0.2s ease;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.06);
-      border-color: theme.$color-border-strong;
-    }
+    background: $dialog-panel-bg;
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+    outline: none;
+    transition: border-color 0.2s ease;
 
     &:focus-visible {
-      outline: 2px solid $focus-outline;
-      outline-offset: 2px;
       border-color: $focus-outline;
     }
   }

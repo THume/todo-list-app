@@ -765,6 +765,11 @@ $remove-hover: theme.$color-accent-hover;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+
+  /* Ensure adequate touch target height on mobile */
+  @media (max-width: 768px) {
+    min-height: 44px;
+  }
 }
 
 .task__checkbox {
@@ -781,6 +786,12 @@ $remove-hover: theme.$color-accent-hover;
   accent-color: $checkbox-accent;
   background: $checkbox-bg;
   border: 1px solid $task-border;
+
+  /* Larger checkbox on mobile for better touch */
+  @media (max-width: 768px) {
+    width: 1.375rem;
+    height: 1.375rem;
+  }
 
   &:disabled {
     opacity: 0.6;
@@ -923,6 +934,12 @@ $remove-hover: theme.$color-accent-hover;
   transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
   padding: 0;
 
+  /* Minimum 44px touch target on mobile */
+  @media (max-width: 768px) {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
   &:hover {
     color: $task-heading;
     border-color: $checkbox-accent;
@@ -972,6 +989,12 @@ $remove-hover: theme.$color-accent-hover;
   cursor: pointer;
   display: block;
   transition: background 0.2s ease, color 0.2s ease;
+
+  /* Larger touch target on mobile */
+  @media (max-width: 768px) {
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+  }
 
   &:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.06);

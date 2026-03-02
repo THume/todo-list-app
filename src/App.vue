@@ -37,6 +37,7 @@ const {
 
 const showForm = ref(false);
 const isSidebarCollapsed = ref(false);
+const isMobileSidebarOpen = ref(false);
 const isListsSectionCollapsed = ref(false);
 const addTaskButtonRef = ref(null);
 const DEFAULT_LIST_ID = 'default';
@@ -245,6 +246,18 @@ const toggleSidebar = () => {
 
 const toggleListsSection = () => {
   isListsSectionCollapsed.value = !isListsSectionCollapsed.value;
+};
+
+const openMobileSidebar = () => {
+  isMobileSidebarOpen.value = true;
+};
+
+const closeMobileSidebar = () => {
+  isMobileSidebarOpen.value = false;
+};
+
+const toggleMobileSidebar = () => {
+  isMobileSidebarOpen.value = !isMobileSidebarOpen.value;
 };
 
 const resetDeleteListState = () => {
@@ -501,6 +514,13 @@ watch(
   { immediate: true }
 );
 
+watch(
+  () => route.path,
+  () => {
+    closeMobileSidebar();
+  }
+);
+
 onMounted(() => {
 });
 
@@ -558,9 +578,32 @@ onUnmounted(() => {
     @save="handleSaveCompletionNotes"
     @cancel="handleCancelCompletionNotes"
   />
-  <div class="layout" :class="{ 'layout--collapsed': isSidebarCollapsed }" :style="layoutStyle">
+  <div class="layout" :class="{ 'layout--collapsed': isSidebarCollapsed, 'layout--mobile-sidebar-open': isMobileSidebarOpen }" :style="layoutStyle">
+    <!-- Mobile Top Bar with Hamburger (visible only on mobile) -->
+    <div class="layout__mobile-top-bar">
+      <button
+        type="button"
+        class="layout__mobile-menu-button"
+        aria-label="Open menu"
+        @click="toggleMobileSidebar"
+      >
+        <IconGlyph name="menu" size="24" aria-hidden="true" />
+      </button>
+      <span class="layout__mobile-top-title">TODOs</span>
+    </div>
+
+    <!-- Mobile backdrop -->
+    <div
+      v-if="isMobileSidebarOpen"
+      class="layout__mobile-backdrop"
+      @click="closeMobileSidebar"
+    />
+
     <aside
-      :class="['layout__sidebar', { 'layout__sidebar--collapsed': isSidebarCollapsed }]"
+      :class="['layout__sidebar', { 
+        'layout__sidebar--collapsed': isSidebarCollapsed,
+        'layout__sidebar--mobile-open': isMobileSidebarOpen
+      }]"
       :aria-expanded="!isSidebarCollapsed"
     >
       <div class="layout__sidebar-content" :class="{ 'layout__sidebar-content--collapsed': isSidebarCollapsed }">
@@ -775,7 +818,7 @@ onUnmounted(() => {
   height: 100%;
   min-height: 0;
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow: hidden;
   position: relative;
 }
 
@@ -785,6 +828,7 @@ onUnmounted(() => {
   gap: 2.5rem;
   min-height: 0;
   flex: 1 1 auto;
+  overflow-y: auto;
 }
 
 .layout__sidebar-content--collapsed {
@@ -1204,6 +1248,7 @@ onUnmounted(() => {
 
 .layout__settings-link {
   margin-top: auto;
+  padding-top: 1rem;
 }
 
 .sr-only {
@@ -1235,4 +1280,216 @@ onUnmounted(() => {
   display: inline-block;
 }
 
+/* Mobile Responsiveness */
+.layout__mobile-menu-button {
+  display: none;
+}
+
+.layout__mobile-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Single column layout on mobile */
+  .layout {
+    grid-template-columns: 1fr;
+    position: relative;
+  }
+
+  .layout__title {
+    display: none;
+  }
+
+  /* Mobile hamburger button */
+  .layout__mobile-menu-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1001;
+    width: 44px;
+    height: 44px;
+    border: 1px solid theme.$color-border-muted;
+    border-radius: 0.75rem;
+    background: theme.$color-sidebar-background;
+    color: theme.$color-text-heading;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: theme.$color-accent;
+    }
+
+    &:focus-visible {
+      outline: 2px solid theme.$color-accent;
+      outline-offset: 2px;
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  /* Do NOT hide hamburger when sidebar is open */
+  /* .layout--mobile-sidebar-open .layout__mobile-menu-button {
+    display: none;
+  } */
+
+  /* Mobile backdrop */
+  .layout__mobile-backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Sidebar as drawer/overlay on mobile */
+  .layout__sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 85vw;
+    max-width: 320px;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+  }
+
+  .layout__sidebar--mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Hide desktop resize handle on mobile */
+  .layout__resize-handle {
+    display: none;
+  }
+
+  /* Hide desktop collapse toggle on mobile */
+  .layout__collapse-toggle {
+    display: none;
+  }
+
+  /* Adjust content padding */
+  .layout__content {
+    padding: 1.5rem 1rem;
+  }
+
+  /* Make nav icons always visible on mobile */
+  .layout--collapsed .layout__nav-icon {
+    margin-right: 0.75rem;
+  }
+
+  /* Ensure sidebar is never in collapsed state on mobile */
+  .layout__sidebar--collapsed {
+    padding: 1.25rem 2rem;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .layout__sidebar-content--collapsed {
+    align-items: stretch;
+  }
+
+  .layout--collapsed .layout__title {
+    display: block;
+  }
+
+  .layout--collapsed .layout__nav-label,
+  .layout--collapsed .layout__nav-counts,
+  .layout--collapsed .layout__list-name,
+  .layout--collapsed .layout__list-count {
+    display: flex;
+  }
+
+  .layout--collapsed .layout__link {
+    justif-content: space-between;
+    padding: 0.55rem 0.9rem;
+  }
+
+  .layout--collapsed .layout__add-task-text {
+    display: inline;
+  }
+
+  .layout--collapsed .layout__add-task {
+    justify-content: center;
+    padding: 0.9rem 1.25rem;
+  }
+
+  .layout--collapsed .layout__add-list {
+    display: inline-flex;
+  }
+
+  .layout--collapsed .layout__lists-header {
+    justify-content: space-between;
+  }
+
+  .layout--collapsed .layout__lists-toggle {
+    width: auto;
+    justify-content: flex-start;
+  }
+}
+
+/* Mobile Top Bar Styles */
+.layout__mobile-top-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .layout__mobile-top-bar {
+    display: flex;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: theme.$color-sidebar-background;
+    z-index: 1100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    padding: 0 1rem;
+    border-bottom: 1px solid theme.$color-border-muted;
+  }
+  .layout__mobile-menu-button {
+    position: static;
+    margin-right: 1rem;
+  }
+  .layout__mobile-top-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: theme.$color-text-heading;
+    letter-spacing: 0.01em;
+  }
+  /* Push down main content and sidebar for top bar */
+  .layout {
+    padding-top: 56px;
+  }
+  .layout__sidebar {
+    top: 56px;
+  }
+  .layout__mobile-backdrop {
+    top: 56px;
+  }
+}
 </style>

@@ -923,6 +923,11 @@ $remove-hover: #f87171;
     padding: 1.5rem 0.75rem;
     align-items: stretch;
   }
+
+  @media (max-width: 480px) {
+    padding: 0;
+    align-items: stretch;
+  }
 }
 
 .add-task {
@@ -933,10 +938,21 @@ $remove-hover: #f87171;
   display: grid;
   gap: 1rem;
   width: min(640px, 100%);
+  @media (max-width: 768px) {
+    margin-top: 56px;
+  }
   box-shadow: 0 32px 65px -40px rgba(0, 0, 0, 0.9);
 
   @media (max-width: 640px) {
     border-radius: 1.25rem;
+    padding: 1.25rem;
+  }
+
+  @media (max-width: 480px) {
+    border-radius: 0;
+    width: 100%;
+    min-height: 100vh;
+    border: none;
   }
 
   &__header {
@@ -1001,6 +1017,11 @@ $remove-hover: #f87171;
     border-radius: 1rem;
     background: $input-bg;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+    /* Better touch targets on mobile */
+    @media (max-width: 768px) {
+      padding: 0.95rem 1rem;
+    }
 
     &:focus-within {
       border-color: $button-bg;
@@ -1155,6 +1176,11 @@ $remove-hover: #f87171;
     user-select: none;
     color: $input-text;
     font-weight: 600;
+
+    @media (max-width: 768px) {
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+    }
   }
 
   &__checkbox-input {
@@ -1173,6 +1199,11 @@ $remove-hover: #f87171;
     align-items: center;
     justify-content: center;
     transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+
+    @media (max-width: 768px) {
+      width: 1.375rem;
+      height: 1.375rem;
+    }
   }
 
   &__checkbox-icon {
@@ -1219,6 +1250,12 @@ $remove-hover: #f87171;
     color: $input-text;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 
+    /* Larger touch target on mobile */
+    @media (max-width: 768px) {
+      padding: 0.85rem 1rem;
+      font-size: 1.05rem;
+    }
+
     &:focus {
       outline: none;
       border-color: $button-bg;
@@ -1244,6 +1281,12 @@ $remove-hover: #f87171;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     appearance: none;
     cursor: pointer;
+
+    /* Larger touch target on mobile */
+    @media (max-width: 768px) {
+      padding: 0.9rem 1rem;
+      font-size: 1.05rem;
+    }
 
     &:focus {
       outline: none;
@@ -1331,6 +1374,11 @@ $remove-hover: #f87171;
       border-color: $button-bg;
       background: $input-bg-focus;
     }
+
+    @media (max-width: 768px) {
+      padding: 0.85rem 1rem;
+      font-size: 1.05rem;
+    }
   }
 
   &__subtask-button {
@@ -1351,6 +1399,12 @@ $remove-hover: #f87171;
     &:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+    }
+
+    @media (max-width: 768px) {
+      padding: 0.75rem 1.25rem;
+      font-size: 1rem;
+      min-height: 44px;
     }
   }
 
@@ -1442,6 +1496,12 @@ $remove-hover: #f87171;
       outline: 2px solid $focus-outline;
       outline-offset: 2px;
     }
+
+    @media (max-width: 768px) {
+      width: 2.75rem;
+      height: 2.75rem;
+      font-size: 1.15rem;
+    }
   }
 
   &__submit {
@@ -1473,10 +1533,13 @@ $remove-hover: #f87171;
       background: $button-bg-hover;
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 768px) {
       width: 100%;
       justify-self: stretch;
       text-align: center;
+      padding: 0.9rem 1.5rem;
+      font-size: 1.05rem;
+      min-height: 44px;
     }
   }
 
