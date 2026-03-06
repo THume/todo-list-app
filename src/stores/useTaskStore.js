@@ -787,7 +787,7 @@ const markTaskWorkedOn = (taskId, { dayOffset = 1 } = {}) => {
     const nextTask = createRecurringTask(targetTask);
     if (nextTask) {
       spawnedRecurringTaskIds.set(targetTask.id, nextTask.id);
-      updatedTasks.push(nextTask);
+      updatedTasks.splice(targetIndex, 0, nextTask);
     } else {
       spawnedRecurringTaskIds.delete(targetTask.id);
     }
@@ -1057,7 +1057,7 @@ const updateTask = ({
     const nextTask = createRecurringTask(completionAdjusted);
     if (nextTask) {
       spawnedRecurringTaskIds.set(completionAdjusted.id, nextTask.id);
-      nextTasks.push(nextTask);
+      nextTasks.splice(targetIndex, 0, nextTask);
     } else {
       spawnedRecurringTaskIds.delete(completionAdjusted.id);
     }
@@ -1128,7 +1128,7 @@ const toggleTaskCompletion = (taskId, { suppressNotification = false } = {}) => 
   const nextTask = createRecurringTask(originalTask);
   if (nextTask) {
     spawnedRecurringTaskIds.set(originalTask.id, nextTask.id);
-    nextTasks.push(nextTask);
+    nextTasks.splice(targetIndex, 0, nextTask);
   } else {
     spawnedRecurringTaskIds.delete(originalTask.id);
   }
@@ -1202,7 +1202,7 @@ const toggleSubtaskCompletion = (taskId, subtaskId) => {
     const nextTask = createRecurringTask(updatedTask);
     if (nextTask) {
       spawnedRecurringTaskIds.set(updatedTask.id, nextTask.id);
-      updatedTasks.push(nextTask);
+      updatedTasks.splice(taskIndex, 0, nextTask);
     } else {
       spawnedRecurringTaskIds.delete(updatedTask.id);
     }
