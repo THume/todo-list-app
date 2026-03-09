@@ -11,6 +11,7 @@ import {
 
 const SUMMARY_HIDDEN_STORAGE_KEY = 'todo-list.summary-hidden';
 const SUMMARY_SHOW_ALL_STORAGE_KEY = 'todo-list.summary-show-all';
+const SUMMARY_ORDER_STORAGE_KEY = 'todo-list.summary-order';
 
 const { sortedCompletedTasks, lists } = useTaskStore();
 
@@ -32,6 +33,22 @@ const loadHiddenSet = () => {
 
 const loadShowAll = () => {
   return window.localStorage.getItem(SUMMARY_SHOW_ALL_STORAGE_KEY) === 'true';
+};
+
+const loadSummaryOrder = () => {
+  try {
+    const raw = window.localStorage.getItem(SUMMARY_ORDER_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      return {};
+    }
+    return parsed;
+  } catch (error) {
+    return {};
+  }
 };
 
 const toDateInputValue = (date) => {
@@ -86,9 +103,37 @@ const getLastWorkWeekRange = () => {
   return { start, end };
 };
 
-const lastWorkWeek = getLastWorkWeekRange();
-const selectedStartDate = ref(toDateInputValue(lastWorkWeek.start));
-const selectedEndDate = ref(toDateInputValue(lastWorkWeek.end));
+const getCurrentWorkWeekRange = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // JS getDay(): Sun=0, Mon=1, ..., Sat=6
+  const offsetToMonday = (today.getDay() + 6) % 7;
+  const start = new Date(today);
+  start.setDate(start.getDate() - offsetToMonday);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 4);
+
+  return { start, end };
+};
+
+const getDefaultWorkWeekRange = () => {
+  const today = new Date();
+  const day = today.getDay();
+
+  // Starting Friday (Fri-Sun), default to current work week (Mon-Fri).
+  if (day === 5 || day === 6 || day === 0) {
+    return getCurrentWorkWeekRange();
+  }
+
+  // Mon-Thu: default to last full work week.
+  return getLastWorkWeekRange();
+};
+
+const defaultWorkWeek = getDefaultWorkWeekRange();
+const selectedStartDate = ref(toDateInputValue(defaultWorkWeek.start));
+const selectedEndDate = ref(toDateInputValue(defaultWorkWeek.end));
 const showDateControls = ref(false);
 
 const completedDateBounds = computed(() => {
@@ -157,6 +202,7 @@ const resolveListName = (listId) => {
 
 const hiddenTaskIds = ref(loadHiddenSet());
 const showAll = ref(loadShowAll());
+const summaryOrderByGroupKey = ref(loadSummaryOrder());
 const hiddenCount = computed(() => hiddenTaskIds.value.size);
 
 const activeSection = ref('summarize');
@@ -222,6 +268,100 @@ watch(
 watch(showAll, (value) => {
   window.localStorage.setItem(SUMMARY_SHOW_ALL_STORAGE_KEY, value ? 'true' : 'false');
 });
+
+watch(
+  summaryOrderByGroupKey,
+  (value) => {
+    window.localStorage.setItem(SUMMARY_ORDER_STORAGE_KEY, JSON.stringify(value ?? {}));
+  },
+  { deep: true }
+);
+
+const getGroupKeyFromTimestamp = (timestampKey) => {
+  return typeof timestampKey === 'number' ? `date:${timestampKey}` : 'date:undated';
+};
+
+const normalizeEntryId = (entry) => {
+  const id = entry?.id;
+  return typeof id === 'string' && id.trim().length > 0 ? id : null;
+};
+
+const applyOrderToGroupItems = (groupKey, items) => {
+  const list = Array.isArray(items) ? items : [];
+  const stored = summaryOrderByGroupKey.value?.[groupKey];
+
+  if (!Array.isArray(stored) || stored.length === 0) {
+    return list;
+  }
+
+  const byId = new Map();
+  list.forEach((entry) => {
+    const id = normalizeEntryId(entry);
+    if (id) {
+      byId.set(id, entry);
+    }
+  });
+
+  const ordered = [];
+  stored.forEach((id) => {
+    if (typeof id !== 'string') {
+      return;
+    }
+    const found = byId.get(id);
+    if (found) {
+      ordered.push(found);
+      byId.delete(id);
+    }
+  });
+
+  list.forEach((entry) => {
+    const id = normalizeEntryId(entry);
+    if (id && byId.has(id)) {
+      ordered.push(entry);
+      byId.delete(id);
+      return;
+    }
+    if (!id) {
+      ordered.push(entry);
+    }
+  });
+
+  return ordered;
+};
+
+const moveEntryInGroup = (groupKey, entryId, delta) => {
+  if (typeof groupKey !== 'string' || !groupKey) {
+    return;
+  }
+  if (typeof entryId !== 'string' || !entryId) {
+    return;
+  }
+
+  const groups = Array.isArray(groupedEntries.value) ? groupedEntries.value : [];
+  const group = groups.find((item) => item?.key === groupKey);
+  const items = Array.isArray(group?.items) ? group.items : [];
+  const orderedItems = applyOrderToGroupItems(groupKey, items);
+  const ids = orderedItems.map((entry) => normalizeEntryId(entry)).filter(Boolean);
+  const fromIndex = ids.indexOf(entryId);
+
+  if (fromIndex < 0) {
+    return;
+  }
+
+  const toIndex = fromIndex + (Number(delta) || 0);
+  if (toIndex < 0 || toIndex >= ids.length) {
+    return;
+  }
+
+  const nextIds = [...ids];
+  const [moved] = nextIds.splice(fromIndex, 1);
+  nextIds.splice(toIndex, 0, moved);
+
+  summaryOrderByGroupKey.value = {
+    ...(summaryOrderByGroupKey.value ?? {}),
+    [groupKey]: nextIds,
+  };
+};
 
 const formatTimestamp = (value) => {
   const timestamp = Date.parse(value ?? '');
@@ -313,10 +453,13 @@ const groupedEntries = computed(() => {
           ? formatter.format(new Date(timestamp))
           : 'Date unavailable';
       const sortValue = typeof timestamp === 'number' ? timestamp : Number.MAX_SAFE_INTEGER;
+
+      const groupKey = typeof timestamp === 'number' ? `date:${timestamp}` : 'date:undated';
+
       return {
-        key: typeof timestamp === 'number' ? `date:${timestamp}` : 'date:undated',
+        key: groupKey,
         label: dateLabel,
-        items,
+        items: applyOrderToGroupItems(groupKey, items),
         sortValue,
       };
     })
@@ -343,10 +486,13 @@ const groupedUnhiddenEntries = computed(() => {
           ? formatter.format(new Date(timestamp))
           : 'Date unavailable';
       const sortValue = typeof timestamp === 'number' ? timestamp : Number.MAX_SAFE_INTEGER;
+
+      const groupKey = typeof timestamp === 'number' ? `date:${timestamp}` : 'date:undated';
+
       return {
-        key: typeof timestamp === 'number' ? `date:${timestamp}` : 'date:undated',
+        key: groupKey,
         label: dateLabel,
-        items,
+        items: applyOrderToGroupItems(groupKey, items),
         sortValue,
       };
     })
@@ -373,7 +519,8 @@ const buildClipboardText = () => {
     lines.push(group.label);
     (Array.isArray(group.items) ? group.items : []).forEach((entry) => {
       const listName = resolveListName(entry?.listId);
-      lines.push(`- ${String(entry?.title ?? 'Untitled task')} (${listName})`);
+      const workedOnSuffix = entry?.workedOn ? ' (Worked on)' : '';
+      lines.push(`- ${String(entry?.title ?? 'Untitled task')} (${listName})${workedOnSuffix}`);
 
       const completionNotes = String(entry?.completionNotes ?? '').trim();
       if (completionNotes) {
@@ -850,6 +997,20 @@ onUnmounted(() => {
                   <span class="summary__list-text">{{ resolveListName(entry.listId) }}</span>
                 </span>
                 <div class="summary__item-actions">
+                  <button
+                    type="button"
+                    class="summary__item-toggle summary__item-toggle--reorder"
+                    @click="moveEntryInGroup(group.key, entry.id, -1)"
+                  >
+                    Up
+                  </button>
+                  <button
+                    type="button"
+                    class="summary__item-toggle summary__item-toggle--reorder"
+                    @click="moveEntryInGroup(group.key, entry.id, 1)"
+                  >
+                    Down
+                  </button>
                   <button
                     v-if="!showAll"
                     type="button"
@@ -1570,6 +1731,8 @@ onUnmounted(() => {
 .summary__item-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .summary__item-toggle {
