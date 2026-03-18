@@ -47,13 +47,70 @@ A polished Vue 3 + Vite task manager focused on capturing, scheduling, and compl
    npm run stylelint
    ```
 
+## Getting Started - API
+
+The app includes a read-only REST API for external applications to access task data:
+
+1. Install dependencies (if not already done)
+
+   ```bash
+   npm install
+   ```
+
+2. Run the API and Vue app together
+
+   ```bash
+   npm run dev:with-api
+   ```
+
+   This runs both servers:
+   - **Vue app**: <http://localhost:4173>
+   - **API server**: <http://localhost:3000>
+
+3. (Optional) Test the API endpoints
+
+   ```bash
+   # Get all tasks
+   curl http://localhost:3000/api/v1/tasks
+
+   # Get tasks due today
+   curl http://localhost:3000/api/v1/due-today
+   ```
+
+### API Endpoints
+
+- `GET /api/v1/tasks` → Returns all tasks
+- `GET /api/v1/due-today` → Returns tasks due today (today's date only)
+
+Both endpoints return JSON in this format:
+
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "id": 123,
+      "title": "Task title",
+      "due": "2026-03-18T13:10:00.000Z",
+      "completed": false
+    }
+  ],
+  "count": 1,
+  "timestamp": "2026-03-17T20:45:30.123Z"
+}
+```
+
+The API reads from the same JSON files as the Vue app, so data is always in sync.
+
 ## Available Scripts
 
-- `npm run dev` - start Vite with the JSON storage middleware.
-- `npm run build` - produce the optimized production bundle.
-- `npm run preview` - serve the build locally (also mounts the storage middleware).
-- `npm run lint` / `npm run lint:fix` - run ESLint (optionally with `--fix`).
-- `npm run stylelint` / `npm run lint:style` - enforce the SCSS + `<style>` conventions.
+- `npm run dev` - Start Vite on port 4173 with the JSON storage middleware.
+- `npm run api` - Start the REST API server on port 3000.
+- `npm run dev:with-api` - Start both the API server (port 3000) and Vue app (port 4173) together.
+- `npm run build` - Produce the optimized production bundle.
+- `npm run preview` - Serve the build locally (also mounts the storage middleware).
+- `npm run lint` / `npm run lint:fix` - Run ESLint (optionally with `--fix`).
+- `npm run stylelint` / `npm run lint:style` - Enforce the SCSS + `<style>` conventions.
 
 ## Data & Persistence
 
