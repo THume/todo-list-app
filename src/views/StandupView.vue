@@ -601,6 +601,79 @@ const standupNotes = ref('');
 const standupNotesSaving = ref(false);
 let saveNotesTimeout = null;
 
+// Notes section resizing
+const NOTES_HEIGHT_STORAGE_KEY = 'todo-list.standup-notes-height';
+const DEFAULT_NOTES_HEIGHT = 400; // 25rem in pixels (400px)
+const MIN_NOTES_HEIGHT = 320; // 20rem (~320px)
+const MAX_NOTES_HEIGHT = 640; // 40rem (~640px)
+
+const notesHeight = ref(DEFAULT_NOTES_HEIGHT);
+const isResizing = ref(false);
+const notesContainerRef = ref(null);
+let initialResizeY = 0;
+let initialResizeHeight = 0;
+
+const loadNotesHeight = () => {
+  try {
+    const stored = window.localStorage.getItem(NOTES_HEIGHT_STORAGE_KEY);
+    if (stored) {
+      const height = parseInt(stored, 10);
+      if (!Number.isNaN(height) && height >= MIN_NOTES_HEIGHT && height <= MAX_NOTES_HEIGHT) {
+        return height;
+      }
+    }
+  } catch (error) {
+    // ignore storage errors
+  }
+  return DEFAULT_NOTES_HEIGHT;
+};
+
+const saveNotesHeight = (height) => {
+  try {
+    window.localStorage.setItem(NOTES_HEIGHT_STORAGE_KEY, String(height));
+  } catch (error) {
+    // ignore storage errors
+  }
+};
+
+const handleResizeStart = (event) => {
+  isResizing.value = true;
+  initialResizeY = event.clientY;
+  initialResizeHeight = notesHeight.value;
+  document.addEventListener('mousemove', handleResizeMove);
+  document.addEventListener('mouseup', handleResizeEnd);
+  document.addEventListener('selectstart', handleSelectStart);
+};
+
+const handleSelectStart = (event) => {
+  if (isResizing.value) {
+    event.preventDefault();
+  }
+};
+
+const handleResizeMove = (event) => {
+  if (!isResizing.value) {
+    return;
+  }
+  event.preventDefault();
+  const delta = event.clientY - initialResizeY;
+  const newHeight = initialResizeHeight - delta;
+
+  if (newHeight >= MIN_NOTES_HEIGHT && newHeight <= MAX_NOTES_HEIGHT) {
+    notesHeight.value = newHeight;
+  }
+};
+
+const handleResizeEnd = () => {
+  if (isResizing.value) {
+    saveNotesHeight(notesHeight.value);
+    isResizing.value = false;
+    document.removeEventListener('mousemove', handleResizeMove);
+    document.removeEventListener('mouseup', handleResizeEnd);
+    document.removeEventListener('selectstart', handleSelectStart);
+  }
+};
+
 // Mobile tabs
 const activeTab = ref('today'); // 'yesterday', 'today', 'notes'
 
@@ -635,6 +708,7 @@ const loadStandupNotes = async () => {
 };
 
 onMounted(() => {
+  notesHeight.value = loadNotesHeight();
   loadStandupNotes();
 });
 </script>
@@ -1113,7 +1187,21 @@ onMounted(() => {
       </article>
     </div>
 
-    <article class="standup__notes-section" :class="{ 'standup__notes-section--tab-hidden': activeTab !== 'notes' }">
+    <article 
+      ref="notesContainerRef"
+      class="standup__notes-section" 
+      :class="{ 
+        'standup__notes-section--tab-hidden': activeTab !== 'notes',
+        'standup__notes-section--resizing': isResizing
+      }"
+      :style="{ height: `${notesHeight}px` }"
+    >
+      <div
+        class="standup__notes-resize-handle"
+        role="presentation"
+        aria-label="Drag to resize notes section"
+        @mousedown="handleResizeStart"
+      ></div>
       <header class="standup__notes-header">
         <h2 class="standup__notes-title">Notes</h2>
         <button
@@ -1623,8 +1711,16 @@ onMounted(() => {
   background: rgba(23, 23, 24, 0.6);
   border: 1px solid theme.$color-border-strong;
   grid-template-rows: auto 1fr auto;
-  min-height: 20rem;
-  max-height: 28rem;
+  min-height: 320px;
+  max-height: 640px;
+  height: 400px;
+  position: relative;
+  transition: border-color 0.2s ease;
+
+  &.standup__notes-section--resizing {
+    user-select: none;
+    border-color: theme.$color-accent;
+  }
 }
 
 .standup__notes-header {
@@ -1697,6 +1793,34 @@ onMounted(() => {
   font-size: 0.85rem;
   color: theme.$color-text-muted;
   font-style: italic;
+}
+
+.standup__notes-resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1.25rem;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+
+.standup__notes-resize-handle::before {
+  content: '';
+  width: 2.5rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+  transition: background 0.2s ease;
+  pointer-events: none;
+}
+
+.standup__notes-resize-handle:hover::before,
+.standup__notes-section--resizing .standup__notes-resize-handle::before {
+  background: theme.$color-accent;
 }
 
 /* Mobile tabs - hidden on desktop */
@@ -1778,6 +1902,7 @@ onMounted(() => {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    height: auto;
   }
 
   .standup__notes-section--tab-hidden {
@@ -1787,6 +1912,10 @@ onMounted(() => {
   .standup__notes-textarea {
     flex: 1;
     min-height: 300px;
+  }
+
+  .standup__notes-resize-handle {
+    display: none;
   }
 
   .standup__section {
