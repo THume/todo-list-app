@@ -1,5 +1,6 @@
 # TODOs
 
+- When connection is gone periodically check if it has been reestablished
 - Goals/habits - tracks how often completed
 - Integration with Google calendar for task reminders
 - Add Workspaces to create separate collections of tasks/lists
@@ -16,3 +17,4 @@
     - Order by due date/time
     - Keep some ability to reorganize
     - Recurring tasks should keep where they are in the order as much as possible
+- Add API calls for Read, Write

@@ -1,4 +1,5 @@
 <script setup>
+import ModalBase from './ModalBase.vue';
 import IconGlyph from './IconGlyph.vue';
 
 const props = defineProps({
@@ -56,29 +57,15 @@ const restoreSnapshot = (snapshotId) => {
 </script>
 
 <template>
-  <div v-if="visible" class="backup-modal" role="presentation">
-    <div class="backup-modal__backdrop" @click="closeModal"></div>
-    <div
-      class="backup-modal__panel"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="backup-modal-title"
-      @click.stop
-    >
-      <header class="backup-modal__header">
-        <div>
-          <p class="backup-modal__eyebrow">Settings</p>
-          <h2 id="backup-modal-title" class="backup-modal__title">Restore backup</h2>
-        </div>
-        <button
-          type="button"
-          class="backup-modal__close"
-          aria-label="Close restore backup modal"
-          @click="closeModal"
-        >
-          <IconGlyph name="close" size="18" aria-hidden="true" />
-        </button>
-      </header>
+  <ModalBase
+    :open="visible"
+    title="Restore backup"
+    eyebrow="Settings"
+    size="large"
+    @update:open="$emit('close')"
+    @close="closeModal"
+  >
+    <template #default>
       <p class="backup-modal__hint">
         Choose a snapshot to restore. This replaces tasks, lists, and completed history.
       </p>
@@ -113,161 +100,84 @@ const restoreSnapshot = (snapshotId) => {
           </div>
         </div>
       </div>
-    </div>
-  </div>
+    </template>
+  </ModalBase>
 </template>
 
 <style scoped lang="scss">
 @use '../styles/theme' as theme;
 
 .backup-modal {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  z-index: 20;
-}
+  &__hint {
+    margin: 0;
+    color: theme.$color-text-muted;
+    font-size: 0.95rem;
+  }
 
-.backup-modal__backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(8, 9, 12, 0.7);
-  backdrop-filter: blur(4px);
-}
+  &__body {
+    display: grid;
+    gap: 0.75rem;
+  }
 
-.backup-modal__panel {
-  position: relative;
-  width: min(560px, 92vw);
-  background: rgba(20, 22, 25, 0.98);
-  border: 1px solid theme.$color-border-strong;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  box-shadow: 0 30px 60px -35px rgba(0, 0, 0, 0.9);
-  display: grid;
-  gap: 1rem;
-}
+  &__status {
+    margin: 0;
+    color: theme.$color-text-muted;
+    font-size: 0.95rem;
 
-.backup-modal__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
+    &--error {
+      color: #fca5a5;
+    }
+  }
 
-.backup-modal__eyebrow {
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.75rem;
-  color: theme.$color-text-muted;
-}
+  &__list {
+    display: grid;
+    gap: 0.75rem;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+  }
 
-.backup-modal__title {
-  margin: 0.25rem 0 0;
-  font-size: 1.35rem;
-  color: theme.$color-text-heading;
-}
+  &__item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.85rem 1rem;
+    border: 1px solid theme.$color-border-muted;
+    border-radius: 0.85rem;
+    background: rgba(255, 255, 255, 0.02);
+  }
 
-.backup-modal__close {
-  border: 1px solid theme.$color-border-muted;
-  background: transparent;
-  color: theme.$color-text-muted;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 0.75rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
-}
+  &__item-meta {
+    display: grid;
+    gap: 0.2rem;
+  }
 
-.backup-modal__close:hover {
-  border-color: theme.$color-accent;
-  color: theme.$color-text-heading;
-  background: rgba(255, 255, 255, 0.06);
-}
+  &__item-title {
+    margin: 0;
+    font-weight: 600;
+    color: theme.$color-text-heading;
+  }
 
-.backup-modal__close:focus-visible {
-  outline: 2px solid theme.$color-accent;
-  outline-offset: 2px;
-}
+  &__item-counts {
+    margin: 0;
+    font-size: 0.85rem;
+    color: theme.$color-text-muted;
+  }
 
-.backup-modal__hint {
-  margin: 0;
-  color: theme.$color-text-muted;
-  font-size: 0.95rem;
-}
+  &__restore {
+    @include theme.modal-action-button;
+    padding: 0.5rem 1rem;
+    border-radius: 0.65rem;
 
-.backup-modal__body {
-  display: grid;
-  gap: 0.75rem;
-}
+    &:hover:enabled {
+      box-shadow: 0 12px 24px -18px rgba(239, 68, 68, 0.9);
+    }
 
-.backup-modal__status {
-  margin: 0;
-  color: theme.$color-text-muted;
-  font-size: 0.95rem;
-}
-
-.backup-modal__status--error {
-  color: #fca5a5;
-}
-
-.backup-modal__list {
-  display: grid;
-  gap: 0.75rem;
-  max-height: 50vh;
-  overflow-y: auto;
-  padding-right: 0.25rem;
-}
-
-.backup-modal__item {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.75rem;
-  align-items: center;
-  padding: 0.85rem 1rem;
-  border: 1px solid theme.$color-border-muted;
-  border-radius: 0.85rem;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.backup-modal__item-meta {
-  display: grid;
-  gap: 0.2rem;
-}
-
-.backup-modal__item-title {
-  margin: 0;
-  font-weight: 600;
-  color: theme.$color-text-heading;
-}
-
-.backup-modal__item-counts {
-  margin: 0;
-  font-size: 0.85rem;
-  color: theme.$color-text-muted;
-}
-
-.backup-modal__restore {
-  border: none;
-  border-radius: 0.65rem;
-  padding: 0.5rem 1rem;
-  background: rgba(239, 68, 68, 0.9);
-  color: #1b1b1d;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.backup-modal__restore:hover:enabled {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 24px -18px rgba(239, 68, 68, 0.9);
-}
-
-.backup-modal__restore:disabled {
-  cursor: wait;
-  opacity: 0.7;
+    &:disabled {
+      cursor: wait;
+      opacity: 0.7;
+    }
+  }
 }
 </style>

@@ -128,6 +128,22 @@ The API reads from the same JSON files as the Vue app, so data is always in sync
 - `src/services/jsonStorage.js` - browser-side helper that bridges to the middleware-backed JSON files.
 - `src/styles/_theme.scss` - theme tokens referenced across scoped styles.
 
+## Styling & Layout
+
+### Z-Index Guidelines
+
+The application uses a consistent z-index strategy for layered UI elements:
+
+- **Modal dialogs**: All modal/dialog components use `z-index: 1000` for their backdrop. This includes:
+  - Add/Edit Task Modal (`AddEditTaskModal.vue`)
+  - Adjust Completion Date Modal (`AdjustCompletionDateModal.vue`)
+  - Completion Notes Modal (`CompletionNotesModal.vue`)
+  - List Settings Modal (`ListSettingsModal.vue`)
+  - Confirm Dialog (`ConfirmDialog.vue`)
+  - Backup Restore Modal (`BackupRestoreModal.vue`)
+
+All modals inherit from `ModalBase.vue`, which provides consistent backdrop styling (rgba(8, 9, 12, 0.7) semi-transparent dark overlay with 4px blur). When adding new modals, extend `ModalBase` and use `z-index: 1000` or higher for consistent appearance.
+
 ## Contributing
 
 Issues and pull requests are welcome! Please describe new features in this README, verify `npm run build`, `npm run lint`, and `npm run stylelint`, and keep persistence changes compatible with existing JSON data.

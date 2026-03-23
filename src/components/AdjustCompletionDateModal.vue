@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
+import ModalBase from './ModalBase.vue';
 
 const props = defineProps({
   visible: {
@@ -106,118 +107,63 @@ watch(
 </script>
 
 <template>
-  <Transition name="modal">
-    <div v-if="visible" class="modal-backdrop" @click.self="handleCancel">
-      <div
-        class="modal-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
-      >
-        <header class="modal-header">
-          <h2 id="modal-title" class="modal-title">Adjust Completion Date</h2>
-        </header>
-        <form class="modal-body" @submit.prevent="handleSubmit">
-          <p v-if="taskTitle" class="modal-task-title">{{ taskTitle }}</p>
-          <div class="modal-fields">
-            <label class="modal-field">
-              <span class="modal-field-label">Date</span>
-              <input
-                v-model="completedDate"
-                type="date"
-                name="completedDate"
-                :max="maxDate"
-                aria-label="Completed date"
-                required
-                class="modal-input"
-              />
-            </label>
-            <label class="modal-field">
-              <span class="modal-field-label">Time</span>
-              <input
-                v-model="completedTime"
-                type="time"
-                name="completedTime"
-                aria-label="Completed time"
-                class="modal-input"
-              />
-            </label>
-          </div>
-          <p v-if="error" class="modal-error">
-            {{ error }}
-          </p>
-          <div class="modal-actions">
-            <button type="submit" class="modal-button modal-button--primary">
-              Save
-            </button>
-            <button
-              type="button"
-              class="modal-button"
-              @click="handleCancel"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </Transition>
+  <ModalBase
+    :open="visible"
+    title="Adjust Completion Date"
+    :subtitle="taskTitle"
+    size="medium"
+    @update:open="$emit('update:visible', $event)"
+    @close="handleCancel"
+  >
+    <template #default>
+      <form class="modal-form" @submit.prevent="handleSubmit">
+        <div class="modal-fields">
+          <label class="modal-field">
+            <span class="modal-field-label">Date</span>
+            <input
+              v-model="completedDate"
+              type="date"
+              name="completedDate"
+              :max="maxDate"
+              aria-label="Completed date"
+              required
+              class="modal-input"
+            />
+          </label>
+          <label class="modal-field">
+            <span class="modal-field-label">Time</span>
+            <input
+              v-model="completedTime"
+              type="time"
+              name="completedTime"
+              aria-label="Completed time"
+              class="modal-input"
+            />
+          </label>
+        </div>
+        <p v-if="error" class="modal-error">
+          {{ error }}
+        </p>
+        <div class="modal-actions">
+          <button type="submit" class="modal-button modal-button--primary">
+            Save
+          </button>
+        </div>
+      </form>
+    </template>
+  </ModalBase>
 </template>
 
 <style scoped lang="scss">
 @use '../styles/theme' as theme;
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 1rem;
-}
-
-.modal-panel {
-  background: #1a1a1b;
-  border: 1px solid theme.$color-border-strong;
-  border-radius: 1rem;
-  max-width: 28rem;
-  width: 100%;
-  box-shadow: 0 24px 48px -16px rgba(0, 0, 0, 0.85);
-}
-
-.modal-header {
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid theme.$color-border-input;
-}
-
-.modal-title {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: theme.$color-text-heading;
-}
-
-.modal-body {
-  padding: 1.5rem;
+.modal-form {
   display: grid;
   gap: 1rem;
-}
-
-.modal-task-title {
-  margin: 0;
-  color: theme.$color-text-primary;
-  font-weight: 600;
-  padding: 0.75rem 1rem;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 0.5rem;
-  border: 1px solid theme.$color-border-input;
 }
 
 .modal-fields {
-  display: grid;
-  gap: 1rem;
+  @include theme.modal-fields;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
 }
 
@@ -228,26 +174,13 @@ watch(
 
 .modal-field-label {
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
   color: theme.$color-text-muted;
 }
 
 .modal-input {
+  @include theme.modal-form-input;
   width: 100%;
-  border: 1px solid theme.$color-border-input;
-  background: rgba(12, 12, 13, 0.6);
-  color: theme.$color-text-primary;
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.5rem;
-  font-size: 0.95rem;
-  transition: border-color 0.2s ease, background 0.2s ease;
-
-  &:focus-visible {
-    outline: 2px solid theme.$color-accent;
-    outline-offset: 2px;
-    border-color: theme.$color-accent;
-    background: rgba(12, 12, 13, 0.85);
-  }
 }
 
 .modal-error {
@@ -261,63 +194,10 @@ watch(
 }
 
 .modal-actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  padding-top: 0.5rem;
+  @include theme.modal-actions;
 }
 
 .modal-button {
-  border: 1px solid theme.$color-border-input;
-  background: transparent;
-  color: theme.$color-text-primary;
-  font-weight: 600;
-  font-size: 0.95rem;
-  padding: 0.65rem 1.25rem;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-
-  &:hover {
-    color: theme.$color-text-heading;
-    border-color: theme.$color-accent;
-    background: rgba(34, 197, 94, 0.15);
-    transform: translateY(-1px);
-  }
-
-  &:focus-visible {
-    outline: 2px solid theme.$color-accent;
-    outline-offset: 2px;
-  }
-}
-
-.modal-button--primary {
-  background: theme.$color-accent;
-  border-color: theme.$color-accent;
-  color: theme.$color-text-inverted;
-
-  &:hover {
-    background: theme.$color-accent-hover;
-    border-color: theme.$color-accent-hover;
-  }
-}
-
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-
-  .modal-panel {
-    transition: transform 0.2s ease, opacity 0.2s ease;
-  }
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-
-  .modal-panel {
-    opacity: 0;
-    transform: scale(0.95) translateY(10px);
-  }
+  @include theme.modal-action-button;
 }
 </style>

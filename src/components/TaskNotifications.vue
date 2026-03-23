@@ -105,44 +105,25 @@ const resolveActions = (note) => {
 }
 
 .notifications__action {
+  @include theme.modal-action-button;
   border: 1px solid theme.$color-border-muted;
   background: transparent;
   color: theme.$color-text-primary;
-  font-weight: 600;
-  font-size: 0.9rem;
   padding: 0.35rem 0.9rem;
   border-radius: 999px;
-  cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 
   &:hover {
     transform: translateY(-1px);
     background: rgba(255, 255, 255, 0.08);
     border-color: theme.$color-accent;
   }
-
-  &:focus-visible {
-    outline: 2px solid theme.$color-accent;
-    outline-offset: 2px;
-  }
 }
 
 .notifications__dismiss {
-  border: none;
-  background: theme.$color-accent;
-  color: theme.$color-text-inverted;
-  font-weight: 600;
-  font-size: 0.9rem;
+  @include theme.modal-action-button;
   padding: 0.35rem 0.9rem;
   border-radius: 999px;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   box-shadow: 0 10px 18px -18px rgba(239, 68, 68, 0.75);
-}
-
-.notifications__dismiss:hover {
-  transform: translateY(-1px);
-  background: theme.$color-accent-hover;
 }
 
 .notification-enter-active,

@@ -6,6 +6,7 @@ import {
   resolveListId,
   recurrenceOptions,
 } from '../composables/useTaskFormHelpers';
+import ModalBase from './ModalBase.vue';
 import IconGlyph from './IconGlyph.vue';
 import { useUiSettings } from '../stores/useUiSettings';
 
@@ -519,39 +520,16 @@ watch(
 </script>
 
 <template>
-  <Teleport to="body">
-    <div
-      v-if="visible"
-      class="add-task-modal"
-      role="presentation"
-      @click.self="handleBackdropClick"
+  <Teleport v-if="visible" to="body">
+    <ModalBase
+      :open="visible"
+      size="large"
+      :title="dialogTitle"
+      @update:open="$emit('update:visible', $event)"
+      @close="closeModal"
     >
-      <section
-        class="add-task"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="add-task-title"
-      >
-        <header class="add-task__header">
-          <h1 id="add-task-title" class="add-task__title">
-            <IconGlyph
-              :name="titleIcon"
-              size="18"
-              class="add-task__title-icon"
-              aria-hidden="true"
-            />
-            {{ dialogTitle }}
-          </h1>
-          <button
-            type="button"
-            class="add-task__close"
-            aria-label="Close add task form"
-            @click="closeModal"
-          >
-            &times;
-          </button>
-        </header>
-        <form class="add-task__form" @submit.prevent="handleSubmit(true)">
+      <template #default>
+        <form id="add-task-form" class="add-task__form" @submit.prevent="handleSubmit(true)">
           <div class="add-task__fields">
             <div class="add-task__input-shell">
               <IconGlyph
@@ -850,43 +828,49 @@ watch(
               </p>
             </div>
           </div>
-          <div class="add-task__actions">
-            <button type="submit" class="add-task__submit" :disabled="!canSubmit">
-              <IconGlyph
-                :name="isEditMode ? 'check' : 'plus'"
-                size="16"
-                class="add-task__submit-icon"
-                aria-hidden="true"
-              />
-              {{ submitButtonText }}
-            </button>
-            <button
-              v-if="!isEditMode"
-              type="button"
-              class="add-task__submit add-task__submit--secondary"
-              :disabled="!canSubmit"
-              @click="handleSubmit(false)"
-            >
-              <IconGlyph
-                name="plus"
-                size="16"
-                class="add-task__submit-icon"
-                aria-hidden="true"
-              />
-              Add and Start Another
-            </button>
-          </div>
         </form>
-      </section>
-    </div>
+      </template>
+
+      <template #actions>
+        <div class="add-task__actions">
+          <button
+            type="submit" 
+            class="add-task__submit" 
+            form="add-task-form" 
+            :disabled="!canSubmit"
+          >
+            <IconGlyph
+              :name="isEditMode ? 'check' : 'plus'"
+              size="16"
+              class="add-task__submit-icon"
+              aria-hidden="true"
+            />
+            {{ submitButtonText }}
+          </button>
+          <button
+            v-if="!isEditMode"
+            type="button"
+            class="add-task__submit add-task__submit--secondary"
+            :disabled="!canSubmit"
+            @click="handleSubmit(false)"
+          >
+            <IconGlyph
+              name="plus"
+              size="16"
+              class="add-task__submit-icon"
+              aria-hidden="true"
+            />
+            Add and Start Another
+          </button>
+        </div>
+      </template>
+    </ModalBase>
   </Teleport>
 </template>
 
 <style scoped lang="scss">
 @use '../styles/theme' as theme;
 
-$panel-bg: rgba(27, 27, 29, 0.96);
-$panel-border: rgba(255, 255, 255, 0.08);
 $input-bg: rgba(255, 255, 255, 0.06);
 $input-bg-focus: rgba(255, 255, 255, 0.1);
 $input-border: rgba(255, 255, 255, 0.12);
@@ -902,676 +886,588 @@ $checkbox-accent: #22c55e;
 $checkbox-checked-bg: rgba(34, 197, 94, 0.12);
 $checkbox-checked-border: rgba(34, 197, 94, 0.55);
 $checkbox-icon: #4ade80;
-$remove-hover: #f87171;
+$panel-border: rgba(255, 255, 255, 0.08);
 
-.add-task-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(5, 5, 6, 0.75);
-  backdrop-filter: blur(8px);
-  padding: 3rem 1.5rem;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  overflow-y: auto;
-  z-index: 1000;
 
-  @media (max-width: 640px) {
-    padding: 1.5rem 0.75rem;
-    align-items: stretch;
+
+.add-task__form {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.add-task__fields {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.add-task__input-shell {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid $input-border;
+  border-radius: 1rem;
+  background: $input-bg;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+  /* Better touch targets on mobile */
+  @media (max-width: 768px) {
+    padding: 0.95rem 1rem;
   }
 
-  @media (max-width: 480px) {
-    padding: 0;
-    align-items: stretch;
+  &:focus-within {
+    border-color: $button-bg;
+    box-shadow: 0 0 0 3px $focus-outline;
+    background: $input-bg-focus;
   }
 }
 
-.add-task {
-  border: 1px solid $panel-border;
-  border-radius: 1.5rem;
-  padding: 1.5rem;
-  background: $panel-bg;
+.add-task__input-shell--textarea {
+  align-items: flex-start;
+}
+
+.add-task__field-icon {
+  color: theme.$color-accent;
+  margin-top: 0.05rem;
+}
+
+.add-task__input,
+.add-task__textarea {
+  border: none;
+  background: transparent;
+  color: $input-text;
+  font-size: 1rem;
+  font-family: inherit;
+  padding: 0;
+  min-width: 0;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.add-task__textarea {
+  resize: vertical;
+  min-height: 4.25rem;
+}
+
+.add-task__field-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: theme.$color-text-muted;
+}
+
+.add-task__input-shell-group {
   display: grid;
-  gap: 1rem;
-  width: min(640px, 100%);
-  @media (max-width: 768px) {
-    margin-top: 56px;
-  }
-  box-shadow: 0 32px 65px -40px rgba(0, 0, 0, 0.9);
-
-  @media (max-width: 640px) {
-    border-radius: 1.25rem;
-    padding: 1.25rem;
-  }
-
-  @media (max-width: 480px) {
-    border-radius: 0;
-    width: 100%;
-    min-height: 100vh;
-    border: none;
-  }
-
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-
-  &__title {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  &__close {
-    border: 1px solid $panel-border;
-    background: transparent;
-    color: theme.$color-text-primary;
-    font-size: 1.5rem;
-    line-height: 1;
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.2);
-    }
-
-    &:focus-visible {
-      outline: 2px solid $focus-outline;
-      outline-offset: 2px;
-    }
-  }
-
-  &__form {
-    display: grid;
-    gap: 1.5rem;
-  }
-
-  &__fields {
-    display: grid;
-    gap: 1.25rem;
-  }
-
-  &__input-shell {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    gap: 0.7rem;
-    padding: 0.75rem 0.9rem;
-    border: 1px solid $input-border;
-    border-radius: 1rem;
-    background: $input-bg;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-
-    /* Better touch targets on mobile */
-    @media (max-width: 768px) {
-      padding: 0.95rem 1rem;
-    }
-
-    &:focus-within {
-      border-color: $button-bg;
-      box-shadow: 0 0 0 3px $focus-outline;
-      background: $input-bg-focus;
-    }
-  }
-
-  &__input-shell--textarea {
-    align-items: flex-start;
-  }
-
-  &__field-icon {
-    color: theme.$color-accent;
-    margin-top: 0.05rem;
-  }
-
-  &__input,
-  &__textarea {
-    border: none;
-    background: transparent;
-    color: $input-text;
-    font-size: 1rem;
-    font-family: inherit;
-    padding: 0;
-    min-width: 0;
-
-    &:focus {
-      outline: none;
-    }
-  }
-
-  &__textarea {
-    resize: vertical;
-    min-height: 4.25rem;
-  }
-
-  &__field-label {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: theme.$color-text-muted;
-  }
-
-  &__input-shell-group {
-    display: grid;
-    gap: 0.5rem;
-  }
-
-  &__tags {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  &__chip {
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 999px;
-    padding: 0.4rem 0.75rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: theme.$color-text-primary;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  &__input-shell--split {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-    gap: 0.75rem;
-  }
-
-  &__input-shell--row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-
-  &__input-shell--chips {
-    display: grid;
-    gap: 0.75rem;
-  }
-
-  &__input-shell--time {
-    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-  }
-
-  &__input-shell--list {
-    grid-template-columns: 1fr auto;
-    align-items: end;
-  }
-
-  &__input-shell--list .add-task__select {
-    max-width: 16rem;
-  }
-
-  &__label-heading {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-weight: 700;
-    font-size: 0.95rem;
-    color: $input-text;
-  }
-
-  &__label-icon {
-    color: theme.$color-text-muted;
-  }
-
-  &__list,
-  &__recurrence,
-  &__due-label {
-    display: grid;
-    gap: 0.55rem;
-    padding: 0.85rem 0.95rem;
-    border: 1px solid $input-border;
-    border-radius: 1rem;
-    background: $input-bg;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-
-    &:focus-within {
-      border-color: $button-bg;
-      box-shadow: 0 0 0 3px $focus-outline;
-      background: $input-bg-focus;
-    }
-  }
-
-  &__due-row {
-    display: grid;
-    gap: 0.75rem;
-
-    @media (min-width: 640px) {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  &__completion {
-    display: grid;
-    gap: 0.35rem;
-    padding: 0.8rem 0.95rem;
-    border: 1px solid $input-border;
-    border-radius: 1rem;
-    background: $input-bg;
-  }
-
-  &__checkbox {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    cursor: pointer;
-    user-select: none;
-    color: $input-text;
-    font-weight: 600;
-
-    @media (max-width: 768px) {
-      gap: 0.75rem;
-      padding: 0.5rem 0;
-    }
-  }
-
-  &__checkbox-input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  &__checkbox-box {
-    width: 1.15rem;
-    height: 1.15rem;
-    border-radius: 0.4rem;
-    border: 2px solid $checkbox-border;
-    background: $checkbox-bg;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-
-    @media (max-width: 768px) {
-      width: 1.375rem;
-      height: 1.375rem;
-    }
-  }
-
-  &__checkbox-icon {
-    color: $checkbox-icon;
-  }
-
-  &__checkbox-input:focus-visible + &__checkbox-box {
-    outline: 2px solid $focus-outline;
-    outline-offset: 3px;
-  }
-
-  &__checkbox-input:checked + &__checkbox-box {
-    background: $checkbox-checked-bg;
-    border-color: $checkbox-checked-border;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
-  }
-
-  &__checkbox-label {
-    font-size: 0.95rem;
-  }
-
-  &__checkbox-hint {
-    margin: 0;
-    color: theme.$color-text-muted;
-    font-size: 0.85rem;
-  }
-
-  &__due-input-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    width: 100%;
-  }
-
-  &__due-input {
-    flex: 1 1 auto;
-    min-width: 0;
-    border: 1px solid $input-border;
-    border-radius: 0.75rem;
-    padding: 0.65rem 0.8rem;
-    font-size: 1rem;
-    font-family: inherit;
-    background: $input-bg;
-    color: $input-text;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-
-    /* Larger touch target on mobile */
-    @media (max-width: 768px) {
-      padding: 0.85rem 1rem;
-      font-size: 1.05rem;
-    }
-
-    &:focus {
-      outline: none;
-      border-color: $button-bg;
-      box-shadow: 0 0 0 3px $focus-outline;
-      background: $input-bg-focus;
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  }
-
-  &__select {
-    width: 100%;
-    border: 1px solid $input-border;
-    border-radius: 0.75rem;
-    padding: 0.75rem 0.9rem;
-    font-size: 1rem;
-    font-family: inherit;
-    background: $input-bg;
-    color: $input-text;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-    appearance: none;
-    cursor: pointer;
-
-    /* Larger touch target on mobile */
-    @media (max-width: 768px) {
-      padding: 0.9rem 1rem;
-      font-size: 1.05rem;
-    }
-
-    &:focus {
-      outline: none;
-      border-color: $button-bg;
-      box-shadow: 0 0 0 3px $focus-outline;
-      background: $input-bg-focus;
-    }
-
-    &--error {
-      border-color: theme.$color-accent;
-      box-shadow: 0 0 0 3px theme.$color-accent-focus-soft;
-    }
-  }
-
-  &__warning {
-    margin: 0;
-    padding: 0.5rem 0;
-    color: theme.$color-accent;
-    font-size: 0.85rem;
-    font-weight: 600;
-    line-height: 1.4;
-  }
-
-  &__today-button {
-    border: 1px solid $panel-border;
-    background: $input-bg;
-    color: $input-text;
-    font-size: 0.85rem;
-    font-weight: 600;
-    padding: 0.45rem 0.85rem;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
-
-    &:hover {
-      background: $input-bg-focus;
-      border-color: $input-border;
-      transform: translateY(-1px);
-    }
-
-    &:focus-visible {
-      outline: 2px solid $focus-outline;
-      outline-offset: 2px;
-    }
-  }
-
-  &__chip-icon {
-    margin-right: 0.35rem;
-    color: theme.$color-accent;
-  }
-
-  &__subtasks {
-    display: grid;
-    gap: 0.65rem;
-    padding: 0.9rem 0.95rem;
-    border: 1px solid $input-border;
-    border-radius: 1rem;
-    background: $input-bg;
-  }
-
-  &__subtasks-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  &__subtask-input-row {
-    display: flex;
-    gap: 0.6rem;
-    align-items: center;
-  }
-
-  &__subtask-input {
-    flex: 1 1 auto;
-    min-width: 0;
-    border: 1px solid $input-border;
-    border-radius: 0.65rem;
-    padding: 0.6rem 0.75rem;
-    background: $input-bg;
-    color: $input-text;
-
-    &:focus-visible {
-      outline: 2px solid $focus-outline;
-      outline-offset: 2px;
-      border-color: $button-bg;
-      background: $input-bg-focus;
-    }
-
-    @media (max-width: 768px) {
-      padding: 0.85rem 1rem;
-      font-size: 1.05rem;
-    }
-  }
-
-  &__subtask-button {
-    border: 1px solid $button-bg;
-    background: rgba(239, 68, 68, 0.12);
-    color: $button-bg;
-    font-weight: 700;
-    padding: 0.55rem 1rem;
-    border-radius: 0.65rem;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-
-    &:hover:not(:disabled) {
-      background: rgba(239, 68, 68, 0.2);
-      transform: translateY(-1px);
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    @media (max-width: 768px) {
-      padding: 0.75rem 1.25rem;
-      font-size: 1rem;
-      min-height: 44px;
-    }
-  }
-
-  &__subtask-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 0.45rem;
-  }
-
-  &__subtask {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.35rem 0.4rem;
-    border-radius: 0.65rem;
-    cursor: grab;
-    border: 1px solid transparent;
-    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
-  }
-
-  &__subtask--drag-over {
+  gap: 0.5rem;
+}
+
+.add-task__tags {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.add-task__chip {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: theme.$color-text-primary;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.add-task__input-shell--split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.add-task__input-shell--row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.add-task__input-shell--chips {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.add-task__input-shell--time {
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+}
+
+.add-task__input-shell--list {
+  grid-template-columns: 1fr auto;
+  align-items: end;
+}
+
+.add-task__input-shell--list .add-task__select {
+  max-width: 16rem;
+}
+
+.add-task__label-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: $input-text;
+}
+
+.add-task__label-icon {
+  color: theme.$color-text-muted;
+}
+
+.add-task__list,
+.add-task__recurrence,
+.add-task__due-label {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid $input-border;
+  border-radius: 1rem;
+  background: $input-bg;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+  &:focus-within {
     border-color: $button-bg;
-    background: rgba(239, 68, 68, 0.12);
+    box-shadow: 0 0 0 3px $focus-outline;
+    background: $input-bg-focus;
   }
+}
 
-  &__subtask--dragging {
-    opacity: 0.7;
-    cursor: grabbing;
+.add-task__due-row {
+  display: grid;
+  gap: 0.75rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  &__subtask-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
-    flex: 1 1 auto;
-    color: $input-text;
-    font-weight: 600;
-  }
+.add-task__completion {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid $input-border;
+  border-radius: 1rem;
+  background: $input-bg;
+}
 
-  &__subtask-handle {
-    color: theme.$color-text-muted;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    cursor: grab;
-    user-select: none;
-  }
+.add-task__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  user-select: none;
+  color: $input-text;
+  font-weight: 600;
 
-  &__subtask-checkbox {
-    width: 1rem;
-    height: 1rem;
-    accent-color: $button-bg;
-  }
-
-  &__subtask-title {
-    flex: 1;
-    min-width: 0;
-    word-break: break-word;
-  }
-
-  &__subtask-title--completed {
-    text-decoration: line-through;
-    color: theme.$color-text-muted;
-  }
-
-  &__subtask-remove {
-    border: 1px solid $panel-border;
-    background: transparent;
-    color: $input-text;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 0.65rem;
-    cursor: pointer;
-    font-size: 1.1rem;
-    line-height: 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-
-    &:hover {
-      border-color: $button-bg;
-      color: $button-bg;
-      background: rgba(239, 68, 68, 0.15);
-    }
-
-    &:focus-visible {
-      outline: 2px solid $focus-outline;
-      outline-offset: 2px;
-    }
-
-    @media (max-width: 768px) {
-      width: 2.75rem;
-      height: 2.75rem;
-      font-size: 1.15rem;
-    }
-  }
-
-  &__submit {
-    align-self: start;
-    border: none;
-    background: $button-bg;
-    color: theme.$color-text-inverted;
-    font-size: 1rem;
-    font-weight: 600;
-    padding: 0.75rem 1.5rem;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-    box-shadow: 0 12px 20px -18px rgba(239, 68, 68, 0.7);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-
-    &:disabled {
-      cursor: not-allowed;
-      background: $disabled-bg;
-      box-shadow: none;
-      color: $disabled-text;
-    }
-
-    &:not(:disabled):hover {
-      transform: translateY(-1px);
-      box-shadow: 0 16px 30px -22px rgba(248, 113, 113, 0.9);
-      background: $button-bg-hover;
-    }
-
-    @media (max-width: 768px) {
-      width: 100%;
-      justify-self: stretch;
-      text-align: center;
-      padding: 0.9rem 1.5rem;
-      font-size: 1.05rem;
-      min-height: 44px;
-    }
-  }
-
-  &__title-icon {
-    color: theme.$color-accent;
-  }
-
-  &__submit-icon {
-    margin-right: 0.5rem;
-  }
-
-  &__actions {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  @media (max-width: 768px) {
     gap: 0.75rem;
-    align-items: center;
+    padding: 0.5rem 0;
+  }
+}
+
+.add-task__checkbox-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.add-task__checkbox-box {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 0.4rem;
+  border: 2px solid $checkbox-border;
+  background: $checkbox-bg;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+
+  @media (max-width: 768px) {
+    width: 1.375rem;
+    height: 1.375rem;
+  }
+}
+
+.add-task__checkbox-icon {
+  color: $checkbox-icon;
+}
+
+.add-task__checkbox-input:focus-visible + .add-task__checkbox-box {
+  outline: 2px solid $focus-outline;
+  outline-offset: 3px;
+}
+
+.add-task__checkbox-input:checked + .add-task__checkbox-box {
+  background: $checkbox-checked-bg;
+  border-color: $checkbox-checked-border;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+}
+
+.add-task__checkbox-label {
+  font-size: 0.95rem;
+}
+
+.add-task__checkbox-hint {
+  margin: 0;
+  color: theme.$color-text-muted;
+  font-size: 0.85rem;
+}
+
+.add-task__due-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.add-task__due-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid $input-border;
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  font-size: 1rem;
+  font-family: inherit;
+  background: $input-bg;
+  color: $input-text;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+  /* Larger touch target on mobile */
+  @media (max-width: 768px) {
+    padding: 0.85rem 1rem;
+    font-size: 1.05rem;
   }
 
-  &__submit--secondary {
-    background: transparent;
+  &:focus {
+    outline: none;
+    border-color: $button-bg;
+    box-shadow: 0 0 0 3px $focus-outline;
+    background: $input-bg-focus;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.add-task__select {
+  width: 100%;
+  border: 1px solid $input-border;
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  font-size: 1rem;
+  font-family: inherit;
+  background: $input-bg;
+  color: $input-text;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  appearance: none;
+  cursor: pointer;
+
+  /* Larger touch target on mobile */
+  @media (max-width: 768px) {
+    padding: 0.9rem 1rem;
+    font-size: 1.05rem;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $button-bg;
+    box-shadow: 0 0 0 3px $focus-outline;
+    background: $input-bg-focus;
+  }
+
+  &--error {
+    border-color: theme.$color-accent;
+    box-shadow: 0 0 0 3px theme.$color-accent-focus-soft;
+  }
+}
+
+.add-task__warning {
+  margin: 0;
+  padding: 0.5rem 0;
+  color: theme.$color-accent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.add-task__today-button {
+  border: 1px solid $panel-border;
+  background: $input-bg;
+  color: $input-text;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.65rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    background: $input-bg-focus;
+    border-color: $input-border;
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-outline;
+    outline-offset: 2px;
+  }
+}
+
+.add-task__chip-icon {
+  margin-right: 0.35rem;
+  color: theme.$color-accent;
+}
+
+.add-task__subtasks {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.9rem 0.95rem;
+  border: 1px solid $input-border;
+  border-radius: 1rem;
+  background: $input-bg;
+}
+
+.add-task__subtasks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.add-task__subtask-input-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.add-task__subtask-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid $input-border;
+  border-radius: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  background: $input-bg;
+  color: $input-text;
+
+  &:focus-visible {
+    outline: 2px solid $focus-outline;
+    outline-offset: 2px;
+    border-color: $button-bg;
+    background: $input-bg-focus;
+  }
+
+  @media (max-width: 768px) {
+    padding: 0.85rem 1rem;
+    font-size: 1.05rem;
+  }
+}
+
+.add-task__subtask-button {
+  border: 1px solid $button-bg;
+  background: rgba(239, 68, 68, 0.12);
+  color: $button-bg;
+  font-weight: 700;
+  padding: 0.55rem 1rem;
+  border-radius: 0.65rem;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.2);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 768px) {
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+    min-height: 44px;
+  }
+}
+
+.add-task__subtask-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.add-task__subtask {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: 0.65rem;
+  cursor: grab;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.add-task__subtask--drag-over {
+  border-color: $button-bg;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.add-task__subtask--dragging {
+  opacity: 0.7;
+  cursor: grabbing;
+}
+
+.add-task__subtask-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 1 1 auto;
+  color: $input-text;
+  font-weight: 600;
+}
+
+.add-task__subtask-handle {
+  color: theme.$color-text-muted;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: grab;
+  user-select: none;
+}
+
+.add-task__subtask-checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: $button-bg;
+}
+
+.add-task__subtask-title {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.add-task__subtask-title--completed {
+  text-decoration: line-through;
+  color: theme.$color-text-muted;
+}
+
+.add-task__subtask-remove {
+  border: 1px solid $panel-border;
+  background: transparent;
+  color: $input-text;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.65rem;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    border-color: $button-bg;
     color: $button-bg;
-    border: 1px solid $button-bg;
+    background: rgba(239, 68, 68, 0.15);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-outline;
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 768px) {
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.15rem;
+  }
+}
+
+
+
+.add-task__submit-icon {
+  margin-right: 0.5rem;
+}
+
+.add-task__submit {
+  align-self: start;
+  border: none;
+  background: $button-bg;
+  color: theme.$color-text-inverted;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: 0 12px 20px -18px rgba(239, 68, 68, 0.7);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  &:disabled {
+    cursor: not-allowed;
+    background: $disabled-bg;
     box-shadow: none;
+    color: $disabled-text;
+  }
 
-    &:not(:disabled):hover {
-      background: rgba(239, 68, 68, 0.1);
-      color: $button-bg-hover;
-      transform: translateY(-1px);
-    }
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 30px -22px rgba(248, 113, 113, 0.9);
+    background: $button-bg-hover;
+  }
 
-    &:disabled {
-      border-color: $disabled-bg;
-      color: $disabled-text;
-      background: transparent;
-    }
+  @media (max-width: 768px) {
+    width: 100%;
+    justify-self: stretch;
+    text-align: center;
+    padding: 0.9rem 1.5rem;
+    font-size: 1.05rem;
+    min-height: 44px;
+  }
+}
+
+.add-task__actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+  align-items: center;
+  padding: 1.75rem;
+  margin: 0 -1.75rem -1.75rem -1.75rem;
+  border-top: 1px solid $input-border;
+}
+
+.add-task__submit--secondary {
+  background: transparent;
+  color: $button-bg;
+  border: 1px solid $button-bg;
+  box-shadow: none;
+
+  &:not(:disabled):hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: $button-bg-hover;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    border-color: $disabled-bg;
+    color: $disabled-text;
+    background: transparent;
   }
 }
 </style>
