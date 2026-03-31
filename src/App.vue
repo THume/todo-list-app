@@ -798,7 +798,6 @@ onUnmounted(() => {
   height: 100%;
   min-height: 0;
   box-sizing: border-box;
-  overflow: hidden;
   position: relative;
 }
 
@@ -808,7 +807,7 @@ onUnmounted(() => {
   gap: 2.5rem;
   min-height: 0;
   flex: 1 1 auto;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .layout__sidebar-content--collapsed {
