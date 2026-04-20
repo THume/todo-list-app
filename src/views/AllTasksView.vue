@@ -34,6 +34,9 @@ const draggedTaskId = ref(null);
 const dragOverTaskId = ref(null);
 const dropIndicatorIndex = ref(-1);
 const searchTerm = ref('');
+const dueFilterStartDate = ref('');
+const dueFilterEndDate = ref('');
+const showNoDueDateOnly = ref(false);
 
 const listNameById = computed(() => {
   const result = {};
@@ -61,13 +64,114 @@ const resolveListName = (task) => {
 };
 
 const normalizedSearch = computed(() => searchTerm.value.trim().toLowerCase());
+const parseDateInputValue = (value) => {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+
+  const [year, month, day] = value.split('-').map((part) => Number(part));
+
+  if (
+    Number.isNaN(year)
+    || Number.isNaN(month)
+    || Number.isNaN(day)
+    || month < 1
+    || month > 12
+    || day < 1
+    || day > 31
+  ) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.valueOf())) {
+    return null;
+  }
+
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const taskDueDayTimestamp = (task) => {
+  const dueValue = task?.due;
+  if (typeof dueValue !== 'string' || dueValue.trim().length === 0) {
+    return null;
+  }
+
+  const date = new Date(dueValue);
+  if (Number.isNaN(date.valueOf())) {
+    return null;
+  }
+
+  const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return dayStart.getTime();
+};
+
+const dueFilterBounds = computed(() => {
+  const startDate = parseDateInputValue(dueFilterStartDate.value);
+  const endDate = parseDateInputValue(dueFilterEndDate.value);
+
+  let rangeStart = startDate;
+  let rangeEnd = endDate;
+
+  if (
+    rangeStart instanceof Date
+    && rangeEnd instanceof Date
+    && rangeStart.getTime() > rangeEnd.getTime()
+  ) {
+    [rangeStart, rangeEnd] = [rangeEnd, rangeStart];
+  }
+
+  const start = rangeStart ? rangeStart.getTime() : null;
+  let end = null;
+
+  if (rangeEnd instanceof Date) {
+    const exclusiveEnd = new Date(rangeEnd);
+    exclusiveEnd.setDate(exclusiveEnd.getDate() + 1);
+    end = exclusiveEnd.getTime();
+  }
+
+  return {
+    start,
+    end,
+    hasDateFilter: start !== null || end !== null,
+  };
+});
+
+const hasAnyFilter = computed(() =>
+  normalizedSearch.value.length > 0
+  || dueFilterBounds.value.hasDateFilter
+  || showNoDueDateOnly.value
+);
+
 const visibleTasks = computed(() => {
   const current = Array.isArray(activeTasks.value) ? activeTasks.value : [];
   const term = normalizedSearch.value;
-  if (!term) {
-    return current;
-  }
+  const { start, end } = dueFilterBounds.value;
+
   return current.filter((task) => {
+    const dueDay = taskDueDayTimestamp(task);
+
+    if (showNoDueDateOnly.value && dueDay !== null) {
+      return false;
+    }
+
+    if (!showNoDueDateOnly.value && (start !== null || end !== null)) {
+      if (dueDay === null) {
+        return false;
+      }
+      if (start !== null && dueDay < start) {
+        return false;
+      }
+      if (end !== null && dueDay >= end) {
+        return false;
+      }
+    }
+
+    if (!term) {
+      return true;
+    }
+
     const title = typeof task?.title === 'string' ? task.title.toLowerCase() : '';
     const description =
       typeof task?.description === 'string' ? task.description.toLowerCase() : '';
@@ -78,11 +182,34 @@ const visibleTasks = computed(() => {
 const activeCount = computed(() => activeTasks.value?.length ?? 0);
 const visibleCount = computed(() => visibleTasks.value.length);
 const countLabel = computed(() => {
-  if (!normalizedSearch.value) {
+  if (!hasAnyFilter.value) {
     return `${activeCount.value} active`;
   }
   return `${visibleCount.value} of ${activeCount.value} active`;
 });
+
+const noResultsMessage = computed(() => {
+  if (!hasAnyFilter.value) {
+    return 'No active tasks right now.';
+  }
+  if (showNoDueDateOnly.value) {
+    return 'No tasks match the selected filters.';
+  }
+  if (dueFilterBounds.value.hasDateFilter && normalizedSearch.value) {
+    return 'No tasks match your search and due date filters.';
+  }
+  if (dueFilterBounds.value.hasDateFilter) {
+    return 'No tasks are due in the selected date range.';
+  }
+  return 'No tasks match your search.';
+});
+
+const clearAllFilters = () => {
+  searchTerm.value = '';
+  dueFilterStartDate.value = '';
+  dueFilterEndDate.value = '';
+  showNoDueDateOnly.value = false;
+};
 
 const handleToggle = (task) => {
   toggleTaskCompletion(task.id);
@@ -379,6 +506,49 @@ watch(showDuplicateDialog, (isOpen) => {
           aria-label="Search tasks"
         />
       </div>
+      <div class="task-panel__filters" aria-live="polite">
+        <div class="task-panel__filter-fields">
+          <label class="task-panel__filter-field" for="task-due-start-input">
+            <span>Due from</span>
+            <input
+              id="task-due-start-input"
+              v-model="dueFilterStartDate"
+              type="date"
+              name="task-due-start"
+              aria-label="Show tasks due on or after this date"
+            />
+          </label>
+          <label class="task-panel__filter-field" for="task-due-end-input">
+            <span>Due to</span>
+            <input
+              id="task-due-end-input"
+              v-model="dueFilterEndDate"
+              type="date"
+              name="task-due-end"
+              aria-label="Show tasks due on or before this date"
+            />
+          </label>
+          <label class="task-panel__filter-checkbox" for="task-no-due-only">
+            <input
+              id="task-no-due-only"
+              v-model="showNoDueDateOnly"
+              type="checkbox"
+              name="task-no-due-only"
+            />
+            <span>Only show tasks without a due date</span>
+          </label>
+        </div>
+        <div class="task-panel__filter-actions">
+          <button
+            type="button"
+            class="task-panel__filter-button"
+            :disabled="!hasAnyFilter"
+            @click="clearAllFilters"
+          >
+            Clear all filters
+          </button>
+        </div>
+      </div>
       <div class="postpone-control">
         <label class="postpone-control__label" for="postpone-date-input">
           <IconGlyph
@@ -426,7 +596,7 @@ watch(showDuplicateDialog, (isOpen) => {
       No active tasks right now.
     </p>
     <p v-else-if="visibleCount === 0" class="task-panel__empty">
-      No tasks match your search.
+      {{ noResultsMessage }}
     </p>
     <ul
       v-else
@@ -581,6 +751,96 @@ watch(showDuplicateDialog, (isOpen) => {
     border-color: theme.$color-accent;
     background: rgba(0, 0, 0, 0.45);
   }
+}
+
+.task-panel__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px dashed theme.$color-border-input;
+}
+
+.task-panel__filter-fields {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  flex: 1;
+}
+
+.task-panel__filter-field {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: theme.$color-text-muted;
+}
+
+.task-panel__filter-field input {
+  width: 100%;
+  border: 1px solid theme.$color-border-input;
+  background: rgba(12, 12, 13, 0.6);
+  color: theme.$color-text-primary;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.task-panel__filter-field input:focus-visible {
+  outline: 2px solid theme.$color-accent;
+  outline-offset: 2px;
+  border-color: theme.$color-accent;
+  background: rgba(12, 12, 13, 0.85);
+}
+
+.task-panel__filter-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: theme.$color-text-muted;
+}
+
+.task-panel__filter-checkbox input {
+  inline-size: 1rem;
+  block-size: 1rem;
+  accent-color: theme.$color-accent;
+}
+
+.task-panel__filter-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.task-panel__filter-button {
+  border: 1px solid theme.$color-border-input;
+  background: transparent;
+  color: theme.$color-text-primary;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+}
+
+.task-panel__filter-button:hover:enabled {
+  color: theme.$color-text-heading;
+  border-color: theme.$color-accent;
+  background: rgba(34, 197, 94, 0.15);
+  transform: translateY(-1px);
+}
+
+.task-panel__filter-button:focus-visible {
+  outline: 2px solid theme.$color-accent;
+  outline-offset: 2px;
+}
+
+.task-panel__filter-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .postpone-control {
