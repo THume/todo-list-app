@@ -1,5 +1,6 @@
 # TODOs
 
+- Implement WebSocket support for real-time task synchronization across clients (replace polling)
 - When connection is gone periodically check if it has been reestablished
 - Goals/habits - tracks how often completed
 - Integration with Google calendar for task reminders
@@ -17,4 +18,6 @@
     - Order by due date/time
     - Keep some ability to reorganize
     - Recurring tasks should keep where they are in the order as much as possible
-- Add API calls for Read, Write
+- Add a distinction for repeat tasks that it repeats X amount of days after it was due or after completed
+- Add a way to save off Standup notes similar to the Summay page
+- Add a way to edit date directly from task, instead of edit menu

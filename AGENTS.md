@@ -26,3 +26,7 @@
 - Avoid `git reset --hard` or reverting unrelated work.
 - Keep edits ASCII unless the file already uses Unicode.
 - Do not make git commits; the user will handle commits.
+
+## TODOs
+
+Ideas for future enhancements live in the TODO.md file at the root of this project. When asked to work on the TODOs refer to the [WORK_ON_TODOS](./prompts/WORK_ON_TODOS.md) file for instructions.
