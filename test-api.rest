@@ -1,0 +1,82 @@
+### Submit a new task
+POST http://localhost:3000/api/v1/tasks
+Content-Type: application/json
+
+{
+  "title": "Test Submission",
+  "description": "",
+  "due": null,
+  "recurrence": null,
+  "listId": "default",
+  "reminderOffsetMinutes": null,
+  "completed": false,
+  "subtasks": [],
+  "isLongTerm": false,
+  "startDate": null,
+  "completedAt": null
+}
+
+### Submit a task without optional fields
+POST http://localhost:3000/api/v1/tasks
+Content-Type: application/json
+
+{
+  "title": "Call dentist"
+}
+
+### Submit a recurring daily task
+POST http://localhost:3000/api/v1/tasks
+Content-Type: application/json
+
+{
+  "title": "Morning standup",
+  "description": "Daily team sync at 9 AM",
+  "due": "2026-03-25T09:00",
+  "recurrence": "daily",
+  "listId": "default",
+  "reminderOffsetMinutes": 30,
+  "completed": false,
+  "subtasks": []
+}
+
+### Submit a task with subtasks
+POST http://localhost:3000/api/v1/tasks
+Content-Type: application/json
+
+{
+  "title": "Project launch",
+  "description": "Launch new feature to production",
+  "due": "2026-03-28",
+  "listId": "default",
+  "completed": false,
+  "subtasks": [
+    {
+      "id": "subtask-1",
+      "title": "Code review",
+      "completed": false
+    },
+    {
+      "id": "subtask-2",
+      "title": "Deploy to staging",
+      "completed": false
+    },
+    {
+      "id": "subtask-3",
+      "title": "Smoke tests",
+      "completed": false
+    }
+  ]
+}
+
+### Submit a long-term task
+POST http://localhost:3000/api/v1/tasks
+Content-Type: application/json
+
+{
+  "title": "Learn TypeScript",
+  "description": "Complete TypeScript course and build a project",
+  "isLongTerm": true,
+  "startDate": "2026-03-24",
+  "listId": "default",
+  "completed": false
+}

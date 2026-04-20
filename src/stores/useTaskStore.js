@@ -1,6 +1,6 @@
 import { ref, computed, watch } from 'vue';
 import { useTaskNotifications } from '../composables/useTaskNotifications';
-import { readJsonFile, writeJsonFile } from '../services/jsonStorage';
+import { readJsonFile, writeJsonFile, submitTask } from '../services/jsonStorage';
 
 const TASKS_FILE_NAME = 'tasks.json';
 const LISTS_FILE_NAME = 'lists.json';
@@ -51,6 +51,8 @@ const reviveNotificationIds = new Map();
 const spawnedRecurringTaskIds = new Map();
 let broadcastChannel = null;
 let isApplyingRemoteUpdate = false;
+let externalTasksPollTimer = null;
+const EXTERNAL_TASKS_POLL_INTERVAL_MS = 15000; // Poll every 15 seconds for external task submissions
 const lastSavedAt = ref(null);
 const storageStatus = ref({ ok: true, message: '' });
 const dismissNotification = (id) => {
@@ -1908,14 +1910,59 @@ const initialize = async () => {
   checkDueTasks();
   startDueWatcher();
   setupBroadcastChannel();
+  startExternalTasksPoller();
   watchersReady = true;
   isInitialized = true;
+};
+
+const submitTaskViaAPI = async (taskData) => {
+  try {
+    const result = await submitTask(taskData);
+    if (!result.ok) {
+      const errorMsg = result.error?.message || 'Failed to submit task via API';
+      console.error('Task submission failed:', errorMsg);
+      return { ok: false, error: errorMsg };
+    }
+
+    // Update the local store with the created task
+    const createdTask = result.data;
+    if (createdTask) {
+      tasks.value = [...tasks.value, createdTask];
+    }
+
+    return { ok: true, data: createdTask };
+  } catch (error) {
+    console.error('Error submitting task via API:', error);
+    return { ok: false, error: error?.message ?? 'Unknown error occurred' };
+  }
+};
+
+const startExternalTasksPoller = () => {
+  if (externalTasksPollTimer) {
+    return;
+  }
+
+  externalTasksPollTimer = setInterval(() => {
+    if (watchersReady && !isApplyingRemoteUpdate) {
+      refreshFromStorage().catch((error) => {
+        console.error('Failed to refresh from storage during polling', error);
+      });
+    }
+  }, EXTERNAL_TASKS_POLL_INTERVAL_MS);
+};
+
+const stopExternalTasksPoller = () => {
+  if (externalTasksPollTimer) {
+    clearInterval(externalTasksPollTimer);
+    externalTasksPollTimer = null;
+  }
 };
 
 const teardown = () => {
   stopDueWatcher();
   stopCurrentTimeTicker();
   teardownBroadcastChannel();
+  stopExternalTasksPoller();
 };
 
 export const useTaskStore = () => {
@@ -1946,6 +1993,7 @@ export const useTaskStore = () => {
     renameList,
     updateListSettings,
     addTask,
+    submitTaskViaAPI,
     reviveCompletedTask,
     deleteCompletedTask,
     updateCompletedTaskNotes,

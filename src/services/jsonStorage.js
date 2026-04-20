@@ -1,4 +1,5 @@
 const API_BASE = '/api/storage';
+const API_V1_BASE = '/api/v1';
 
 const SUMMARIES_FILE_NAME = 'summaries.json';
 
@@ -265,4 +266,35 @@ export async function updateSummariesData(summaries) {
     return { ok: false, message: result.message ?? 'Failed to save summaries.' };
   }
   return { ok: true };
+}
+
+export async function submitTask(taskData) {
+  try {
+    const response = await fetch(`${API_V1_BASE}/tasks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(taskData),
+    });
+
+    if (!response.ok) {
+      let message = response.statusText;
+      try {
+        const payload = await response.json();
+        if (payload?.error) {
+          message = payload.error;
+        }
+      } catch (error) {
+        // ignore payload parsing errors
+      }
+      throw new Error(`Failed to submit task: ${message}`);
+    }
+
+    const payload = await response.json();
+    return { ok: true, data: payload?.data ?? null };
+  } catch (error) {
+    console.error('Failed to submit task', error);
+    return { ok: false, data: null, error };
+  }
 }

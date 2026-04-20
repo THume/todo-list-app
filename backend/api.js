@@ -28,6 +28,18 @@ async function readJsonFile(fileName) {
   }
 }
 
+// Write JSON file helper
+async function writeJsonFile(fileName, data) {
+  try {
+    const filePath = path.join(DATA_DIR, fileName);
+    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    return true;
+  } catch (error) {
+    console.error(`Failed to write ${fileName}`, error);
+    throw error;
+  }
+}
+
 // GET /api/v1/tasks
 app.get('/api/v1/tasks', async (req, res) => {
   try {
@@ -64,6 +76,72 @@ app.get('/api/v1/due-today', async (req, res) => {
   } catch (error) {
     console.error('Failed to read due today', error);
     res.status(500).json({ ok: false, error: 'Failed to read due today' });
+  }
+});
+
+// POST /api/v1/tasks
+app.post('/api/v1/tasks', async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      due,
+      recurrence,
+      listId,
+      reminderOffsetMinutes,
+      completed = false,
+      subtasks = [],
+      isLongTerm = false,
+      startDate = null,
+    } = req.body;
+
+    // Validate required fields
+    if (!title || typeof title !== 'string') {
+      return res.status(400).json({
+        ok: false,
+        error: 'Title is required and must be a string',
+      });
+    }
+
+    // Read existing tasks
+    const existingTasks = await readJsonFile('tasks.json') || [];
+    
+    // Generate new ID (find max ID and increment)
+    const maxId = existingTasks.length > 0
+      ? Math.max(...existingTasks.map(t => t.id || 0))
+      : 0;
+    const newId = maxId + 1;
+
+    // Create new task object
+    const newTask = {
+      id: newId,
+      title: title.trim(),
+      description: description || '',
+      completed: Boolean(completed),
+      completedAt: null,
+      due: due || null,
+      recurrence: recurrence || null,
+      listId: listId || 'default',
+      reminderOffsetMinutes: reminderOffsetMinutes || null,
+      subtasks: Array.isArray(subtasks) ? subtasks : [],
+      isLongTerm: Boolean(isLongTerm),
+      startDate: startDate || null,
+    };
+
+    // Add to tasks array
+    existingTasks.push(newTask);
+
+    // Write updated tasks back to file
+    await writeJsonFile('tasks.json', existingTasks);
+
+    res.status(201).json({
+      ok: true,
+      data: newTask,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Failed to create task', error);
+    res.status(500).json({ ok: false, error: 'Failed to create task' });
   }
 });
 
