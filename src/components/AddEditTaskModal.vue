@@ -160,6 +160,14 @@ const selectedList = computed(() => {
   return listOptions.value.find((list) => list.id === selectedListId.value) ?? null;
 });
 
+const getSelectedListReminderOffset = () => {
+  const minutes = Number(selectedList.value?.defaultReminderOffsetMinutes);
+  if (Number.isFinite(minutes) && minutes > 0) {
+    return String(minutes);
+  }
+  return 'none';
+};
+
 const canSubmit = computed(() => title.value.trim().length > 0);
 
 const dialogTitle = computed(() => isEditMode.value ? 'Edit Task' : 'Add a Task');
@@ -434,7 +442,11 @@ watch(
 watch(dueDate, (value) => {
   if (!value) {
     dueTime.value = '';
-    reminderOffset.value = 'none';
+    if (isEditMode.value || isDuplicateMode.value) {
+      reminderOffset.value = 'none';
+    } else {
+      reminderOffset.value = getSelectedListReminderOffset();
+    }
   }
 
   // Clear warning if due date is now set
@@ -453,17 +465,7 @@ watch(selectedListId, () => {
     return;
   }
 
-  // Apply the list's default reminder if it has one
-  if (selectedList.value?.defaultReminderOffsetMinutes) {
-    const minutes = Number(selectedList.value.defaultReminderOffsetMinutes);
-    if (Number.isFinite(minutes) && minutes > 0) {
-      reminderOffset.value = String(minutes);
-      return;
-    }
-  }
-  
-  // Otherwise reset to none
-  reminderOffset.value = 'none';
+  reminderOffset.value = getSelectedListReminderOffset();
 });
 
 watch(reminderOffset, (value) => {
