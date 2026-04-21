@@ -162,6 +162,7 @@ defineExpose({
   padding: 1.5rem;
   box-sizing: border-box;
   cursor: pointer;
+  overflow-y: auto;
 
   @media (max-width: 768px) {
     align-items: flex-start;
@@ -176,11 +177,13 @@ defineExpose({
   box-shadow: 0 24px 40px -28px rgba(0, 0, 0, 0.7);
   display: grid;
   grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   grid-auto-rows: auto;
   gap: 0;
   outline: none;
   overflow: hidden;
   padding: 1.25rem;
+  max-height: calc(100dvh - 3rem);
 
   &--small {
     width: min(100%, 24rem);
@@ -192,6 +195,10 @@ defineExpose({
 
   &--large {
       width: min(640px, 100%);
+  }
+
+  @media (max-width: 768px) {
+    max-height: calc(100dvh - 96px);
   }
 }
 
@@ -272,6 +279,8 @@ defineExpose({
   display: grid;
   gap: 1rem;
   grid-auto-rows: auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* Slot spacing adjustments */
