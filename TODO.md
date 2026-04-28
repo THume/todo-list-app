@@ -1,8 +1,5 @@
 # TODOs
 
-- Implement WebSocket support for real-time task synchronization across clients (replace polling)
-- When connection is gone periodically check if it has been reestablished
-- Goals/habits - tracks how often completed
 - Integration with Google calendar for task reminders
 - Add Workspaces to create separate collections of tasks/lists
     - Workspace should be the highest level (Example: "Work" or "Home")
@@ -21,3 +18,7 @@
 - Add a distinction for repeat tasks that it repeats X amount of days after it was due or after completed
 - Add a way to save off Standup notes similar to the Summay page
 - Add a way to edit date directly from task, instead of edit menu
+- Refactor Summary page to list completed tasks by oldest task completed (top) to newest tasks (bottom) by default
+- Add ability to edit completion notes from Summary page
+- Add Priority setting for tasks to help order tasks in Summary
+- Goals/habits - tracks how often completed
