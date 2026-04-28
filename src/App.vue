@@ -799,6 +799,7 @@ onUnmounted(() => {
   min-height: 0;
   box-sizing: border-box;
   position: relative;
+  overflow: hidden;
 }
 
 .layout__sidebar-content {
@@ -807,7 +808,8 @@ onUnmounted(() => {
   gap: 2.5rem;
   min-height: 0;
   flex: 1 1 auto;
-  overflow: visible;
+  overflow-y: auto;
+  padding-right: 0.25rem;
 }
 
 .layout__sidebar-content--collapsed {
@@ -831,6 +833,7 @@ onUnmounted(() => {
   cursor: pointer;
   box-shadow: 0 20px 30px -26px rgba(239, 68, 68, 0.9);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
 
   &:hover {
     transform: translateY(-1px);
@@ -1228,6 +1231,7 @@ onUnmounted(() => {
 .layout__settings-link {
   margin-top: auto;
   padding-top: 1rem;
+  flex-shrink: 0;
 }
 
 .sr-only {
