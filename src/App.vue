@@ -61,7 +61,6 @@ const layoutStyle = computed(() => {
   }
   return { '--sidebar-width': `${Math.round(sidebarWidth.value)}px` };
 });
-let hasInitializedVisibility = false;
 const route = useRoute();
 const router = useRouter();
 
@@ -521,20 +520,6 @@ watch(isSidebarCollapsed, (collapsed) => {
   }
   sidebarWidth.value = clampSidebarWidth(lastExpandedWidth.value);
 });
-
-watch(
-  tasks,
-  (value) => {
-    if (!hasInitializedVisibility) {
-      hasInitializedVisibility = true;
-      return;
-    }
-    if (Array.isArray(value) && value.length === 0) {
-      showForm.value = true;
-    }
-  },
-  { immediate: true }
-);
 
 onUnmounted(() => {
   stopSidebarResize();

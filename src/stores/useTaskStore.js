@@ -55,6 +55,9 @@ let externalTasksPollTimer = null;
 const EXTERNAL_TASKS_POLL_INTERVAL_MS = 15000; // Poll every 15 seconds for external task submissions
 const lastSavedAt = ref(null);
 const storageStatus = ref({ ok: true, message: '' });
+const isOnline = ref(true);
+const lastSuccessfulSyncAt = ref(null);
+let wasRecentlyOffline = false;
 const dismissNotification = (id) => {
   baseDismissNotification(id);
   completionNotificationIds.forEach((notificationId, completedId) => {
@@ -438,16 +441,33 @@ const persistTasks = async (value) => {
     const result = await writeJsonFile(TASKS_FILE_NAME, value);
     if (result?.ok === false) {
       storageStatus.value = { ok: false, message: result.message ?? 'Failed to save tasks.' };
+      isOnline.value = false;
       return;
     }
+    const wasOffline = !isOnline.value;
+    isOnline.value = true;
+    lastSuccessfulSyncAt.value = new Date().toISOString();
     storageStatus.value = { ok: true, message: '' };
-    lastSavedAt.value = new Date().toISOString();
+    lastSavedAt.value = lastSuccessfulSyncAt.value;
+    if (wasOffline && watchersReady) {
+      wasRecentlyOffline = true;
+      const notificationId = pushNotification({
+        type: 'info',
+        title: 'Connection restored',
+        message: 'Synced with server',
+        duration: 3000,
+      });
+      if (notificationId) {
+        reviveNotificationIds.set('connection-restored', notificationId);
+      }
+    }
     if (watchersReady && !isApplyingRemoteUpdate) {
       postStorageUpdate();
     }
   } catch (error) {
     console.error('Failed to persist tasks to JSON file', error);
     storageStatus.value = { ok: false, message: 'Failed to save tasks.' };
+    isOnline.value = false;
   }
 };
 
@@ -456,16 +476,33 @@ const persistLists = async (value) => {
     const result = await writeJsonFile(LISTS_FILE_NAME, value);
     if (result?.ok === false) {
       storageStatus.value = { ok: false, message: result.message ?? 'Failed to save lists.' };
+      isOnline.value = false;
       return;
     }
+    const wasOffline = !isOnline.value;
+    isOnline.value = true;
+    lastSuccessfulSyncAt.value = new Date().toISOString();
     storageStatus.value = { ok: true, message: '' };
-    lastSavedAt.value = new Date().toISOString();
+    lastSavedAt.value = lastSuccessfulSyncAt.value;
+    if (wasOffline && watchersReady) {
+      wasRecentlyOffline = true;
+      const notificationId = pushNotification({
+        type: 'info',
+        title: 'Connection restored',
+        message: 'Synced with server',
+        duration: 3000,
+      });
+      if (notificationId) {
+        reviveNotificationIds.set('connection-restored', notificationId);
+      }
+    }
     if (watchersReady && !isApplyingRemoteUpdate) {
       postStorageUpdate();
     }
   } catch (error) {
     console.error('Failed to persist lists to JSON file', error);
     storageStatus.value = { ok: false, message: 'Failed to save lists.' };
+    isOnline.value = false;
   }
 };
 
@@ -477,16 +514,33 @@ const persistCompleted = async (value) => {
         ok: false,
         message: result.message ?? 'Failed to save completed tasks.',
       };
+      isOnline.value = false;
       return;
     }
+    const wasOffline = !isOnline.value;
+    isOnline.value = true;
+    lastSuccessfulSyncAt.value = new Date().toISOString();
     storageStatus.value = { ok: true, message: '' };
-    lastSavedAt.value = new Date().toISOString();
+    lastSavedAt.value = lastSuccessfulSyncAt.value;
+    if (wasOffline && watchersReady) {
+      wasRecentlyOffline = true;
+      const notificationId = pushNotification({
+        type: 'info',
+        title: 'Connection restored',
+        message: 'Synced with server',
+        duration: 3000,
+      });
+      if (notificationId) {
+        reviveNotificationIds.set('connection-restored', notificationId);
+      }
+    }
     if (watchersReady && !isApplyingRemoteUpdate) {
       postStorageUpdate();
     }
   } catch (error) {
     console.error('Failed to persist completed tasks to JSON file', error);
     storageStatus.value = { ok: false, message: 'Failed to save completed tasks.' };
+    isOnline.value = false;
   }
 };
 
@@ -1859,6 +1913,27 @@ const loadFromStorage = async () => {
   } else if (!storageReadFailed && !metaResult.data) {
     await writeJsonFile(META_FILE_NAME, migration.meta);
   }
+
+  // Handle reconnection detection
+  if (!storageReadFailed) {
+    const wasOffline = !isOnline.value;
+    isOnline.value = true;
+    lastSuccessfulSyncAt.value = new Date().toISOString();
+    if (wasOffline && watchersReady) {
+      wasRecentlyOffline = true;
+      const notificationId = pushNotification({
+        type: 'info',
+        title: 'Connection restored',
+        message: 'Synced with server',
+        duration: 3000,
+      });
+      if (notificationId) {
+        reviveNotificationIds.set('connection-restored', notificationId);
+      }
+    }
+  } else {
+    isOnline.value = false;
+  }
 };
 
 watch(
@@ -1987,6 +2062,8 @@ export const useTaskStore = () => {
     dismissNotification,
     lastSavedAt,
     storageStatus,
+    isOnline,
+    lastSuccessfulSyncAt,
     addList,
     reorderList,
     removeList,

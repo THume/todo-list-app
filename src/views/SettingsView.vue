@@ -15,7 +15,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue';
 import { useUiSettings } from '../stores/useUiSettings';
 
 const router = useRouter();
-const { lastSavedAt, storageStatus, refreshFromStorage } = useTaskStore();
+const { lastSavedAt, storageStatus, isOnline, lastSuccessfulSyncAt, refreshFromStorage } = useTaskStore();
 const FORCE_STORAGE_FAILURE_KEY = 'todo-list.force-storage-failure';
 
 const { isStandupEnabled, isSummaryEnabled, isLongTermTasksEnabled, fontSizeSetting } = useUiSettings();
@@ -59,6 +59,20 @@ const lastBackupLabel = computed(() => {
     return 'Last backup: Not available';
   }
   return `Last backup: ${parsed.toLocaleString()}`;
+});
+
+const connectionStatusLabel = computed(() => {
+  if (!isOnline.value) {
+    return 'Status: Offline (connection will be restored automatically)';
+  }
+  if (!lastSuccessfulSyncAt.value) {
+    return 'Status: Connected';
+  }
+  const parsed = new Date(lastSuccessfulSyncAt.value);
+  if (Number.isNaN(parsed.valueOf())) {
+    return 'Status: Connected';
+  }
+  return `Status: Connected (last sync ${parsed.toLocaleString()})`;
 });
 
 const storedForceFailure = window.localStorage.getItem(FORCE_STORAGE_FAILURE_KEY);
@@ -446,6 +460,12 @@ onMounted(() => {
         :class="{ 'settings-page__status--error': !storageStatus.ok }"
       >
         {{ storageStatus.ok ? lastSavedLabel : storageStatus.message }}
+      </p>
+      <p
+        class="settings-page__status"
+        :class="{ 'settings-page__status--error': !isOnline }"
+      >
+        {{ connectionStatusLabel }}
       </p>
       <p class="settings-page__status">
         {{ lastBackupLabel }}
