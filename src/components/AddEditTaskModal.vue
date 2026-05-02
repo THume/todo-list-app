@@ -58,6 +58,9 @@ const lastTaskId = ref(null);
 const subtasks = ref([]);
 const draggedSubtaskId = ref(null);
 const dragOverSubtaskId = ref(null);
+const editingSubtaskId = ref(null);
+const editingSubtaskTitle = ref('');
+const editingSubtaskField = ref(null);
 const showReminderWarning = ref(false);
 let subtaskLocalId = 0;
 let isApplyingDefaultDueDate = false;
@@ -117,6 +120,8 @@ const applyTask = (task) => {
     subtasks.value = [];
     draggedSubtaskId.value = null;
     dragOverSubtaskId.value = null;
+    editingSubtaskId.value = null;
+    editingSubtaskTitle.value = '';
     return;
   }
 
@@ -142,6 +147,8 @@ const applyTask = (task) => {
   subtasks.value = mappedSubtasks;
   draggedSubtaskId.value = null;
   dragOverSubtaskId.value = null;
+  editingSubtaskId.value = null;
+  editingSubtaskTitle.value = '';
 
   const minutes = Number(task.reminderOffsetMinutes);
   if (Number.isFinite(minutes) && minutes > 0 && task.due) {
@@ -200,6 +207,8 @@ const resetForm = () => {
   subtasks.value = [];
   draggedSubtaskId.value = null;
   dragOverSubtaskId.value = null;
+  editingSubtaskId.value = null;
+  editingSubtaskTitle.value = '';
   subtaskLocalId = 0;
   subtaskInput.value = '';
   if (props.defaultDueDate) {
@@ -298,6 +307,31 @@ const addSubtask = (titleValue) => {
       completed: false,
     },
   ];
+};
+
+const startEditSubtask = (subtask) => {
+  editingSubtaskId.value = subtask.id;
+  editingSubtaskTitle.value = subtask.title;
+  nextTick(() => {
+    editingSubtaskField.value?.focus();
+    editingSubtaskField.value?.select();
+  });
+};
+
+const saveSubtaskEdit = (id) => {
+  const trimmed = editingSubtaskTitle.value.trim();
+  if (trimmed) {
+    subtasks.value = subtasks.value.map((entry) =>
+      entry.id === id ? { ...entry, title: trimmed } : entry
+    );
+  }
+  editingSubtaskId.value = null;
+  editingSubtaskTitle.value = '';
+};
+
+const cancelSubtaskEdit = () => {
+  editingSubtaskId.value = null;
+  editingSubtaskTitle.value = '';
 };
 
 const removeSubtask = (id) => {
@@ -745,23 +779,41 @@ watch(
                   :class="{
                     'add-task__subtask--drag-over': dragOverSubtaskId === subtask.id,
                     'add-task__subtask--dragging': draggedSubtaskId === subtask.id,
+                    'add-task__subtask--editing': editingSubtaskId === subtask.id,
                   }"
-                  draggable="true"
-                  @dragstart="handleSubtaskDragStart(subtask, $event)"
+                  :draggable="editingSubtaskId !== subtask.id"
+                  @dragstart="editingSubtaskId !== subtask.id && handleSubtaskDragStart(subtask, $event)"
                   @dragenter="handleSubtaskDragEnter(subtask)"
                   @dragover.prevent
                   @drop.prevent="handleSubtaskDrop(subtask)"
                   @dragend="handleSubtaskDragEnd"
                 >
-                  <span class="add-task__subtask-handle" aria-hidden="true">::</span>
+                  <span
+                    class="add-task__subtask-handle"
+                    :class="{ 'add-task__subtask-handle--disabled': editingSubtaskId === subtask.id }"
+                    aria-hidden="true"
+                  >::</span>
                   <label class="add-task__subtask-label">
                     <input
                       type="checkbox"
                       class="add-task__subtask-checkbox"
                       :checked="subtask.completed"
+                      :disabled="editingSubtaskId === subtask.id"
                       @change="toggleSubtask(subtask.id)"
                     />
+                    <input
+                      v-if="editingSubtaskId === subtask.id"
+                      ref="editingSubtaskField"
+                      type="text"
+                      class="add-task__subtask-edit-input"
+                      :value="editingSubtaskTitle"
+                      @input="editingSubtaskTitle = $event.target.value"
+                      @keydown.enter.prevent.stop="saveSubtaskEdit(subtask.id)"
+                      @keydown.esc.prevent.stop="cancelSubtaskEdit"
+                      @blur="saveSubtaskEdit(subtask.id)"
+                    />
                     <span
+                      v-else
                       :class="[
                         'add-task__subtask-title',
                         { 'add-task__subtask-title--completed': subtask.completed },
@@ -770,6 +822,15 @@ watch(
                       {{ subtask.title }}
                     </span>
                   </label>
+                  <button
+                    v-if="editingSubtaskId !== subtask.id"
+                    type="button"
+                    class="add-task__subtask-edit"
+                    aria-label="Edit subtask"
+                    @click="startEditSubtask(subtask)"
+                  >
+                    <IconGlyph name="edit" size="13" aria-hidden="true" />
+                  </button>
                   <button
                     type="button"
                     class="add-task__subtask-remove"
@@ -1396,6 +1457,66 @@ $panel-border: rgba(255, 255, 255, 0.08);
     width: 2.75rem;
     height: 2.75rem;
     font-size: 1.15rem;
+  }
+}
+
+.add-task__subtask-edit {
+  border: 1px solid $panel-border;
+  background: transparent;
+  color: theme.$color-text-muted;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.65rem;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+
+  &:hover {
+    border-color: $focus-outline;
+    color: $input-text;
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus-outline;
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 768px) {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
+.add-task__subtask-handle--disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.add-task__subtask--editing {
+  cursor: default;
+}
+
+.add-task__subtask-edit-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid $button-bg;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: $input-bg;
+  color: $input-text;
+  font-size: inherit;
+  font-weight: 600;
+
+  &:focus-visible {
+    outline: 2px solid $focus-outline;
+    outline-offset: 2px;
+    background: $input-bg-focus;
   }
 }
 
