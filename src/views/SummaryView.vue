@@ -414,7 +414,7 @@ const rawCompletedInRange = computed(() => {
       if (Number.isNaN(bTime)) {
         return -1;
       }
-      return bTime - aTime;
+      return aTime - bTime;
     });
 });
 
