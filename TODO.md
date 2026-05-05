@@ -1,10 +1,9 @@
 # In Progress
 
 - Integration with Google calendar for task reminders
+- Add a way to save off Standup notes similar to the Summay page
 
 # TODOs
-- Fix styling issue: <select> options text is too light for background
-- Add a way to save off Standup notes similar to the Summay page
 - Add a way to edit date directly from task, instead of edit menu
 - Refactor Summary page to list completed tasks by oldest task completed (top) to newest tasks (bottom) by default
 - Add ability to edit completion notes from Summary page
