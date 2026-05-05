@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import IconGlyph from '../components/IconGlyph.vue';
+import CompletionNotesModal from '../components/CompletionNotesModal.vue';
 import { useTaskStore } from '../stores/useTaskStore';
 import {
   getStorageSettings,
@@ -13,7 +14,7 @@ const SUMMARY_HIDDEN_STORAGE_KEY = 'todo-list.summary-hidden';
 const SUMMARY_SHOW_ALL_STORAGE_KEY = 'todo-list.summary-show-all';
 const SUMMARY_ORDER_STORAGE_KEY = 'todo-list.summary-order';
 
-const { sortedCompletedTasks, lists } = useTaskStore();
+const { sortedCompletedTasks, lists, updateCompletedTaskNotes } = useTaskStore();
 
 const loadHiddenSet = () => {
   try {
@@ -223,6 +224,9 @@ const expandedHistoryTextIds = ref(new Set());
 
 const copyStatus = ref('');
 let copyStatusTimer = null;
+
+const showCompletionNotesModal = ref(false);
+const taskPendingNotes = ref(null);
 
 const buildKey = (entry) => {
   const id = entry?.id ?? entry?.taskId ?? null;
@@ -849,6 +853,24 @@ const formatHistoryTimestamp = (value) => {
   }).format(new Date(timestamp));
 };
 
+const handleEditCompletionNotes = (task) => {
+  taskPendingNotes.value = task;
+  showCompletionNotesModal.value = true;
+};
+
+const handleSaveCompletionNotes = (notes) => {
+  if (taskPendingNotes.value) {
+    updateCompletedTaskNotes(taskPendingNotes.value.id, notes);
+  }
+  taskPendingNotes.value = null;
+  showCompletionNotesModal.value = false;
+};
+
+const handleCancelCompletionNotes = () => {
+  taskPendingNotes.value = null;
+  showCompletionNotesModal.value = false;
+};
+
 onMounted(() => {
   loadSummaries();
 });
@@ -997,6 +1019,13 @@ onUnmounted(() => {
                   <span class="summary__list-text">{{ resolveListName(entry.listId) }}</span>
                 </span>
                 <div class="summary__item-actions">
+                  <button
+                    type="button"
+                    class="summary__item-toggle"
+                    @click="handleEditCompletionNotes(entry)"
+                  >
+                    Edit Notes
+                  </button>
                   <button
                     type="button"
                     class="summary__item-toggle summary__item-toggle--reorder"
@@ -1151,6 +1180,13 @@ onUnmounted(() => {
       </div>
     </div>
   </section>
+  <CompletionNotesModal
+    v-model:visible="showCompletionNotesModal"
+    :task-title="taskPendingNotes?.title || ''"
+    :initial-notes="taskPendingNotes?.completionNotes || ''"
+    @save="handleSaveCompletionNotes"
+    @cancel="handleCancelCompletionNotes"
+  />
 </template>
 
 <style scoped lang="scss">

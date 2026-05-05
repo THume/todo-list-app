@@ -1,12 +1,9 @@
 # In Progress
 
+- Add Priority setting for tasks to help order tasks in Summary
 - Integration with Google calendar for task reminders
 
 # TODOs
-- Add a way to edit date directly from task, instead of edit menu
-- Refactor Summary page to list completed tasks by oldest task completed (top) to newest tasks (bottom) by default
-- Add ability to edit completion notes from Summary page
-- Add Priority setting for tasks to help order tasks in Summary
 - Goals/habits - tracks how often completed
 - Add Workspaces to create separate collections of tasks/lists
     - Workspace should be the highest level (Example: "Work" or "Home")
