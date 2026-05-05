@@ -6,6 +6,7 @@ import AdjustCompletionDateModal from '../components/AdjustCompletionDateModal.v
 import AddEditTaskModal from '../components/AddEditTaskModal.vue';
 import CompletionNotesModal from '../components/CompletionNotesModal.vue';
 import { useTaskStore } from '../stores/useTaskStore';
+import { sortTasksForDisplay } from '../utils/taskSort';
 
 const {
   sortedCompletedTasks,
@@ -111,6 +112,7 @@ const parseDateInputValue = (value) => {
 
 const filterStartDate = ref('');
 const filterEndDate = ref('');
+const sortMode = ref('user');
 
 const filterBounds = computed(() => {
   const startDate = parseDateInputValue(filterStartDate.value);
@@ -166,6 +168,9 @@ const filteredCompletedEntries = computed(() => {
     return true;
   });
 });
+const sortedFilteredCompletedEntries = computed(() =>
+  sortTasksForDisplay(filteredCompletedEntries.value, sortMode.value)
+);
 
 const totalCompleted = computed(() => sortedCompletedTasks.value.length);
 const visibleCompleted = computed(() => filteredCompletedEntries.value.length);
@@ -211,7 +216,7 @@ const groupedEntries = computed(() => {
   const groups = [];
   const groupMap = new Map();
 
-  filteredCompletedEntries.value.forEach((entry) => {
+  sortedFilteredCompletedEntries.value.forEach((entry) => {
     const day = parseCompletedDate(entry.completedAt);
     const key = day
       ? `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
@@ -371,6 +376,18 @@ const handleConfirmDelete = () => {
         </label>
       </div>
       <div class="history__filter-actions">
+        <label class="history__sort-field" for="completed-sort-by">
+          <span>Sort By</span>
+          <select
+            id="completed-sort-by"
+            v-model="sortMode"
+            name="completed-sort-by"
+            aria-label="Sort completed tasks"
+          >
+            <option value="due-date">Due date</option>
+            <option value="user">User</option>
+          </select>
+        </label>
         <button
           type="button"
           class="history__filter-button"
@@ -535,6 +552,29 @@ const handleConfirmDelete = () => {
 .history__filter-actions {
   display: flex;
   gap: 0.5rem;
+  align-items: end;
+}
+
+.history__sort-field {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: theme.$color-text-muted;
+}
+
+.history__sort-field select {
+  border: 1px solid theme.$color-border-input;
+  background: rgba(12, 12, 13, 0.6);
+  color: theme.$color-text-primary;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.history__sort-field select:focus-visible {
+  outline: 2px solid theme.$color-accent;
+  outline-offset: 2px;
+  border-color: theme.$color-accent;
 }
 
 .history__filter-button {

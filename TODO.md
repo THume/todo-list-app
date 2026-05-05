@@ -1,6 +1,19 @@
-# TODOs
+# In Progress
 
 - Integration with Google calendar for task reminders
+- Refactor how tasks are ordered
+    - Long Term tasks at the top
+    - Order by due date/time
+
+# TODOs
+
+- Add a distinction for repeat tasks that it repeats X amount of days after it was due or after completed
+- Add a way to save off Standup notes similar to the Summay page
+- Add a way to edit date directly from task, instead of edit menu
+- Refactor Summary page to list completed tasks by oldest task completed (top) to newest tasks (bottom) by default
+- Add ability to edit completion notes from Summary page
+- Add Priority setting for tasks to help order tasks in Summary
+- Goals/habits - tracks how often completed
 - Add Workspaces to create separate collections of tasks/lists
     - Workspace should be the highest level (Example: "Work" or "Home")
     - Lists live under Workspace, Tasks live under Lists
@@ -10,15 +23,3 @@
     - The Standup page setting is unique to what Workspace the user is on
         - Create an area on the Settings page for "Workspace Settings"
         - Put Standup setting in this new area
-- Refactor how tasks are ordered
-    - Long Term tasks at the top
-    - Order by due date/time
-    - Keep some ability to reorganize
-    - Recurring tasks should keep where they are in the order as much as possible
-- Add a distinction for repeat tasks that it repeats X amount of days after it was due or after completed
-- Add a way to save off Standup notes similar to the Summay page
-- Add a way to edit date directly from task, instead of edit menu
-- Refactor Summary page to list completed tasks by oldest task completed (top) to newest tasks (bottom) by default
-- Add ability to edit completion notes from Summary page
-- Add Priority setting for tasks to help order tasks in Summary
-- Goals/habits - tracks how often completed

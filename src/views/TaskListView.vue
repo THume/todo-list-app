@@ -43,6 +43,7 @@ const showListSettingsDialog = ref(false);
 const listMenuOpen = ref(false);
 const listMenuButton = ref(null);
 const listMenuPanel = ref(null);
+const sortMode = ref('user');
 
 const activeList = computed(() => {
   const nameSlug = route.params.name;
@@ -66,6 +67,30 @@ const listTasks = computed(() => {
   return currentTasks.filter(
     (task) => task && !task.completed && task.listId === activeListId.value
   );
+});
+
+const sortedListTasks = computed(() => {
+  const tasksToSort = listTasks.value ?? [];
+  
+  if (sortMode.value === 'due-date') {
+    // Separate tasks into three categories
+    const longTermTasks = tasksToSort.filter(task => task.isLongTerm);
+    const tasksWithDueDate = tasksToSort.filter(task => !task.isLongTerm && task.dueDate);
+    const tasksWithoutDueDate = tasksToSort.filter(task => !task.isLongTerm && !task.dueDate);
+    
+    // Sort tasks with due dates by due date
+    tasksWithDueDate.sort((a, b) => {
+      const dateA = new Date(a.dueDate).getTime();
+      const dateB = new Date(b.dueDate).getTime();
+      return dateA - dateB;
+    });
+    
+    // Combine: long term tasks first, then tasks with due dates, then without
+    return [...longTermTasks, ...tasksWithDueDate, ...tasksWithoutDueDate];
+  }
+  
+  // Default 'user' sort - return in current order
+  return tasksToSort;
 });
 
 const listNameById = computed(() => {
@@ -436,7 +461,7 @@ onBeforeUnmount(() => {
       <h2>{{ activeList?.name ?? 'List' }}</h2>
       <div class="task-panel__header-actions">
         <span class="task-panel__count">
-          {{ listTasks.length }} active
+          {{ sortedListTasks.length }} active
         </span>
         <div v-if="activeList" class="task-panel__menu" @keydown.esc.stop="closeListMenu">
           <button
@@ -501,52 +526,64 @@ onBeforeUnmount(() => {
       </button>
     </p>
     <template v-else>
-      <p v-if="listTasks.length === 0" class="task-panel__empty">
+      <p v-if="sortedListTasks.length === 0" class="task-panel__empty">
         No tasks in this list yet.
       </p>
-      <ul
-        v-else
-        class="task-panel__list"
-        @dragover.prevent="handleListDragOver($event)"
-        @drop.prevent="handleDropAtListEnd"
-      >
-        <template v-for="(task, index) in listTasks" :key="task.id">
-          <li
-            v-if="dropIndicatorIndex === index"
-            class="task-panel__drop-indicator"
-          />
-          <li
-            class="task-panel__item"
-            :class="{
-              'task-panel__item--drag-over': dragOverTaskId === task.id,
-              'task-panel__item--dragging': draggedTaskId === task.id,
-            }"
-            :draggable="!task.completed"
-            @dragstart="handleDragStart(task)"
-            @dragend="handleDragEnd"
-            @dragenter.prevent="handleDragEnter(task)"
-            @dragover.prevent
-            @dragleave="handleDragLeave(task)"
-            @drop.prevent.stop="handleDrop(task)"
+      <template v-else>
+        <div class="task-panel__sort-controls">
+          <label for="sort-by" class="task-panel__sort-label">Sort By:</label>
+          <select 
+            id="sort-by"
+            v-model="sortMode"
+            class="task-panel__sort-select"
           >
-            <Task
-              :task="task"
-              :list-name="resolveListName(task)"
-              @toggle="handleToggle"
-              @remove="requestDelete"
-            @edit="startEdit"
-            @duplicate="handleDuplicate"
-            @move-to-today="handleMoveToToday"
-            @move-to-tomorrow="handleMoveToTomorrow"
-            @toggle-subtask="handleToggleSubtask"
+            <option value="user">User</option>
+            <option value="due-date">Due date</option>
+          </select>
+        </div>
+        <ul
+          class="task-panel__list"
+          @dragover.prevent="handleListDragOver($event)"
+          @drop.prevent="handleDropAtListEnd"
+        >
+          <template v-for="(task, index) in sortedListTasks" :key="task.id">
+            <li
+              v-if="dropIndicatorIndex === index"
+              class="task-panel__drop-indicator"
+            />
+            <li
+              class="task-panel__item"
+              :class="{
+                'task-panel__item--drag-over': dragOverTaskId === task.id,
+                'task-panel__item--dragging': draggedTaskId === task.id,
+              }"
+              :draggable="!task.completed"
+              @dragstart="handleDragStart(task)"
+              @dragend="handleDragEnd"
+              @dragenter.prevent="handleDragEnter(task)"
+              @dragover.prevent
+              @dragleave="handleDragLeave(task)"
+              @drop.prevent.stop="handleDrop(task)"
+            >
+              <Task
+                :task="task"
+                :list-name="resolveListName(task)"
+                @toggle="handleToggle"
+                @remove="requestDelete"
+              @edit="startEdit"
+              @duplicate="handleDuplicate"
+              @move-to-today="handleMoveToToday"
+              @move-to-tomorrow="handleMoveToTomorrow"
+              @toggle-subtask="handleToggleSubtask"
+            />
+            </li>
+          </template>
+          <li
+            v-if="dropIndicatorIndex === sortedListTasks.length"
+            class="task-panel__drop-indicator task-panel__drop-indicator--end"
           />
-        </li>
+        </ul>
       </template>
-        <li
-          v-if="dropIndicatorIndex === listTasks.length"
-          class="task-panel__drop-indicator task-panel__drop-indicator--end"
-        />
-      </ul>
     </template>
   </section>
   <ConfirmDialog
@@ -790,5 +827,44 @@ onBeforeUnmount(() => {
 
 .task-panel__drop-indicator--end {
   margin-bottom: 0;
+}
+
+.task-panel__sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.task-panel__sort-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: theme.$color-text-heading;
+}
+
+.task-panel__sort-select {
+  border: 1px solid theme.$color-border-input;
+  background: rgba(255, 255, 255, 0.04);
+  color: theme.$color-text-heading;
+  padding: 0.4rem 0.65rem;
+  border-radius: 0.4rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: theme.$color-border-strong;
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
+
+  option {
+    background: #1c1c1d;
+    color: #e5e5e5;
+  }
 }
 </style>

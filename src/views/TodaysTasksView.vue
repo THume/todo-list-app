@@ -4,6 +4,7 @@ import Task from '../components/Task.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import AddEditTaskModal from '../components/AddEditTaskModal.vue';
 import { useTaskStore } from '../stores/useTaskStore';
+import { sortTasksForDisplay } from '../utils/taskSort';
 
 const {
   tasks,
@@ -33,8 +34,15 @@ const taskPendingDuplicate = ref(null);
 const draggedTaskId = ref(null);
 const dragOverTaskId = ref(null);
 const dropIndicatorIndex = ref(-1);
+const sortMode = ref('user');
 const todayTasksLength = computed(() =>
   Array.isArray(tasksDueToday.value) ? tasksDueToday.value.length : 0
+);
+const sortedDueTasks = computed(() =>
+  sortTasksForDisplay(tasksDueTodayPastDue.value, sortMode.value)
+);
+const sortedUpcomingTasks = computed(() =>
+  sortTasksForDisplay(tasksDueTodayUpcoming.value, sortMode.value)
 );
 const dueCount = computed(() =>
   Array.isArray(tasksDueTodayPastDue.value) ? tasksDueTodayPastDue.value.length : 0
@@ -59,7 +67,8 @@ const getTodayIndex = (task) => {
   }
   return todayIndexById.value[task.id] ?? -1;
 };
-const shouldShowDropIndicator = (task) => dropIndicatorIndex.value === getTodayIndex(task);
+const shouldShowDropIndicator = (task) =>
+  sortMode.value === 'user' && dropIndicatorIndex.value === getTodayIndex(task);
 
 const listNameById = computed(() => {
   const result = {};
@@ -166,6 +175,9 @@ const handleToggleSubtask = ({ taskId, subtaskId }) => {
 };
 
 const handleDragStart = (task) => {
+  if (sortMode.value !== 'user') {
+    return;
+  }
   draggedTaskId.value = task.id;
 };
 
@@ -176,6 +188,9 @@ const handleDragEnd = () => {
 };
 
 const handleDragEnter = (task) => {
+  if (sortMode.value !== 'user') {
+    return;
+  }
   if (!draggedTaskId.value || draggedTaskId.value === task.id) {
     return;
   }
@@ -205,6 +220,9 @@ const handleDragEnter = (task) => {
 };
 
 const handleDragLeave = (task) => {
+  if (sortMode.value !== 'user') {
+    return;
+  }
   if (dragOverTaskId.value === task.id) {
     dragOverTaskId.value = null;
     dropIndicatorIndex.value = -1;
@@ -212,6 +230,9 @@ const handleDragLeave = (task) => {
 };
 
 const handleDrop = (task) => {
+  if (sortMode.value !== 'user') {
+    return;
+  }
   if (!draggedTaskId.value || draggedTaskId.value === task.id) {
     dragOverTaskId.value = null;
     dropIndicatorIndex.value = -1;
@@ -245,6 +266,9 @@ const handleDrop = (task) => {
 };
 
 const handleDropAtListEnd = () => {
+  if (sortMode.value !== 'user') {
+    return;
+  }
   if (!draggedTaskId.value) {
     return;
   }
@@ -260,6 +284,9 @@ const handleDropAtListEnd = () => {
 };
 
 const handleListDragOver = (event) => {
+  if (sortMode.value !== 'user') {
+    return;
+  }
   if (!draggedTaskId.value) {
     return;
   }
@@ -295,7 +322,7 @@ watch(showDuplicateDialog, (isOpen) => {
       <span class="task-panel__count">{{ dueCount }} due</span>
     </header>
     <ul class="task-panel__list">
-      <template v-for="task in tasksDueTodayPastDue" :key="task.id">
+      <template v-for="task in sortedDueTasks" :key="task.id">
         <li
           v-if="shouldShowDropIndicator(task)"
           class="task-panel__drop-indicator"
@@ -306,7 +333,7 @@ watch(showDuplicateDialog, (isOpen) => {
             'task-panel__item--drag-over': dragOverTaskId === task.id,
             'task-panel__item--dragging': draggedTaskId === task.id,
           }"
-          :draggable="!task.completed"
+          :draggable="sortMode === 'user' && !task.completed"
           @dragstart="handleDragStart(task)"
           @dragend="handleDragEnd"
           @dragenter.prevent="handleDragEnter(task)"
@@ -343,6 +370,17 @@ watch(showDuplicateDialog, (isOpen) => {
       </div>
       <span class="task-panel__count">{{ todayTasksLength }} today</span>
     </header>
+    <div v-if="todayTasksLength > 0" class="task-panel__sort-controls">
+      <label for="today-sort-by" class="task-panel__sort-label">Sort By:</label>
+      <select
+        id="today-sort-by"
+        v-model="sortMode"
+        class="task-panel__sort-select"
+      >
+        <option value="due-date">Due date</option>
+        <option value="user">User</option>
+      </select>
+    </div>
     <p v-if="todayTasksLength === 0" class="task-panel__empty">
       No tasks are due today.
     </p>
@@ -355,7 +393,7 @@ watch(showDuplicateDialog, (isOpen) => {
       @dragover.prevent="handleListDragOver($event)"
       @drop.prevent="handleDropAtListEnd"
     >
-      <template v-for="task in tasksDueTodayUpcoming" :key="task.id">
+      <template v-for="task in sortedUpcomingTasks" :key="task.id">
         <li
           v-if="shouldShowDropIndicator(task)"
           class="task-panel__drop-indicator"
@@ -366,7 +404,7 @@ watch(showDuplicateDialog, (isOpen) => {
             'task-panel__item--drag-over': dragOverTaskId === task.id,
             'task-panel__item--dragging': draggedTaskId === task.id,
           }"
-          :draggable="!task.completed"
+          :draggable="sortMode === 'user' && !task.completed"
           @dragstart="handleDragStart(task)"
           @dragend="handleDragEnd"
           @dragenter.prevent="handleDragEnter(task)"
@@ -392,7 +430,7 @@ watch(showDuplicateDialog, (isOpen) => {
         </li>
       </template>
       <li
-        v-if="dropIndicatorIndex === todayTasksLength"
+        v-if="sortMode === 'user' && dropIndicatorIndex === todayTasksLength"
         class="task-panel__drop-indicator task-panel__drop-indicator--end"
       />
     </ul>
@@ -461,6 +499,38 @@ watch(showDuplicateDialog, (isOpen) => {
 .task-panel__count {
   color: theme.$color-text-muted;
   font-size: 0.95rem;
+}
+
+.task-panel__sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.task-panel__sort-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: theme.$color-text-heading;
+}
+
+.task-panel__sort-select {
+  border: 1px solid theme.$color-border-input;
+  background: rgba(255, 255, 255, 0.04);
+  color: theme.$color-text-heading;
+  padding: 0.4rem 0.65rem;
+  border-radius: 0.4rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
+
+  option {
+    background: #1c1c1d;
+    color: #e5e5e5;
+  }
 }
 
 .task-panel__note {

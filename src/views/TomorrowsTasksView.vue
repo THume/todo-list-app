@@ -4,6 +4,7 @@ import Task from '../components/Task.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import AddEditTaskModal from '../components/AddEditTaskModal.vue';
 import { useTaskStore } from '../stores/useTaskStore';
+import { sortTasksForDisplay } from '../utils/taskSort';
 
 const {
   tasks,
@@ -31,6 +32,10 @@ const taskPendingDuplicate = ref(null);
 const draggedTaskId = ref(null);
 const dragOverTaskId = ref(null);
 const dropIndicatorIndex = ref(-1);
+const sortMode = ref('user');
+const displayedTomorrowTasks = computed(() =>
+  sortTasksForDisplay(tasksDueTomorrow.value, sortMode.value)
+);
 
 const listNameById = computed(() => {
   const result = {};
@@ -137,6 +142,9 @@ const handleToggleSubtask = ({ taskId, subtaskId }) => {
 };
 
 const handleDragStart = (task) => {
+  if (sortMode.value !== 'user') {
+    return;
+  }
   draggedTaskId.value = task.id;
 };
 
@@ -147,6 +155,9 @@ const handleDragEnd = () => {
 };
 
 const handleDragEnter = (task) => {
+  if (sortMode.value !== 'user') {
+    return;
+  }
   if (!draggedTaskId.value || draggedTaskId.value === task.id) {
     return;
   }
@@ -176,6 +187,9 @@ const handleDragEnter = (task) => {
 };
 
 const handleDragLeave = (task) => {
+  if (sortMode.value !== 'user') {
+    return;
+  }
   if (dragOverTaskId.value === task.id) {
     dragOverTaskId.value = null;
     dropIndicatorIndex.value = -1;
@@ -183,6 +197,9 @@ const handleDragLeave = (task) => {
 };
 
 const handleDrop = (task) => {
+  if (sortMode.value !== 'user') {
+    return;
+  }
   if (!draggedTaskId.value || draggedTaskId.value === task.id) {
     dragOverTaskId.value = null;
     dropIndicatorIndex.value = -1;
@@ -215,6 +232,9 @@ const handleDrop = (task) => {
 };
 
 const handleDropAtListEnd = () => {
+  if (sortMode.value !== 'user') {
+    return;
+  }
   if (!draggedTaskId.value) {
     return;
   }
@@ -229,13 +249,16 @@ const handleDropAtListEnd = () => {
 };
 
 const handleListDragOver = (event) => {
+  if (sortMode.value !== 'user') {
+    return;
+  }
   if (!draggedTaskId.value) {
     return;
   }
   if (event?.target !== event?.currentTarget) {
     return;
   }
-  dropIndicatorIndex.value = (tasksDueTomorrow.value ?? []).length;
+  dropIndicatorIndex.value = displayedTomorrowTasks.value.length;
   dragOverTaskId.value = null;
 };
 
@@ -256,20 +279,31 @@ watch(showDuplicateDialog, (isOpen) => {
   <section class="task-panel">
     <header class="task-panel__header">
       <h2>Due Tomorrow</h2>
-      <span class="task-panel__count">{{ tasksDueTomorrow.length }} due</span>
+      <span class="task-panel__count">{{ displayedTomorrowTasks.length }} due</span>
     </header>
-    <p v-if="tasksDueTomorrow.length === 0" class="task-panel__empty">
+    <p v-if="displayedTomorrowTasks.length === 0" class="task-panel__empty">
       Nothing lined up for tomorrow.
     </p>
-    <ul
-      v-else
-      class="task-panel__list"
-      @dragover.prevent="handleListDragOver($event)"
-      @drop.prevent="handleDropAtListEnd"
-    >
-      <template v-for="(task, index) in tasksDueTomorrow" :key="task.id">
+    <template v-else>
+      <div class="task-panel__sort-controls">
+        <label for="tomorrow-sort-by" class="task-panel__sort-label">Sort By:</label>
+        <select
+          id="tomorrow-sort-by"
+          v-model="sortMode"
+          class="task-panel__sort-select"
+        >
+          <option value="due-date">Due date</option>
+          <option value="user">User</option>
+        </select>
+      </div>
+      <ul
+        class="task-panel__list"
+        @dragover.prevent="handleListDragOver($event)"
+        @drop.prevent="handleDropAtListEnd"
+      >
+        <template v-for="(task, index) in displayedTomorrowTasks" :key="task.id">
         <li
-          v-if="dropIndicatorIndex === index"
+          v-if="sortMode === 'user' && dropIndicatorIndex === index"
           class="task-panel__drop-indicator"
         />
         <li
@@ -278,7 +312,7 @@ watch(showDuplicateDialog, (isOpen) => {
             'task-panel__item--drag-over': dragOverTaskId === task.id,
             'task-panel__item--dragging': draggedTaskId === task.id,
           }"
-          :draggable="!task.completed"
+          :draggable="sortMode === 'user' && !task.completed"
           @dragstart="handleDragStart(task)"
           @dragend="handleDragEnd"
           @dragenter.prevent="handleDragEnter(task)"
@@ -304,10 +338,11 @@ watch(showDuplicateDialog, (isOpen) => {
         </li>
       </template>
       <li
-        v-if="dropIndicatorIndex === tasksDueTomorrow.length"
+        v-if="sortMode === 'user' && dropIndicatorIndex === displayedTomorrowTasks.length"
         class="task-panel__drop-indicator task-panel__drop-indicator--end"
       />
-    </ul>
+      </ul>
+    </template>
   </section>
   <ConfirmDialog
     v-model:open="showDeleteDialog"
@@ -369,6 +404,38 @@ watch(showDuplicateDialog, (isOpen) => {
 .task-panel__count {
   color: theme.$color-text-muted;
   font-size: 0.95rem;
+}
+
+.task-panel__sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.task-panel__sort-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: theme.$color-text-heading;
+}
+
+.task-panel__sort-select {
+  border: 1px solid theme.$color-border-input;
+  background: rgba(255, 255, 255, 0.04);
+  color: theme.$color-text-heading;
+  padding: 0.4rem 0.65rem;
+  border-radius: 0.4rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
+
+  option {
+    background: #1c1c1d;
+    color: #e5e5e5;
+  }
 }
 
 .task-panel__empty {
