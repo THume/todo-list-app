@@ -2,6 +2,7 @@ const API_BASE = '/api/storage';
 const API_V1_BASE = '/api/v1';
 
 const SUMMARIES_FILE_NAME = 'summaries.json';
+const STANDUP_FILE_NAME = 'standup.json';
 
 const encodeFileName = (fileName) => encodeURIComponent(fileName);
 const FORCE_STORAGE_FAILURE_KEY = 'todo-list.force-storage-failure';
@@ -251,6 +252,13 @@ const normalizeSummariesPayload = (value) => {
   return { notes, history };
 };
 
+const normalizeStandupPayload = (value) => {
+  const base = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const notes = typeof base.notes === 'string' ? base.notes : '';
+  const history = Array.isArray(base.history) ? base.history : [];
+  return { notes, history };
+};
+
 export async function getSummariesData() {
   const result = await readJsonFile(SUMMARIES_FILE_NAME, { notes: '', history: [] });
   if (!result.ok) {
@@ -264,6 +272,23 @@ export async function updateSummariesData(summaries) {
   const result = await writeJsonFile(SUMMARIES_FILE_NAME, normalized);
   if (!result.ok) {
     return { ok: false, message: result.message ?? 'Failed to save summaries.' };
+  }
+  return { ok: true };
+}
+
+export async function getStandupData() {
+  const result = await readJsonFile(STANDUP_FILE_NAME, { notes: '', history: [] });
+  if (!result.ok) {
+    return { ok: false, standup: { notes: '', history: [] }, error: result.error };
+  }
+  return { ok: true, standup: normalizeStandupPayload(result.data) };
+}
+
+export async function updateStandupData(standup) {
+  const normalized = normalizeStandupPayload(standup);
+  const result = await writeJsonFile(STANDUP_FILE_NAME, normalized);
+  if (!result.ok) {
+    return { ok: false, message: result.message ?? 'Failed to save standup data.' };
   }
   return { ok: true };
 }

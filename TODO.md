@@ -1,7 +1,6 @@
 # In Progress
 
 - Integration with Google calendar for task reminders
-- Add a way to save off Standup notes similar to the Summay page
 
 # TODOs
 - Add a way to edit date directly from task, instead of edit menu

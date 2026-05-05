@@ -1,8 +1,13 @@
 ﻿<script setup>
-import { computed, ref, watch, onMounted } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import IconGlyph from '../components/IconGlyph.vue';
 import { useTaskStore } from '../stores/useTaskStore';
-import { getStorageSettings, updateStorageSettings } from '../services/jsonStorage';
+import {
+  getStorageSettings,
+  updateStorageSettings,
+  getStandupData,
+  updateStandupData,
+} from '../services/jsonStorage';
 
 const STANDUP_HIDDEN_STORAGE_KEY = 'todo-list.standup-hidden';
 const STANDUP_SHOW_ALL_STORAGE_KEY = 'todo-list.standup-show-all';
@@ -599,7 +604,12 @@ watch(showAll, (value) => {
 // Standup notes
 const standupNotes = ref('');
 const standupNotesSaving = ref(false);
+const standupHistory = ref([]);
+const standupHistorySaving = ref(false);
+const standupCopyStatus = ref('');
+const expandedStandupHistoryIds = ref(new Set());
 let saveNotesTimeout = null;
+let standupStatusTimeout = null;
 
 // Notes section resizing
 const NOTES_HEIGHT_STORAGE_KEY = 'todo-list.standup-notes-height';
@@ -676,11 +686,219 @@ const handleResizeEnd = () => {
 
 // Mobile tabs
 const activeTab = ref('today'); // 'yesterday', 'today', 'notes'
+const notesTab = ref('notes'); // 'notes', 'saved'
 
 const saveStandupNotes = async () => {
   standupNotesSaving.value = true;
-  await updateStorageSettings({ standupNotes: standupNotes.value });
+  await updateStandupData({ notes: standupNotes.value, history: standupHistory.value });
   standupNotesSaving.value = false;
+};
+
+const saveStandupHistory = async () => {
+  standupHistorySaving.value = true;
+  await updateStandupData({ notes: standupNotes.value, history: standupHistory.value });
+  standupHistorySaving.value = false;
+};
+
+const setStandupStatus = (message) => {
+  standupCopyStatus.value = message;
+  if (standupStatusTimeout) {
+    window.clearTimeout(standupStatusTimeout);
+  }
+  standupStatusTimeout = window.setTimeout(() => {
+    standupCopyStatus.value = '';
+    standupStatusTimeout = null;
+  }, 2000);
+};
+
+const copyTextFallback = (text) => {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '-1000px';
+  textarea.style.left = '-1000px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+  const ok = document.execCommand('copy');
+  document.body.removeChild(textarea);
+  return ok;
+};
+
+const buildStandupHistoryId = () => {
+  try {
+    if (window.crypto?.randomUUID) {
+      return window.crypto.randomUUID();
+    }
+  } catch (error) {
+    // ignore
+  }
+  return `standup:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+};
+
+const normalizeHistoryEntries = (entries) => {
+  const list = Array.isArray(entries) ? entries : [];
+  return list
+    .filter((entry) => entry && typeof entry.text === 'string')
+    .map((entry) => ({
+      id: typeof entry.id === 'string' && entry.id.trim().length > 0 ? entry.id : buildStandupHistoryId(),
+      title: typeof entry.title === 'string' ? entry.title : '',
+      createdAt: typeof entry.createdAt === 'string' ? entry.createdAt : new Date().toISOString(),
+      text: String(entry.text ?? ''),
+    }))
+    .slice(0, 200);
+};
+
+const sortedStandupHistory = computed(() => {
+  const entries = Array.isArray(standupHistory.value) ? standupHistory.value : [];
+  return [...entries].sort((a, b) => {
+    const aTime = Date.parse(a?.createdAt ?? '');
+    const bTime = Date.parse(b?.createdAt ?? '');
+    if (Number.isNaN(aTime) && Number.isNaN(bTime)) {
+      return 0;
+    }
+    if (Number.isNaN(aTime)) {
+      return 1;
+    }
+    if (Number.isNaN(bTime)) {
+      return -1;
+    }
+    return bTime - aTime;
+  });
+});
+
+const formatHistoryTimestamp = (value) => {
+  const timestamp = Date.parse(value ?? '');
+  if (Number.isNaN(timestamp)) {
+    return 'Unknown';
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(timestamp));
+};
+
+const isHistoryExpanded = (entry) => {
+  const id = String(entry?.id ?? '').trim();
+  if (!id) {
+    return false;
+  }
+  return expandedStandupHistoryIds.value.has(id);
+};
+
+const toggleHistoryExpanded = (entry) => {
+  const id = String(entry?.id ?? '').trim();
+  if (!id) {
+    return;
+  }
+  const next = new Set(expandedStandupHistoryIds.value);
+  if (next.has(id)) {
+    next.delete(id);
+  } else {
+    next.add(id);
+  }
+  expandedStandupHistoryIds.value = next;
+};
+
+const handleCopyCurrentNotes = async () => {
+  const text = String(standupNotes.value ?? '').trim();
+  if (!text) {
+    setStandupStatus('Nothing to copy');
+    return;
+  }
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      setStandupStatus('Copied');
+      return;
+    }
+  } catch (error) {
+    // fall back
+  }
+
+  try {
+    const ok = copyTextFallback(text);
+    setStandupStatus(ok ? 'Copied' : 'Copy failed');
+  } catch (error) {
+    setStandupStatus('Copy failed');
+  }
+};
+
+const handleSaveStandupSnapshot = async () => {
+  const text = String(standupNotes.value ?? '').trim();
+  if (!text) {
+    setStandupStatus('Nothing to save');
+    return;
+  }
+
+  const title = `Standup - ${standupDateLabel.value}`;
+  const entry = {
+    id: buildStandupHistoryId(),
+    title,
+    createdAt: new Date().toISOString(),
+    text,
+  };
+
+  const existing = Array.isArray(standupHistory.value) ? standupHistory.value : [];
+  standupHistory.value = [entry, ...existing].slice(0, 200);
+  await saveStandupHistory();
+  setStandupStatus('Saved');
+};
+
+const handleLoadStandupSnapshot = async (entry) => {
+  const text = String(entry?.text ?? '').trim();
+  if (!text) {
+    setStandupStatus('Nothing to load');
+    return;
+  }
+  standupNotes.value = text;
+  if (saveNotesTimeout) {
+    clearTimeout(saveNotesTimeout);
+  }
+  await saveStandupNotes();
+  setStandupStatus('Loaded');
+};
+
+const handleCopySnapshot = async (entry) => {
+  const text = String(entry?.text ?? '').trim();
+  if (!text) {
+    setStandupStatus('Nothing to copy');
+    return;
+  }
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      setStandupStatus('Copied');
+      return;
+    }
+  } catch (error) {
+    // fall back
+  }
+  try {
+    const ok = copyTextFallback(text);
+    setStandupStatus(ok ? 'Copied' : 'Copy failed');
+  } catch (error) {
+    setStandupStatus('Copy failed');
+  }
+};
+
+const handleDeleteSnapshot = async (entry) => {
+  const id = String(entry?.id ?? '').trim();
+  if (!id) {
+    return;
+  }
+  const ok = window.confirm('Delete this saved standup note?');
+  if (!ok) {
+    return;
+  }
+  const existing = Array.isArray(standupHistory.value) ? standupHistory.value : [];
+  standupHistory.value = existing.filter((item) => String(item?.id ?? '') !== id);
+  expandedStandupHistoryIds.value = new Set(
+    Array.from(expandedStandupHistoryIds.value).filter((value) => value !== id)
+  );
+  await saveStandupHistory();
+  setStandupStatus('Deleted');
 };
 
 const handleNotesInput = () => {
@@ -698,18 +916,44 @@ const clearNotes = async () => {
     clearTimeout(saveNotesTimeout);
   }
   await saveStandupNotes();
+  setStandupStatus('Cleared');
 };
 
 const loadStandupNotes = async () => {
-  const result = await getStorageSettings();
-  if (result.ok && typeof result.settings?.standupNotes === 'string') {
-    standupNotes.value = result.settings.standupNotes;
+  const result = await getStandupData();
+  if (result.ok) {
+    standupNotes.value = String(result.standup?.notes ?? '');
+    standupHistory.value = normalizeHistoryEntries(result.standup?.history);
+
+    const hasStandupData = standupNotes.value.trim().length > 0 || standupHistory.value.length > 0;
+    if (hasStandupData) {
+      return;
+    }
+  }
+
+  const legacy = await getStorageSettings();
+  if (legacy.ok && typeof legacy.settings?.standupNotes === 'string') {
+    standupNotes.value = legacy.settings.standupNotes;
+    await updateStandupData({ notes: standupNotes.value, history: standupHistory.value });
+    await updateStorageSettings({ standupNotes: '' });
   }
 };
 
 onMounted(() => {
   notesHeight.value = loadNotesHeight();
   loadStandupNotes();
+});
+
+onUnmounted(() => {
+  if (saveNotesTimeout) {
+    clearTimeout(saveNotesTimeout);
+  }
+  if (standupStatusTimeout) {
+    window.clearTimeout(standupStatusTimeout);
+  }
+  document.removeEventListener('mousemove', handleResizeMove);
+  document.removeEventListener('mouseup', handleResizeEnd);
+  document.removeEventListener('selectstart', handleSelectStart);
 });
 </script>
 
@@ -1204,24 +1448,123 @@ onMounted(() => {
       ></div>
       <header class="standup__notes-header">
         <h2 class="standup__notes-title">Notes</h2>
+      </header>
+      <nav class="standup__notes-tabs" aria-label="Standup notes sections">
         <button
           type="button"
-          class="standup__notes-clear"
-          :disabled="!standupNotes.trim() || standupNotesSaving"
-          @click="clearNotes"
+          :class="['standup__notes-tab', { 'standup__notes-tab--active': notesTab === 'notes' }]"
+          @click="notesTab = 'notes'"
         >
-          Clear
+          Notes
         </button>
-      </header>
-      <textarea
-        v-model="standupNotes"
-        class="standup__notes-textarea"
-        placeholder="Add your standup notes here..."
-        @input="handleNotesInput"
-      ></textarea>
-      <p v-if="standupNotesSaving" class="standup__notes-status">
-        Saving...
-      </p>
+        <button
+          type="button"
+          :class="['standup__notes-tab', { 'standup__notes-tab--active': notesTab === 'saved' }]"
+          @click="notesTab = 'saved'"
+        >
+          Saved Notes
+        </button>
+      </nav>
+      <div class="standup__notes-body">
+        <div v-if="notesTab === 'notes'" class="standup__notes-panel standup__notes-panel--editor">
+          <div class="standup__notes-actions">
+            <button
+              type="button"
+              class="standup__notes-clear"
+              :disabled="!standupNotes.trim() || standupNotesSaving"
+              @click="clearNotes"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              class="standup__notes-clear"
+              :disabled="!standupNotes.trim() || standupNotesSaving"
+              @click="handleSaveStandupSnapshot"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              class="standup__notes-clear"
+              :disabled="!standupNotes.trim()"
+              @click="handleCopyCurrentNotes"
+            >
+              Copy
+            </button>
+          </div>
+          <textarea
+            v-model="standupNotes"
+            class="standup__notes-textarea"
+            placeholder="Add your standup notes here..."
+            @input="handleNotesInput"
+          ></textarea>
+        </div>
+        <section
+          v-else
+          class="standup__history"
+          aria-label="Saved standup notes history"
+        >
+          <header class="standup__history-header">
+            <h3 class="standup__history-title">Saved Notes</h3>
+          </header>
+          <p v-if="sortedStandupHistory.length === 0" class="standup__history-empty">
+            No saved standup notes yet.
+          </p>
+          <ul v-else class="standup__history-list">
+            <li
+              v-for="entry in sortedStandupHistory"
+              :key="entry.id || entry.createdAt"
+              class="standup__history-item"
+            >
+              <div class="standup__history-item-header">
+                <div>
+                  <p class="standup__history-item-title">{{ entry.title || 'Saved standup notes' }}</p>
+                  <p class="standup__history-item-meta">{{ formatHistoryTimestamp(entry.createdAt) }}</p>
+                </div>
+                <div class="standup__history-actions">
+                  <button
+                    type="button"
+                    class="standup__item-toggle"
+                    @click="toggleHistoryExpanded(entry)"
+                  >
+                    {{ isHistoryExpanded(entry) ? 'Hide' : 'Show' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="standup__item-toggle"
+                    @click="handleLoadStandupSnapshot(entry)"
+                  >
+                    Load
+                  </button>
+                  <button
+                    type="button"
+                    class="standup__item-toggle"
+                    @click="handleCopySnapshot(entry)"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    type="button"
+                    class="standup__item-toggle"
+                    @click="handleDeleteSnapshot(entry)"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+              <pre v-if="isHistoryExpanded(entry)" class="standup__history-text">{{ entry.text }}</pre>
+            </li>
+          </ul>
+        </section>
+        <p v-if="standupNotesSaving || standupHistorySaving" class="standup__notes-status">
+          <template v-if="standupNotesSaving">Saving notes...</template>
+          <template v-else>Saving history...</template>
+        </p>
+        <p v-else-if="standupCopyStatus" class="standup__notes-status" aria-live="polite">
+          {{ standupCopyStatus }}
+        </p>
+      </div>
     </article>
   </section>
 </template>
@@ -1710,7 +2053,7 @@ onMounted(() => {
   border-radius: 0.5rem;
   background: rgba(23, 23, 24, 0.6);
   border: 1px solid theme.$color-border-strong;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-height: 320px;
   max-height: 640px;
   height: 400px;
@@ -1728,6 +2071,71 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.standup__notes-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  flex: none;
+}
+
+.standup__notes-tab {
+  border: 1px solid theme.$color-border-input;
+  background: transparent;
+  color: theme.$color-text-primary;
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  line-height: 1.1;
+  min-height: 2rem;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    color: theme.$color-text-heading;
+    border-color: theme.$color-accent;
+    background: rgba(34, 197, 94, 0.15);
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
+  }
+}
+
+.standup__notes-tab--active {
+  border-color: rgba(34, 197, 94, 0.65);
+  background: rgba(34, 197, 94, 0.1);
+  color: theme.$color-text-heading;
+}
+
+.standup__notes-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.standup__notes-body {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+}
+
+.standup__notes-panel {
+  display: grid;
+  gap: 0.75rem;
+  min-height: 0;
+  height: 100%;
+}
+
+.standup__notes-panel--editor {
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .standup__notes-title {
@@ -1793,6 +2201,94 @@ onMounted(() => {
   font-size: 0.85rem;
   color: theme.$color-text-muted;
   font-style: italic;
+}
+
+.standup__history {
+  display: grid;
+  gap: 0.6rem;
+  min-height: 0;
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.standup__history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.standup__history-title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: theme.$color-text-heading;
+}
+
+.standup__history-empty {
+  margin: 0;
+  color: theme.$color-text-muted;
+  font-size: 0.85rem;
+  align-self: start;
+}
+
+.standup__history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.standup__history-item {
+  border: 1px solid theme.$color-border-input;
+  border-radius: 0.6rem;
+  background: rgba(12, 12, 13, 0.45);
+  padding: 0.65rem 0.75rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.standup__history-item-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.standup__history-item-title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: theme.$color-text-heading;
+}
+
+.standup__history-item-meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: theme.$color-text-muted;
+}
+
+.standup__history-actions {
+  display: inline-flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.standup__history-text {
+  margin: 0;
+  padding: 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px dashed theme.$color-border-input;
+  background: rgba(255, 255, 255, 0.03);
+  color: theme.$color-text-primary;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 .standup__notes-resize-handle {
@@ -1905,13 +2401,18 @@ onMounted(() => {
     height: auto;
   }
 
+  .standup__notes-body {
+    flex: 1;
+    min-height: 0;
+  }
+
   .standup__notes-section--tab-hidden {
     display: none;
   }
 
   .standup__notes-textarea {
     flex: 1;
-    min-height: 300px;
+    min-height: 220px;
   }
 
   .standup__notes-resize-handle {
