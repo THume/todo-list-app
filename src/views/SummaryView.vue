@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import IconGlyph from '../components/IconGlyph.vue';
 import CompletionNotesModal from '../components/CompletionNotesModal.vue';
 import { useTaskStore } from '../stores/useTaskStore';
+import { sortTasksForDisplay } from '../utils/taskSort';
 import {
   getStorageSettings,
   updateStorageSettings,
@@ -227,6 +228,7 @@ let copyStatusTimer = null;
 
 const showCompletionNotesModal = ref(false);
 const taskPendingNotes = ref(null);
+const sortMode = ref('priority');
 
 const buildKey = (entry) => {
   const id = entry?.id ?? entry?.taskId ?? null;
@@ -459,11 +461,17 @@ const groupedEntries = computed(() => {
       const sortValue = typeof timestamp === 'number' ? timestamp : Number.MAX_SAFE_INTEGER;
 
       const groupKey = typeof timestamp === 'number' ? `date:${timestamp}` : 'date:undated';
+      
+      // Apply sorting within each group based on sortMode
+      let sortedItems = applyOrderToGroupItems(groupKey, items);
+      if (sortMode.value === 'priority') {
+        sortedItems = sortTasksForDisplay(sortedItems, 'priority');
+      }
 
       return {
         key: groupKey,
         label: dateLabel,
-        items: applyOrderToGroupItems(groupKey, items),
+        items: sortedItems,
         sortValue,
       };
     })
@@ -933,6 +941,13 @@ onUnmounted(() => {
         >
           Send visible tasks to Notes
         </button>
+        <label class="summary__sort-label">
+          <span>Sort By</span>
+          <select v-model="sortMode" class="summary__sort-select" aria-label="Sort completed tasks">
+            <option value="priority">Priority</option>
+            <option value="user">User</option>
+          </select>
+        </label>
         <span v-if="copyStatus" class="summary__hint" aria-live="polite">{{ copyStatus }}</span>
         <span v-if="showAll && hiddenCount > 0" class="summary__hint">
           Hidden tasks are highlighted. Use Show to unhide them.
@@ -1338,6 +1353,29 @@ onUnmounted(() => {
   &:disabled {
     cursor: not-allowed;
     opacity: 0.6;
+  }
+}
+
+.summary__sort-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: theme.$color-text-muted;
+}
+
+.summary__sort-select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid theme.$color-border-input;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: theme.$color-text-primary;
+  cursor: pointer;
+  font-size: 0.9rem;
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 2px;
   }
 }
 

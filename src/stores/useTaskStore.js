@@ -78,6 +78,7 @@ const VALID_RECURRENCE = new Set([
 ]);
 const VALID_RECURRENCE_ANCHOR = new Set(['due', 'completion']);
 const VALID_REMINDER_MINUTES = new Set([5, 10, 15, 30, 60, 120, 240, 1440]);
+const VALID_PRIORITY = new Set(['low', 'medium', 'high']);
 
 const buildDefaultMeta = () => ({
   schemaVersion: SCHEMA_VERSION,
@@ -253,6 +254,7 @@ const sanitizeCompletedEntries = (entries) => {
         })),
         isLongTerm: Boolean(entry?.isLongTerm),
         startDate: entry?.startDate ?? null,
+        priority: normalizePriority(entry?.priority),
       };
     })
     .filter(Boolean);
@@ -324,6 +326,7 @@ const buildCompletedEntry = (task, completedAt = null, { workedOn = false } = {}
       : sanitizeSubtasks(task.subtasks).map((subtask) => ({ ...subtask, completed: true })),
     isLongTerm: Boolean(task.isLongTerm),
     startDate: task.startDate ?? null,
+    priority: normalizePriority(task.priority),
   };
 };
 
@@ -430,6 +433,19 @@ const normalizeRecurrenceAnchor = (value) => {
 
   const normalized = value.trim().toLowerCase();
   return VALID_RECURRENCE_ANCHOR.has(normalized) ? normalized : 'due';
+};
+
+const normalizePriority = (value) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return VALID_PRIORITY.has(normalized) ? normalized : null;
 };
 
 const postStorageUpdate = () => {
@@ -762,6 +778,7 @@ const createRecurringTask = (task, { completedAt = null } = {}) => {
     subtasks: normalizedSubtasks,
     isLongTerm: false,
     startDate: null,
+    priority: normalizePriority(task.priority),
   };
 };
 
@@ -1046,6 +1063,7 @@ const addTask = ({
   subtasks = [],
   isLongTerm = false,
   startDate = null,
+  priority = null,
 }) => {
   const due = buildDueDate(dueDate, dueTime);
   const recurrenceValue = isLongTerm ? null : normalizeRecurrence(recurrence);
@@ -1074,6 +1092,7 @@ const addTask = ({
     subtasks: resolvedSubtasks,
     isLongTerm: Boolean(isLongTerm),
     startDate: isLongTerm && startDate ? buildDueDate(startDate, null) : null,
+    priority: normalizePriority(priority),
   };
 
   if (isCompleted) {
@@ -1106,6 +1125,7 @@ const updateTask = ({
   subtasks,
   isLongTerm,
   startDate,
+  priority,
 }) => {
   const targetIndex = tasks.value.findIndex((item) => item.id === id);
   if (targetIndex < 0) {
@@ -1128,6 +1148,7 @@ const updateTask = ({
       : normalizeReminderOffsetMinutes(reminderOffsetMinutes);
   const resolvedSubtasks =
     subtasks === undefined ? sanitizeSubtasks(target.subtasks) : sanitizeSubtasks(subtasks);
+  const resolvedPriority = priority !== undefined ? normalizePriority(priority) : target.priority;
 
   const nextTasks = [...tasks.value];
   const updatedTask = {
@@ -1144,6 +1165,7 @@ const updateTask = ({
     startDate: isTaskLongTerm && startDate !== undefined 
       ? (startDate ? buildDueDate(startDate, null) : target.startDate)
       : null,
+    priority: resolvedPriority,
   };
 
   if (!dueDate) {

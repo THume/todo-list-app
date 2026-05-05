@@ -378,6 +378,7 @@ watch(showDuplicateDialog, (isOpen) => {
         class="task-panel__sort-select"
       >
         <option value="due-date">Due date</option>
+        <option value="priority">Priority</option>
         <option value="user">User</option>
       </select>
     </div>

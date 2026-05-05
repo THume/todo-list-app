@@ -1,6 +1,5 @@
 # In Progress
 
-- Add Priority setting for tasks to help order tasks in Summary
 - Integration with Google calendar for task reminders
 
 # TODOs

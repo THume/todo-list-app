@@ -385,6 +385,7 @@ const handleConfirmDelete = () => {
             aria-label="Sort completed tasks"
           >
             <option value="due-date">Due date</option>
+            <option value="priority">Priority</option>
             <option value="user">User</option>
           </select>
         </label>

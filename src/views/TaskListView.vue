@@ -539,6 +539,7 @@ onBeforeUnmount(() => {
           >
             <option value="user">User</option>
             <option value="due-date">Due date</option>
+            <option value="priority">Priority</option>
           </select>
         </div>
         <ul

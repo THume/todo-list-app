@@ -51,6 +51,7 @@ const markCompleted = ref(false);
 const reminderOffset = ref('none');
 const isLongTerm = ref(false);
 const startDate = ref('');
+const priority = ref('');
 const { isLongTermTasksEnabled } = useUiSettings();
 const titleField = ref(null);
 const subtaskInput = ref('');
@@ -119,6 +120,7 @@ const applyTask = (task) => {
     reminderOffset.value = 'none';
     isLongTerm.value = false;
     startDate.value = '';
+    priority.value = '';
     subtasks.value = [];
     draggedSubtaskId.value = null;
     dragOverSubtaskId.value = null;
@@ -137,6 +139,7 @@ const applyTask = (task) => {
   selectedListId.value = resolveListId(listOptions.value, task.listId);
   isLongTerm.value = Boolean(task.isLongTerm);
   startDate.value = formatDateInput(task.startDate);
+  priority.value = task.priority ?? '';
   subtaskInput.value = '';
   const mappedSubtasks = Array.isArray(task.subtasks)
     ? task.subtasks
@@ -207,6 +210,7 @@ const resetForm = () => {
   reminderOffset.value = 'none';
   isLongTerm.value = false;
   startDate.value = '';
+  priority.value = '';
   lastTaskId.value = null;
   subtasks.value = [];
   draggedSubtaskId.value = null;
@@ -268,6 +272,7 @@ const handleSubmit = (shouldCloseModal = false) => {
       subtasks: sanitizedSubtasks,
       isLongTerm: isLongTerm.value,
       startDate: startDate.value || null,
+      priority: priority.value || null,
     });
     closeModal();
   } else {
@@ -285,6 +290,7 @@ const handleSubmit = (shouldCloseModal = false) => {
       subtasks: sanitizedSubtasks.map((entry) => ({ ...entry, completed: false })),
       isLongTerm: isLongTerm.value,
       startDate: startDate.value || null,
+      priority: priority.value || null,
     });
 
     if (shouldCloseModal) {
@@ -901,6 +907,28 @@ watch(
               >
                 <option value="due">Due date</option>
                 <option value="completion">Completion date</option>
+              </select>
+            </label>
+            <label class="add-task__due-label add-task__priority">
+              <span class="add-task__label-heading">
+                <IconGlyph
+                  name="alert"
+                  size="14"
+                  class="add-task__label-icon"
+                  aria-hidden="true"
+                />
+                <span>Priority</span>
+              </span>
+              <select
+                v-model="priority"
+                name="priority"
+                class="add-task__select"
+                aria-label="Task priority"
+              >
+                <option value="">None</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
               </select>
             </label>
             <div v-if="!isEditMode" class="add-task__completion">
