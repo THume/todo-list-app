@@ -45,6 +45,7 @@ const description = ref('');
 const dueDate = ref('');
 const dueTime = ref('');
 const recurrence = ref('none');
+const recurrenceAnchor = ref('due');
 const selectedListId = ref('');
 const markCompleted = ref(false);
 const reminderOffset = ref('none');
@@ -112,6 +113,7 @@ const applyTask = (task) => {
     dueDate.value = '';
     dueTime.value = '';
     recurrence.value = 'none';
+    recurrenceAnchor.value = 'due';
     lastTaskId.value = null;
     selectedListId.value = resolveListId(listOptions.value, null);
     reminderOffset.value = 'none';
@@ -130,6 +132,7 @@ const applyTask = (task) => {
   dueDate.value = formatDateInput(task.due);
   dueTime.value = formatTimeInput(task.due);
   recurrence.value = task.recurrence ?? 'none';
+  recurrenceAnchor.value = task.recurrenceAnchor === 'completion' ? 'completion' : 'due';
   lastTaskId.value = task.id ?? null;
   selectedListId.value = resolveListId(listOptions.value, task.listId);
   isLongTerm.value = Boolean(task.isLongTerm);
@@ -199,6 +202,7 @@ const resetForm = () => {
   description.value = '';
   dueTime.value = '';
   recurrence.value = 'none';
+  recurrenceAnchor.value = 'due';
   markCompleted.value = false;
   reminderOffset.value = 'none';
   isLongTerm.value = false;
@@ -258,6 +262,7 @@ const handleSubmit = (shouldCloseModal = false) => {
       dueDate: dueDate.value || null,
       dueTime: isLongTerm.value ? null : (dueTime.value || null),
       recurrence: recurrence.value,
+      recurrenceAnchor: recurrence.value === 'none' ? null : recurrenceAnchor.value,
       listId: selectedListId.value || null,
       reminderOffsetMinutes: reminderOffset.value === 'none' ? null : Number(reminderOffset.value),
       subtasks: sanitizedSubtasks,
@@ -273,6 +278,7 @@ const handleSubmit = (shouldCloseModal = false) => {
       dueDate: dueDate.value || null,
       dueTime: isLongTerm.value ? null : (dueTime.value || null),
       recurrence: recurrence.value,
+      recurrenceAnchor: recurrence.value === 'none' ? null : recurrenceAnchor.value,
       listId: selectedListId.value || null,
       completed: markCompleted.value,
       reminderOffsetMinutes: reminderOffset.value === 'none' ? null : Number(reminderOffset.value),
@@ -514,11 +520,18 @@ watch(isLongTerm, (value) => {
   if (value) {
     dueTime.value = '';
     recurrence.value = 'none';
+    recurrenceAnchor.value = 'due';
     reminderOffset.value = 'none';
   }
   // When switching from long-term to regular, clear start date
   if (!value) {
     startDate.value = '';
+  }
+});
+
+watch(recurrence, (value) => {
+  if (value === 'none') {
+    recurrenceAnchor.value = 'due';
   }
 });
 
@@ -865,6 +878,29 @@ watch(
                 >
                   {{ option.label }}
                 </option>
+              </select>
+            </label>
+            <label
+              v-if="!isLongTerm && recurrence !== 'none'"
+              class="add-task__due-label add-task__recurrence"
+            >
+              <span class="add-task__label-heading">
+                <IconGlyph
+                  name="calendar"
+                  size="14"
+                  class="add-task__label-icon"
+                  aria-hidden="true"
+                />
+                <span>Repeat from</span>
+              </span>
+              <select
+                v-model="recurrenceAnchor"
+                name="recurrenceAnchor"
+                class="add-task__select"
+                aria-label="Repeat from"
+              >
+                <option value="due">Due date</option>
+                <option value="completion">Completion date</option>
               </select>
             </label>
             <div v-if="!isEditMode" class="add-task__completion">

@@ -119,21 +119,25 @@ const formattedDueLabel = computed(() => {
 });
 
 const recurrenceLabel = computed(() => {
+  const suffix = props.task?.recurrenceAnchor === 'completion'
+    ? ' after completion'
+    : ' after due date';
+
   switch (props.task.recurrence) {
     case 'daily':
-      return 'Repeats daily';
+      return `Repeats daily${suffix}`;
     case 'weekdays':
-      return 'Repeats on weekdays';
+      return `Repeats on weekdays${suffix}`;
     case 'weekly':
-      return 'Repeats weekly';
+      return `Repeats weekly${suffix}`;
     case 'biweekly':
-      return 'Repeats every 2 weeks';
+      return `Repeats every 2 weeks${suffix}`;
     case 'monthly':
-      return 'Repeats monthly';
+      return `Repeats monthly${suffix}`;
     case 'quarterly':
-      return 'Repeats every 3 months';
+      return `Repeats every 3 months${suffix}`;
     case 'yearly':
-      return 'Repeats yearly';
+      return `Repeats yearly${suffix}`;
     default:
       return '';
   }
@@ -286,7 +290,11 @@ const showLongTermWorkedOn = computed(
   () => !props.isCompletedPage && isLongTerm.value
 );
 const canSkipRecurrence = computed(
-  () => !props.isCompletedPage && props.showSkipRecurrenceAction && Boolean(props.task.recurrence) && !props.task.completed
+  () => !props.isCompletedPage
+    && props.showSkipRecurrenceAction
+    && Boolean(props.task.recurrence)
+    && !props.task.completed
+    && props.task?.recurrenceAnchor !== 'completion'
 );
 const showEditAction = computed(() => !props.isCompletedPage);
 const showAdjustCompletionDate = computed(() => props.isCompletedPage);

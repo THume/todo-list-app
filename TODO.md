@@ -1,13 +1,9 @@
 # In Progress
 
 - Integration with Google calendar for task reminders
-- Refactor how tasks are ordered
-    - Long Term tasks at the top
-    - Order by due date/time
 
 # TODOs
-
-- Add a distinction for repeat tasks that it repeats X amount of days after it was due or after completed
+- Fix styling issue: <select> options text is too light for background
 - Add a way to save off Standup notes similar to the Summay page
 - Add a way to edit date directly from task, instead of edit menu
 - Refactor Summary page to list completed tasks by oldest task completed (top) to newest tasks (bottom) by default

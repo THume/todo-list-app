@@ -76,6 +76,7 @@ const VALID_RECURRENCE = new Set([
   'quarterly',
   'yearly',
 ]);
+const VALID_RECURRENCE_ANCHOR = new Set(['due', 'completion']);
 const VALID_REMINDER_MINUTES = new Set([5, 10, 15, 30, 60, 120, 240, 1440]);
 
 const buildDefaultMeta = () => ({
@@ -242,6 +243,7 @@ const sanitizeCompletedEntries = (entries) => {
         completedAt,
         due: entry?.due ?? null,
         recurrence: normalizeRecurrence(entry?.recurrence),
+        recurrenceAnchor: normalizeRecurrenceAnchor(entry?.recurrenceAnchor),
         listId: normalizeListId(entry?.listId),
         reminderOffsetMinutes: entry?.reminderOffsetMinutes ?? null,
         completionNotes: typeof entry?.completionNotes === 'string' ? entry.completionNotes : '',
@@ -282,7 +284,7 @@ const removeSpawnedRecurringTask = (taskId, updatedTasks) => {
 
 const applyRecurringTransition = (updatedTasks, updatedTask) => {
   if (updatedTask.completed) {
-    const nextTask = createRecurringTask(updatedTask);
+    const nextTask = createRecurringTask(updatedTask, { completedAt: updatedTask.completedAt });
 
     if (nextTask) {
       spawnedRecurringTaskIds.set(updatedTask.id, nextTask.id);
@@ -313,6 +315,7 @@ const buildCompletedEntry = (task, completedAt = null, { workedOn = false } = {}
       : resolvedCompletedAt.toISOString(),
     due: task.due ?? null,
     recurrence: normalizeRecurrence(task.recurrence),
+    recurrenceAnchor: normalizeRecurrenceAnchor(task.recurrenceAnchor),
     listId: normalizeListId(task.listId),
     reminderOffsetMinutes: normalizeReminderOffsetMinutes(task.reminderOffsetMinutes),
     completionNotes: typeof task?.completionNotes === 'string' ? task.completionNotes : '',
@@ -418,6 +421,15 @@ const normalizeReminderOffsetMinutes = (value) => {
     return rounded;
   }
   return null;
+};
+
+const normalizeRecurrenceAnchor = (value) => {
+  if (typeof value !== 'string') {
+    return 'due';
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return VALID_RECURRENCE_ANCHOR.has(normalized) ? normalized : 'due';
 };
 
 const postStorageUpdate = () => {
@@ -668,21 +680,46 @@ const advanceDateByRecurrence = (date, recurrence) => {
   }
 };
 
-const computeNextDueDate = (currentDue, recurrence) => {
+const computeNextDueDate = (currentDue, recurrence, { anchor = 'due', completedAt = null } = {}) => {
   const normalized = normalizeRecurrence(recurrence);
 
-  if (!normalized || !currentDue) {
+  if (!normalized) {
     return null;
   }
 
-  const base = new Date(currentDue);
+  const recurrenceAnchor = normalizeRecurrenceAnchor(anchor);
+  const baseSource = recurrenceAnchor === 'completion'
+    ? (completedAt ?? Date.now())
+    : currentDue;
+
+  if (!baseSource) {
+    return null;
+  }
+
+  const base = new Date(baseSource);
   if (Number.isNaN(base.valueOf())) {
     return null;
   }
 
   const next = new Date(base);
-  const now = Date.now();
   advanceDateByRecurrence(next, normalized);
+
+  if (recurrenceAnchor === 'completion') {
+    const dueTimeSource = new Date(currentDue ?? '');
+    if (!Number.isNaN(dueTimeSource.valueOf())) {
+      next.setHours(
+        dueTimeSource.getHours(),
+        dueTimeSource.getMinutes(),
+        dueTimeSource.getSeconds(),
+        dueTimeSource.getMilliseconds()
+      );
+    } else {
+      next.setHours(23, 59, 0, 0);
+    }
+    return next.toISOString();
+  }
+
+  const now = Date.now();
 
   while (next.valueOf() <= now) {
     advanceDateByRecurrence(next, normalized);
@@ -691,7 +728,7 @@ const computeNextDueDate = (currentDue, recurrence) => {
   return next.toISOString();
 };
 
-const createRecurringTask = (task) => {
+const createRecurringTask = (task, { completedAt = null } = {}) => {
   // Long-term tasks don't support recurrence
   if (task.isLongTerm) {
     return null;
@@ -702,7 +739,11 @@ const createRecurringTask = (task) => {
     return null;
   }
 
-  const nextDue = computeNextDueDate(task.due, recurrence);
+  const recurrenceAnchor = normalizeRecurrenceAnchor(task.recurrenceAnchor);
+  const nextDue = computeNextDueDate(task.due, recurrence, {
+    anchor: recurrenceAnchor,
+    completedAt,
+  });
   const normalizedSubtasks = sanitizeSubtasks(task.subtasks).map((subtask) => ({
     ...subtask,
     completed: false,
@@ -715,6 +756,7 @@ const createRecurringTask = (task) => {
     completed: false,
     due: nextDue ?? task.due ?? null,
     recurrence,
+    recurrenceAnchor,
     listId: normalizeListId(task.listId),
     reminderOffsetMinutes: normalizeReminderOffsetMinutes(task.reminderOffsetMinutes),
     subtasks: normalizedSubtasks,
@@ -840,7 +882,7 @@ const markTaskWorkedOn = (taskId, { dayOffset = 1 } = {}) => {
     const updatedTasks = [...tasks.value];
     updatedTasks.splice(targetIndex, 1);
 
-    const nextTask = createRecurringTask(targetTask);
+    const nextTask = createRecurringTask(targetTask, { completedAt: completedEntry.completedAt });
     if (nextTask) {
       spawnedRecurringTaskIds.set(targetTask.id, nextTask.id);
       updatedTasks.splice(targetIndex, 0, nextTask);
@@ -870,6 +912,7 @@ const markTaskWorkedOn = (taskId, { dayOffset = 1 } = {}) => {
     completed: false,
     due: nextDue,
     recurrence: normalizeRecurrence(targetTask.recurrence),
+    recurrenceAnchor: normalizeRecurrenceAnchor(targetTask.recurrenceAnchor),
     listId: normalizeListId(targetTask.listId),
     reminderOffsetMinutes: nextDue
       ? normalizeReminderOffsetMinutes(targetTask.reminderOffsetMinutes)
@@ -971,11 +1014,12 @@ const skipTaskRecurrence = (taskId) => {
   }
 
   const recurrence = normalizeRecurrence(targetTask.recurrence);
-  if (!recurrence || !targetTask.due) {
+  const recurrenceAnchor = normalizeRecurrenceAnchor(targetTask.recurrenceAnchor);
+  if (!recurrence || !targetTask.due || recurrenceAnchor !== 'due') {
     return false;
   }
 
-  const nextDue = computeNextDueDate(targetTask.due, recurrence);
+  const nextDue = computeNextDueDate(targetTask.due, recurrence, { anchor: recurrenceAnchor });
   if (!nextDue) {
     return false;
   }
@@ -995,6 +1039,7 @@ const addTask = ({
   dueDate,
   dueTime,
   recurrence,
+  recurrenceAnchor,
   listId,
   reminderOffsetMinutes,
   completed = false,
@@ -1004,6 +1049,9 @@ const addTask = ({
 }) => {
   const due = buildDueDate(dueDate, dueTime);
   const recurrenceValue = isLongTerm ? null : normalizeRecurrence(recurrence);
+  const recurrenceAnchorValue = recurrenceValue
+    ? normalizeRecurrenceAnchor(recurrenceAnchor)
+    : 'due';
   const normalizedSubtasks = sanitizeSubtasks(subtasks);
   const resolvedSubtasks =
     Boolean(completed) && normalizedSubtasks.length > 0
@@ -1020,6 +1068,7 @@ const addTask = ({
     completed: isCompleted,
     due,
     recurrence: recurrenceValue,
+    recurrenceAnchor: recurrenceAnchorValue,
     listId: normalizeListId(listId),
     reminderOffsetMinutes: reminderValue,
     subtasks: resolvedSubtasks,
@@ -1031,7 +1080,7 @@ const addTask = ({
     newTask.completedAt = new Date().toISOString();
     const completedEntry = buildCompletedEntry(newTask);
     addCompletedEntry(completedEntry);
-    const nextTask = createRecurringTask(newTask);
+    const nextTask = createRecurringTask(newTask, { completedAt: newTask.completedAt });
     if (nextTask) {
       spawnedRecurringTaskIds.set(newTask.id, nextTask.id);
       tasks.value = [...tasks.value, nextTask];
@@ -1051,6 +1100,7 @@ const updateTask = ({
   dueDate,
   dueTime,
   recurrence,
+  recurrenceAnchor,
   listId,
   reminderOffsetMinutes,
   subtasks,
@@ -1068,6 +1118,10 @@ const updateTask = ({
   }
 
   const isTaskLongTerm = isLongTerm !== undefined ? Boolean(isLongTerm) : Boolean(target.isLongTerm);
+  const normalizedRecurrence = isTaskLongTerm ? null : normalizeRecurrence(recurrence);
+  const normalizedAnchor = normalizedRecurrence
+    ? normalizeRecurrenceAnchor(recurrenceAnchor ?? target.recurrenceAnchor)
+    : 'due';
   const resolvedReminder =
     reminderOffsetMinutes === undefined
       ? target.reminderOffsetMinutes
@@ -1081,7 +1135,8 @@ const updateTask = ({
     title: typeof title === 'string' && title.trim().length > 0 ? title : target.title,
     description: typeof description === 'string' ? description : target.description,
     due: buildDueDate(dueDate, dueTime),
-    recurrence: isTaskLongTerm ? null : normalizeRecurrence(recurrence),
+    recurrence: normalizedRecurrence,
+    recurrenceAnchor: normalizedAnchor,
     listId: normalizeListId(listId ?? target.listId),
     reminderOffsetMinutes: isTaskLongTerm ? null : resolvedReminder,
     subtasks: resolvedSubtasks,
@@ -1110,7 +1165,7 @@ const updateTask = ({
   if (resolvedCompleted) {
     nextTasks.splice(targetIndex, 1);
     const completedEntry = buildCompletedEntry(completionAdjusted);
-    const nextTask = createRecurringTask(completionAdjusted);
+    const nextTask = createRecurringTask(completionAdjusted, { completedAt: completionAdjusted.completedAt });
     if (nextTask) {
       spawnedRecurringTaskIds.set(completionAdjusted.id, nextTask.id);
       nextTasks.splice(targetIndex, 0, nextTask);
@@ -1181,7 +1236,7 @@ const toggleTaskCompletion = (taskId, { suppressNotification = false } = {}) => 
   );
 
   const nextTasks = [...updatedTasks];
-  const nextTask = createRecurringTask(originalTask);
+  const nextTask = createRecurringTask(originalTask, { completedAt: completedEntry.completedAt });
   if (nextTask) {
     spawnedRecurringTaskIds.set(originalTask.id, nextTask.id);
     nextTasks.splice(targetIndex, 0, nextTask);
@@ -1255,7 +1310,7 @@ const toggleSubtaskCompletion = (taskId, subtaskId) => {
     updatedTask = applyCompletionState(updatedTask, true);
     updatedTasks.splice(taskIndex, 1);
     const completedEntry = buildCompletedEntry(updatedTask);
-    const nextTask = createRecurringTask(updatedTask);
+    const nextTask = createRecurringTask(updatedTask, { completedAt: updatedTask.completedAt });
     if (nextTask) {
       spawnedRecurringTaskIds.set(updatedTask.id, nextTask.id);
       updatedTasks.splice(taskIndex, 0, nextTask);
@@ -1309,6 +1364,7 @@ const reviveCompletedTask = (taskId, { suppressNotification = false } = {}) => {
     completed: false,
     due: entry.due ?? null,
     recurrence: normalizeRecurrence(entry.recurrence),
+    recurrenceAnchor: normalizeRecurrenceAnchor(entry.recurrenceAnchor),
     listId: normalizeListId(entry.listId),
     reminderOffsetMinutes: normalizeReminderOffsetMinutes(entry.reminderOffsetMinutes),
     subtasks: sanitizeSubtasks(entry.subtasks).map((subtask) => ({
@@ -1500,6 +1556,7 @@ const duplicateTask = (taskId) => {
     completed: false,
     due: original.due ?? null,
     recurrence: original.recurrence ?? null,
+    recurrenceAnchor: normalizeRecurrenceAnchor(original.recurrenceAnchor),
     listId: normalizeListId(original.listId),
     reminderOffsetMinutes: normalizeReminderOffsetMinutes(original.reminderOffsetMinutes),
     subtasks: sanitizeSubtasks(original.subtasks).map((subtask) => ({
@@ -1865,6 +1922,7 @@ const loadFromStorage = async () => {
           completedAt: task.completedAt ?? task.completed_at ?? null,
           due: task.due ?? null,
           recurrence: normalizeRecurrence(task.recurrence),
+          recurrenceAnchor: normalizeRecurrenceAnchor(task.recurrenceAnchor),
           listId: normalizeListId(task.listId),
           reminderOffsetMinutes:
             task.due !== null ? normalizeReminderOffsetMinutes(task.reminderOffsetMinutes) : null,
