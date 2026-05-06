@@ -5,6 +5,7 @@ import Task from '../components/Task.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import AddEditTaskModal from '../components/AddEditTaskModal.vue';
 import ListSettingsModal from '../components/ListSettingsModal.vue';
+import RenameListModal from '../components/RenameListModal.vue';
 import IconGlyph from '../components/IconGlyph.vue';
 import { useTaskStore } from '../stores/useTaskStore';
 import { findListBySlug, getListPath } from '../utils/listSlug';
@@ -44,6 +45,7 @@ const listMenuOpen = ref(false);
 const listMenuButton = ref(null);
 const listMenuPanel = ref(null);
 const sortMode = ref('user');
+const showRenameListModal = ref(false);
 
 const activeList = computed(() => {
   const nameSlug = route.params.name;
@@ -160,11 +162,14 @@ const handleRenameList = () => {
     return;
   }
   closeListMenu();
-  const nextName = window.prompt('Rename list', activeList.value.name ?? '');
-  if (!nextName) {
+  showRenameListModal.value = true;
+};
+
+const handleRenameListSubmit = (newName) => {
+  if (!activeList.value) {
     return;
   }
-  renameList(activeList.value.id, nextName);
+  renameList(activeList.value.id, newName);
 };
 
 const handleOpenSettings = () => {
@@ -627,6 +632,11 @@ onBeforeUnmount(() => {
     :list="activeList"
     @save="handleSaveListSettings"
     @cancel="closeListSettings"
+  />
+  <RenameListModal
+    v-model:visible="showRenameListModal"
+    :current-name="activeList?.name ?? ''"
+    @submit="handleRenameListSubmit"
   />
 </template>
 

@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import AddEditTaskModal from './components/AddEditTaskModal.vue';
+import AddListModal from './components/AddListModal.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import TaskNotifications from './components/TaskNotifications.vue';
 import CompletionNotesModal from './components/CompletionNotesModal.vue';
@@ -52,6 +53,7 @@ const pointerStartX = ref(0);
 const pointerStartWidth = ref(DEFAULT_SIDEBAR_WIDTH);
 const showListDeleteDialog = ref(false);
 const listPendingDelete = ref(null);
+const showCreateListModal = ref(false);
 
 const draggedListId = ref(null);
 const dragOverListId = ref(null);
@@ -216,10 +218,10 @@ const primaryNavLinks = computed(() => {
 });
 
 const handleCreateList = () => {
-  const name = window.prompt('List name');
-  if (!name) {
-    return;
-  }
+  showCreateListModal.value = true;
+};
+
+const handleCreateListSubmit = (name) => {
   const created = addList(name);
   if (created) {
     router.push(getListPath(created));
@@ -741,6 +743,10 @@ onUnmounted(() => {
     :lists="lists"
     :default-list-id="defaultListIdForForm"
     @submit="handleAddTask"
+  />
+  <AddListModal
+    v-model:visible="showCreateListModal"
+    @submit="handleCreateListSubmit"
   />
   <ConfirmDialog
     v-model:open="showListDeleteDialog"
