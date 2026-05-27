@@ -770,26 +770,6 @@ watch(
                   <span>Subtasks</span>
                 </span>
               </div>
-              <div class="add-task__subtask-input-row">
-                <input
-                  v-model="subtaskInput"
-                  type="text"
-                  class="add-task__subtask-input"
-                  name="subtask"
-                  autocomplete="off"
-                  placeholder="Add a subtask title"
-                  aria-label="Add a subtask"
-                  @keydown.enter.prevent="addSubtask(subtaskInput); subtaskInput = ''"
-                />
-                <button
-                  type="button"
-                  class="add-task__subtask-button"
-                  :disabled="!canAddSubtask"
-                  @click="addSubtask(subtaskInput); subtaskInput = ''"
-                >
-                  Add
-                </button>
-              </div>
               <ul v-if="hasSubtasks" class="add-task__subtask-list">
                 <li
                   v-for="subtask in subtasks"
@@ -860,6 +840,26 @@ watch(
                   </button>
                 </li>
               </ul>
+              <div class="add-task__subtask-input-row">
+                <input
+                  v-model="subtaskInput"
+                  type="text"
+                  class="add-task__subtask-input"
+                  name="subtask"
+                  autocomplete="off"
+                  placeholder="Add a subtask title"
+                  aria-label="Add a subtask"
+                  @keydown.enter.prevent="addSubtask(subtaskInput); subtaskInput = ''"
+                />
+                <button
+                  type="button"
+                  class="add-task__subtask-button"
+                  :disabled="!canAddSubtask"
+                  @click="addSubtask(subtaskInput); subtaskInput = ''"
+                >
+                  Add
+                </button>
+              </div>
             </div>
             <label v-if="!isLongTerm" class="add-task__due-label add-task__recurrence">
               <span class="add-task__label-heading">
