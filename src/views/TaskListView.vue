@@ -25,6 +25,7 @@ const {
   toggleSubtaskCompletion,
   moveTaskToToday,
   moveTaskToTomorrow,
+  moveTaskToNextWeek,
   removeList,
   renameList,
   updateListSettings,
@@ -282,6 +283,10 @@ const handleMoveToToday = (task) => {
 
 const handleMoveToTomorrow = (task) => {
   moveTaskToTomorrow(task.id);
+};
+
+const handleMoveToNextWeek = (task) => {
+  moveTaskToNextWeek(task.id);
 };
 
 const handleToggleSubtask = ({ taskId, subtaskId }) => {
@@ -580,6 +585,7 @@ onBeforeUnmount(() => {
               @duplicate="handleDuplicate"
               @move-to-today="handleMoveToToday"
               @move-to-tomorrow="handleMoveToTomorrow"
+              @move-to-next-week="handleMoveToNextWeek"
               @toggle-subtask="handleToggleSubtask"
             />
             </li>

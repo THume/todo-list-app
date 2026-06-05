@@ -13,3 +13,4 @@
     - The Standup page setting is unique to what Workspace the user is on
         - Create an area on the Settings page for "Workspace Settings"
         - Put Standup setting in this new area
+- For Summary items, make Folder a string so that the value maintains even if Folder is deleted (do the same for Completed tasks?)

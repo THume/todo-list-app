@@ -18,6 +18,7 @@ const {
   toggleSubtaskCompletion,
   moveTaskToToday,
   moveTaskToTomorrow,
+  moveTaskToNextWeek,
   moveOverdueTasksToToday,
   markTaskWorkedOn,
   markLongTermTaskWorkedOn,
@@ -119,6 +120,10 @@ const handleMoveToToday = (task) => {
 
 const handleMoveToTomorrow = (task) => {
   moveTaskToTomorrow(task.id);
+};
+
+const handleMoveToNextWeek = (task) => {
+  moveTaskToNextWeek(task.id);
 };
 
 const handleWorkedOnNextDay = (task) => {
@@ -360,6 +365,7 @@ watch(showDuplicateDialog, (isOpen) => {
             @duplicate="handleDuplicate"
             @move-to-today="handleMoveToToday"
             @move-to-tomorrow="handleMoveToTomorrow"
+            @move-to-next-week="handleMoveToNextWeek"
             @worked-on="handleWorkedOnNextDay"
             @long-term-worked-on="handleLongTermWorkedOn"
             @skip-recurrence="handleSkipRecurrence"

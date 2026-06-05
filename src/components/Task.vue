@@ -17,6 +17,7 @@ const emit = defineEmits([
   'duplicate',
   'move-to-today',
   'move-to-tomorrow',
+  'move-to-next-week',
   'worked-on',
   'long-term-worked-on',
   'skip-recurrence',
@@ -394,6 +395,11 @@ const handleMoveToTomorrow = () => {
   closeMenu();
 };
 
+const handleMoveToNextWeek = () => {
+  emit('move-to-next-week', props.task);
+  closeMenu();
+};
+
 const handleWorkedOn = () => {
   emit('worked-on', props.task);
   closeMenu();
@@ -550,6 +556,16 @@ watch(descriptionText, () => {
                   @click="handleMoveToTomorrow"
                 >
                   Move to Tomorrow
+                </button>
+              </li>
+              <li v-if="showMoveToTomorrow" role="none">
+                <button
+                  type="button"
+                  class="task__menu-item"
+                  role="menuitem"
+                  @click="handleMoveToNextWeek"
+                >
+                  Move to Next Week
                 </button>
               </li>
               <li v-if="showWorkedOnAction" role="none">

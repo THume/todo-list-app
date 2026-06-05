@@ -880,6 +880,14 @@ const moveTaskToTomorrow = (taskId) => {
   return moveTaskToDate(taskId, tomorrowStart);
 };
 
+const moveTaskToNextWeek = (taskId) => {
+  const nextMondayStart = getStartOfDay(currentTime.value);
+  const dayOfWeek = nextMondayStart.getDay();
+  const daysUntilNextMonday = ((8 - dayOfWeek) % 7) || 7;
+  nextMondayStart.setDate(nextMondayStart.getDate() + daysUntilNextMonday);
+  return moveTaskToDate(taskId, nextMondayStart);
+};
+
 const markTaskWorkedOn = (taskId, { dayOffset = 1 } = {}) => {
   const targetIndex = tasks.value.findIndex((item) => item.id === taskId);
   if (targetIndex < 0) {
@@ -2164,6 +2172,7 @@ export const useTaskStore = () => {
     removeTask,
     moveTaskToToday,
     moveTaskToTomorrow,
+    moveTaskToNextWeek,
     markTaskWorkedOn,
     markLongTermTaskWorkedOn,
     moveOverdueTasksToToday,
