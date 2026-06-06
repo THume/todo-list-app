@@ -127,6 +127,8 @@ const recurrenceLabel = computed(() => {
   switch (props.task.recurrence) {
     case 'daily':
       return `Repeats daily${suffix}`;
+    case 'every2days':
+      return `Repeats every 2 days${suffix}`;
     case 'weekdays':
       return `Repeats on weekdays${suffix}`;
     case 'weekly':

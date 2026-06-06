@@ -1,6 +1,7 @@
 const recurrenceOptions = Object.freeze([
   { value: 'none', label: 'Does not repeat' },
   { value: 'daily', label: 'Daily' },
+  { value: 'every2days', label: 'Every 2 days' },
   { value: 'weekdays', label: 'Weekdays' },
   { value: 'weekly', label: 'Weekly' },
   { value: 'biweekly', label: 'Every 2 weeks' },

@@ -69,6 +69,7 @@ const dismissNotification = (id) => {
 
 const VALID_RECURRENCE = new Set([
   'daily',
+  'every2days',
   'weekdays',
   'weekly',
   'biweekly',
@@ -669,6 +670,9 @@ const advanceDateByRecurrence = (date, recurrence) => {
   switch (recurrence) {
     case 'daily':
       date.setDate(date.getDate() + 1);
+      break;
+    case 'every2days':
+      date.setDate(date.getDate() + 2);
       break;
     case 'weekdays': {
       do {
