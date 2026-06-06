@@ -139,6 +139,8 @@ const recurrenceLabel = computed(() => {
       return `Repeats monthly${suffix}`;
     case 'quarterly':
       return `Repeats every 3 months${suffix}`;
+    case 'semiannual':
+      return `Repeats every 6 months${suffix}`;
     case 'yearly':
       return `Repeats yearly${suffix}`;
     default:

@@ -75,6 +75,7 @@ const VALID_RECURRENCE = new Set([
   'biweekly',
   'monthly',
   'quarterly',
+  'semiannual',
   'yearly',
 ]);
 const VALID_RECURRENCE_ANCHOR = new Set(['due', 'completion']);
@@ -691,6 +692,9 @@ const advanceDateByRecurrence = (date, recurrence) => {
       break;
     case 'quarterly':
       date.setMonth(date.getMonth() + 3);
+      break;
+    case 'semiannual':
+      date.setMonth(date.getMonth() + 6);
       break;
     case 'yearly':
       date.setFullYear(date.getFullYear() + 1);

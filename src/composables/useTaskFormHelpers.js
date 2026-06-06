@@ -7,6 +7,7 @@ const recurrenceOptions = Object.freeze([
   { value: 'biweekly', label: 'Every 2 weeks' },
   { value: 'monthly', label: 'Monthly' },
   { value: 'quarterly', label: 'Every 3 Months' },
+  { value: 'semiannual', label: 'Every 6 months' },
   { value: 'yearly', label: 'Yearly' },
 ]);
 
