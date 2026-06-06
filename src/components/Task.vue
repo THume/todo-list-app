@@ -162,6 +162,19 @@ const reminderLabel = computed(() => {
   return `${minutes} minutes before`;
 });
 
+const priorityLabel = computed(() => {
+  switch (props.task?.priority) {
+    case 'low':
+      return 'Low priority';
+    case 'medium':
+      return 'Medium priority';
+    case 'high':
+      return 'High priority';
+    default:
+      return '';
+  }
+});
+
 const isLongTerm = computed(() => Boolean(props.task?.isLongTerm));
 
 const startDateObj = computed(() => {
@@ -735,6 +748,9 @@ watch(descriptionText, () => {
       <span v-if="listLabel" class="task__list">
         {{ listLabel }}
       </span>
+      <span v-if="priorityLabel" class="task__priority">
+        {{ priorityLabel }}
+      </span>
       <span v-if="recurrenceLabel" v-tooltip="recurrenceLabel" class="task__recurrence">
         <IconGlyph name="repeat" size="14" aria-hidden="true" />
       </span>
@@ -927,6 +943,23 @@ $remove-hover: theme.$color-accent-hover;
   border: 1px solid rgba(148, 163, 184, 0.25);
   background: rgba(148, 163, 184, 0.12);
   color: $task-heading;
+  font-weight: 600;
+  font-size: 0.8rem;
+  max-width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.task__priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  background: rgba(251, 191, 36, 0.14);
+  color: #fde68a;
   font-weight: 600;
   font-size: 0.8rem;
   max-width: 100%;

@@ -947,6 +947,7 @@ const markTaskWorkedOn = (taskId, { dayOffset = 1 } = {}) => {
       ? normalizeReminderOffsetMinutes(targetTask.reminderOffsetMinutes)
       : null,
     subtasks: sanitizeSubtasks(targetTask.subtasks),
+    priority: normalizePriority(targetTask.priority),
   };
 
   const updatedTasks = [...tasks.value];
@@ -1405,6 +1406,9 @@ const reviveCompletedTask = (taskId, { suppressNotification = false } = {}) => {
       ...subtask,
       completed: false,
     })),
+    isLongTerm: Boolean(entry.isLongTerm),
+    startDate: entry.startDate ?? null,
+    priority: normalizePriority(entry.priority),
   };
 
   const nextCompleted = [...completedTasks.value];
@@ -1599,6 +1603,7 @@ const duplicateTask = (taskId) => {
     })),
     isLongTerm: Boolean(original.isLongTerm),
     startDate: original.startDate ?? null,
+    priority: normalizePriority(original.priority),
   };
 
   const updatedTasks = [...tasks.value];
@@ -1963,6 +1968,7 @@ const loadFromStorage = async () => {
           subtasks: sanitizeSubtasks(task.subtasks),
           isLongTerm: Boolean(task.isLongTerm),
           startDate: task.startDate ?? null,
+          priority: normalizePriority(task.priority),
         };
 
         if (base.completed) {
