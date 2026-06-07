@@ -3,6 +3,7 @@
 - Integration with Google calendar for task reminders
 
 # TODOs
+
 - Goals/habits - tracks how often completed
 - Add Workspaces to create separate collections of tasks/lists
     - Workspace should be the highest level (Example: "Work" or "Home")
@@ -14,3 +15,4 @@
         - Create an area on the Settings page for "Workspace Settings"
         - Put Standup setting in this new area
 - For Summary items, make Folder a string so that the value maintains even if Folder is deleted (do the same for Completed tasks?)
+- Choose what days of the week to repeat
