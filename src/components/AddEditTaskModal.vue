@@ -75,6 +75,15 @@ const setDueDateToToday = () => {
   appliedDefaultDueDate.value = null;
 };
 
+const clearDueDate = () => {
+  dueDate.value = '';
+  appliedDefaultDueDate.value = null;
+};
+
+const clearDueTime = () => {
+  dueTime.value = '';
+};
+
 const formatDateInput = (isoString) => {
   if (!isoString) {
     return '';
@@ -710,6 +719,14 @@ watch(
                   >
                     Today
                   </button>
+                  <button
+                    type="button"
+                    class="add-task__today-button add-task__today-button--clear"
+                    :disabled="!dueDate"
+                    @click="clearDueDate"
+                  >
+                    Clear
+                  </button>
                 </div>
               </label>
               <label v-if="!isLongTerm" class="add-task__due-label">
@@ -722,14 +739,24 @@ watch(
                   />
                   <span>Due time</span>
                 </span>
-                <input
-                  v-model="dueTime"
-                  type="time"
-                  name="dueTime"
-                  class="add-task__due-input"
-                  aria-label="Due time"
-                  :disabled="!dueDate"
-                />
+                <div class="add-task__due-input-wrapper">
+                  <input
+                    v-model="dueTime"
+                    type="time"
+                    name="dueTime"
+                    class="add-task__due-input"
+                    aria-label="Due time"
+                    :disabled="!dueDate"
+                  />
+                  <button
+                    type="button"
+                    class="add-task__today-button add-task__today-button--clear"
+                    :disabled="!dueDate || !dueTime"
+                    @click="clearDueTime"
+                  >
+                    Clear
+                  </button>
+                </div>
               </label>
             </div>
             <label v-if="!isLongTerm" class="add-task__due-label add-task__reminder">
@@ -1350,6 +1377,20 @@ $panel-border: rgba(255, 255, 255, 0.08);
   &:focus-visible {
     outline: 2px solid $focus-outline;
     outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+.add-task__today-button--clear {
+  color: theme.$color-text-muted;
+
+  &:hover:not(:disabled) {
+    color: $input-text;
   }
 }
 
