@@ -191,6 +191,13 @@ const getSelectedListReminderOffset = () => {
 };
 
 const canSubmit = computed(() => title.value.trim().length > 0);
+const hasValidDueDate = computed(() => {
+  if (!dueDate.value) {
+    return false;
+  }
+  const parsed = new Date(`${dueDate.value}T00:00:00`);
+  return !Number.isNaN(parsed.valueOf());
+});
 
 const dialogTitle = computed(() => isEditMode.value ? 'Edit Task' : 'Add a Task');
 const submitButtonText = computed(() => isEditMode.value ? 'Save changes' : 'Add Task');
@@ -630,6 +637,28 @@ watch(
                 rows="2"
               />
             </div>
+            <label class="add-task__due-label add-task__priority">
+              <span class="add-task__label-heading">
+                <IconGlyph
+                  name="alert"
+                  size="14"
+                  class="add-task__label-icon"
+                  aria-hidden="true"
+                />
+                <span>Priority</span>
+              </span>
+              <select
+                v-model="priority"
+                name="priority"
+                class="add-task__select"
+                aria-label="Task priority"
+              >
+                <option value="">None</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </label>
             <label class="add-task__due-label add-task__list">
               <span class="add-task__label-heading">
                 <IconGlyph
@@ -652,6 +681,109 @@ watch(
                 </option>
               </select>
             </label>
+            <div class="add-task__subtasks">
+              <div class="add-task__subtasks-header">
+                <span class="add-task__label-heading">
+                  <IconGlyph
+                    name="check"
+                    size="14"
+                    class="add-task__label-icon"
+                    aria-hidden="true"
+                  />
+                  <span>Subtasks</span>
+                </span>
+              </div>
+              <ul v-if="hasSubtasks" class="add-task__subtask-list">
+                <li
+                  v-for="subtask in subtasks"
+                  :key="subtask.id"
+                  class="add-task__subtask"
+                  :class="{
+                    'add-task__subtask--drag-over': dragOverSubtaskId === subtask.id,
+                    'add-task__subtask--dragging': draggedSubtaskId === subtask.id,
+                    'add-task__subtask--editing': editingSubtaskId === subtask.id,
+                  }"
+                  :draggable="editingSubtaskId !== subtask.id"
+                  @dragstart="editingSubtaskId !== subtask.id && handleSubtaskDragStart(subtask, $event)"
+                  @dragenter="handleSubtaskDragEnter(subtask)"
+                  @dragover.prevent
+                  @drop.prevent="handleSubtaskDrop(subtask)"
+                  @dragend="handleSubtaskDragEnd"
+                >
+                  <span
+                    class="add-task__subtask-handle"
+                    :class="{ 'add-task__subtask-handle--disabled': editingSubtaskId === subtask.id }"
+                    aria-hidden="true"
+                  >::</span>
+                  <label class="add-task__subtask-label">
+                    <input
+                      type="checkbox"
+                      class="add-task__subtask-checkbox"
+                      :checked="subtask.completed"
+                      :disabled="editingSubtaskId === subtask.id"
+                      @change="toggleSubtask(subtask.id)"
+                    />
+                    <input
+                      v-if="editingSubtaskId === subtask.id"
+                      ref="editingSubtaskField"
+                      type="text"
+                      class="add-task__subtask-edit-input"
+                      :value="editingSubtaskTitle"
+                      @input="editingSubtaskTitle = $event.target.value"
+                      @keydown.enter.prevent.stop="saveSubtaskEdit(subtask.id)"
+                      @keydown.esc.prevent.stop="cancelSubtaskEdit"
+                      @blur="saveSubtaskEdit(subtask.id)"
+                    />
+                    <span
+                      v-else
+                      :class="[
+                        'add-task__subtask-title',
+                        { 'add-task__subtask-title--completed': subtask.completed },
+                      ]"
+                    >
+                      {{ subtask.title }}
+                    </span>
+                  </label>
+                  <button
+                    v-if="editingSubtaskId !== subtask.id"
+                    type="button"
+                    class="add-task__subtask-edit"
+                    aria-label="Edit subtask"
+                    @click="startEditSubtask(subtask)"
+                  >
+                    <IconGlyph name="edit" size="13" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    class="add-task__subtask-remove"
+                    aria-label="Remove subtask"
+                    @click="removeSubtask(subtask.id)"
+                  >
+                    &times;
+                  </button>
+                </li>
+              </ul>
+              <div class="add-task__subtask-input-row">
+                <input
+                  v-model="subtaskInput"
+                  type="text"
+                  class="add-task__subtask-input"
+                  name="subtask"
+                  autocomplete="off"
+                  placeholder="Add a subtask title"
+                  aria-label="Add a subtask"
+                  @keydown.enter.prevent="addSubtask(subtaskInput); subtaskInput = ''"
+                />
+                <button
+                  type="button"
+                  class="add-task__subtask-button"
+                  :disabled="!canAddSubtask"
+                  @click="addSubtask(subtaskInput); subtaskInput = ''"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
             <div v-if="isLongTermTasksEnabled" class="add-task__long-term">
               <label class="add-task__checkbox">
                 <input
@@ -759,136 +891,7 @@ watch(
                 </div>
               </label>
             </div>
-            <label v-if="!isLongTerm" class="add-task__due-label add-task__reminder">
-              <span class="add-task__label-heading">
-                <IconGlyph
-                  name="alert"
-                  size="14"
-                  class="add-task__label-icon"
-                  aria-hidden="true"
-                />
-                <span>Reminder</span>
-              </span>
-              <select
-                v-model="reminderOffset"
-                name="reminder"
-                class="add-task__select"
-                :class="{ 'add-task__select--error': showReminderWarning }"
-                aria-label="Reminder time"
-                :disabled="!dueDate"
-              >
-                <option v-for="option in reminderOptions" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
-              <p v-if="showReminderWarning" class="add-task__warning">
-                Please set a due date to use reminders
-              </p>
-            </label>
-            <div class="add-task__subtasks">
-              <div class="add-task__subtasks-header">
-                <span class="add-task__label-heading">
-                  <IconGlyph
-                    name="check"
-                    size="14"
-                    class="add-task__label-icon"
-                    aria-hidden="true"
-                  />
-                  <span>Subtasks</span>
-                </span>
-              </div>
-              <ul v-if="hasSubtasks" class="add-task__subtask-list">
-                <li
-                  v-for="subtask in subtasks"
-                  :key="subtask.id"
-                  class="add-task__subtask"
-                  :class="{
-                    'add-task__subtask--drag-over': dragOverSubtaskId === subtask.id,
-                    'add-task__subtask--dragging': draggedSubtaskId === subtask.id,
-                    'add-task__subtask--editing': editingSubtaskId === subtask.id,
-                  }"
-                  :draggable="editingSubtaskId !== subtask.id"
-                  @dragstart="editingSubtaskId !== subtask.id && handleSubtaskDragStart(subtask, $event)"
-                  @dragenter="handleSubtaskDragEnter(subtask)"
-                  @dragover.prevent
-                  @drop.prevent="handleSubtaskDrop(subtask)"
-                  @dragend="handleSubtaskDragEnd"
-                >
-                  <span
-                    class="add-task__subtask-handle"
-                    :class="{ 'add-task__subtask-handle--disabled': editingSubtaskId === subtask.id }"
-                    aria-hidden="true"
-                  >::</span>
-                  <label class="add-task__subtask-label">
-                    <input
-                      type="checkbox"
-                      class="add-task__subtask-checkbox"
-                      :checked="subtask.completed"
-                      :disabled="editingSubtaskId === subtask.id"
-                      @change="toggleSubtask(subtask.id)"
-                    />
-                    <input
-                      v-if="editingSubtaskId === subtask.id"
-                      ref="editingSubtaskField"
-                      type="text"
-                      class="add-task__subtask-edit-input"
-                      :value="editingSubtaskTitle"
-                      @input="editingSubtaskTitle = $event.target.value"
-                      @keydown.enter.prevent.stop="saveSubtaskEdit(subtask.id)"
-                      @keydown.esc.prevent.stop="cancelSubtaskEdit"
-                      @blur="saveSubtaskEdit(subtask.id)"
-                    />
-                    <span
-                      v-else
-                      :class="[
-                        'add-task__subtask-title',
-                        { 'add-task__subtask-title--completed': subtask.completed },
-                      ]"
-                    >
-                      {{ subtask.title }}
-                    </span>
-                  </label>
-                  <button
-                    v-if="editingSubtaskId !== subtask.id"
-                    type="button"
-                    class="add-task__subtask-edit"
-                    aria-label="Edit subtask"
-                    @click="startEditSubtask(subtask)"
-                  >
-                    <IconGlyph name="edit" size="13" aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    class="add-task__subtask-remove"
-                    aria-label="Remove subtask"
-                    @click="removeSubtask(subtask.id)"
-                  >
-                    &times;
-                  </button>
-                </li>
-              </ul>
-              <div class="add-task__subtask-input-row">
-                <input
-                  v-model="subtaskInput"
-                  type="text"
-                  class="add-task__subtask-input"
-                  name="subtask"
-                  autocomplete="off"
-                  placeholder="Add a subtask title"
-                  aria-label="Add a subtask"
-                  @keydown.enter.prevent="addSubtask(subtaskInput); subtaskInput = ''"
-                />
-                <button
-                  type="button"
-                  class="add-task__subtask-button"
-                  :disabled="!canAddSubtask"
-                  @click="addSubtask(subtaskInput); subtaskInput = ''"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-            <label v-if="!isLongTerm" class="add-task__due-label add-task__recurrence">
+            <label v-if="!isLongTerm && hasValidDueDate" class="add-task__due-label add-task__recurrence">
               <span class="add-task__label-heading">
                 <IconGlyph
                   name="repeat"
@@ -914,7 +917,7 @@ watch(
               </select>
             </label>
             <label
-              v-if="!isLongTerm && recurrence !== 'none'"
+              v-if="!isLongTerm && hasValidDueDate && recurrence !== 'none'"
               class="add-task__due-label add-task__recurrence"
             >
               <span class="add-task__label-heading">
@@ -936,7 +939,7 @@ watch(
                 <option value="completion">Completion date</option>
               </select>
             </label>
-            <label class="add-task__due-label add-task__priority">
+            <label v-if="!isLongTerm && hasValidDueDate" class="add-task__due-label add-task__reminder">
               <span class="add-task__label-heading">
                 <IconGlyph
                   name="alert"
@@ -944,19 +947,23 @@ watch(
                   class="add-task__label-icon"
                   aria-hidden="true"
                 />
-                <span>Priority</span>
+                <span>Reminder</span>
               </span>
               <select
-                v-model="priority"
-                name="priority"
+                v-model="reminderOffset"
+                name="reminder"
                 class="add-task__select"
-                aria-label="Task priority"
+                :class="{ 'add-task__select--error': showReminderWarning }"
+                aria-label="Reminder time"
+                :disabled="!dueDate"
               >
-                <option value="">None</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+                <option v-for="option in reminderOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
               </select>
+              <p v-if="showReminderWarning" class="add-task__warning">
+                Please set a due date to use reminders
+              </p>
             </label>
             <div v-if="!isEditMode" class="add-task__completion">
               <label class="add-task__checkbox">
