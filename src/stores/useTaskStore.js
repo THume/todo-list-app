@@ -1077,6 +1077,7 @@ const addTask = ({
   listId,
   reminderOffsetMinutes,
   completed = false,
+  completedAt = null,
   subtasks = [],
   isLongTerm = false,
   startDate = null,
@@ -1113,8 +1114,13 @@ const addTask = ({
   };
 
   if (isCompleted) {
-    newTask.completedAt = new Date().toISOString();
-    const completedEntry = buildCompletedEntry(newTask);
+    const requestedCompletedAt = completedAt ? new Date(completedAt) : null;
+    const resolvedCompletedAt =
+      requestedCompletedAt && !Number.isNaN(requestedCompletedAt.valueOf())
+        ? requestedCompletedAt
+        : new Date();
+    newTask.completedAt = resolvedCompletedAt.toISOString();
+    const completedEntry = buildCompletedEntry(newTask, resolvedCompletedAt);
     addCompletedEntry(completedEntry);
     const nextTask = createRecurringTask(newTask, { completedAt: newTask.completedAt });
     if (nextTask) {

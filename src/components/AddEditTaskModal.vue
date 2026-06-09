@@ -48,6 +48,8 @@ const recurrence = ref('none');
 const recurrenceAnchor = ref('due');
 const selectedListId = ref('');
 const markCompleted = ref(false);
+const completedDate = ref('');
+const completedTime = ref('');
 const reminderOffset = ref('none');
 const isLongTerm = ref(false);
 const startDate = ref('');
@@ -199,6 +201,35 @@ const hasValidDueDate = computed(() => {
   return !Number.isNaN(parsed.valueOf());
 });
 
+const getCurrentDateInput = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getCurrentTimeInput = () => {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+const buildCompletedAt = () => {
+  if (!completedDate.value) {
+    return null;
+  }
+  const timeValue = completedTime.value && completedTime.value.trim().length > 0
+    ? completedTime.value
+    : '00:00';
+  const timestamp = new Date(`${completedDate.value}T${timeValue}`);
+  if (Number.isNaN(timestamp.valueOf())) {
+    return null;
+  }
+  return timestamp.toISOString();
+};
+
 const dialogTitle = computed(() => isEditMode.value ? 'Edit Task' : 'Add a Task');
 const submitButtonText = computed(() => isEditMode.value ? 'Save changes' : 'Add Task');
 const titleIcon = computed(() => isEditMode.value ? 'edit' : 'plus');
@@ -227,6 +258,8 @@ const resetForm = () => {
   isLongTerm.value = false;
   startDate.value = '';
   priority.value = '';
+  completedDate.value = '';
+  completedTime.value = '';
   lastTaskId.value = null;
   subtasks.value = [];
   draggedSubtaskId.value = null;
@@ -302,6 +335,7 @@ const handleSubmit = (shouldCloseModal = false) => {
       recurrenceAnchor: recurrence.value === 'none' ? null : recurrenceAnchor.value,
       listId: selectedListId.value || null,
       completed: markCompleted.value,
+      completedAt: markCompleted.value ? buildCompletedAt() : null,
       reminderOffsetMinutes: reminderOffset.value === 'none' ? null : Number(reminderOffset.value),
       subtasks: sanitizedSubtasks.map((entry) => ({ ...entry, completed: false })),
       isLongTerm: isLongTerm.value,
@@ -554,6 +588,18 @@ watch(isLongTerm, (value) => {
 watch(recurrence, (value) => {
   if (value === 'none') {
     recurrenceAnchor.value = 'due';
+  }
+});
+
+watch(markCompleted, (value) => {
+  if (!value) {
+    return;
+  }
+  if (!completedDate.value) {
+    completedDate.value = getCurrentDateInput();
+  }
+  if (!completedTime.value) {
+    completedTime.value = getCurrentTimeInput();
   }
 });
 
@@ -987,6 +1033,28 @@ watch(
               <p class="add-task__checkbox-hint">
                 Saves this task directly to completed history.
               </p>
+              <div v-if="markCompleted" class="add-task__completion-date-row">
+                <label class="add-task__completion-field">
+                  <span class="add-task__completion-label">Completion date</span>
+                  <input
+                    v-model="completedDate"
+                    type="date"
+                    name="completedDate"
+                    class="add-task__due-input"
+                    aria-label="Completion date"
+                  />
+                </label>
+                <label class="add-task__completion-field">
+                  <span class="add-task__completion-label">Completion time</span>
+                  <input
+                    v-model="completedTime"
+                    type="time"
+                    name="completedTime"
+                    class="add-task__due-input"
+                    aria-label="Completion time"
+                  />
+                </label>
+              </div>
             </div>
           </div>
         </form>
@@ -1220,6 +1288,27 @@ $panel-border: rgba(255, 255, 255, 0.08);
   border: 1px solid $input-border;
   border-radius: 1rem;
   background: $input-bg;
+}
+
+.add-task__completion-date-row {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.add-task__completion-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.add-task__completion-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: theme.$color-text-muted;
 }
 
 .add-task__checkbox {
