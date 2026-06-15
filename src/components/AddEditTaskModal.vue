@@ -797,7 +797,12 @@ watch(
                     aria-label="Edit subtask"
                     @click="startEditSubtask(subtask)"
                   >
-                    <IconGlyph name="edit" size="13" aria-hidden="true" />
+                    <IconGlyph
+                      name="edit"
+                      size="15"
+                      class="add-task__subtask-edit-icon"
+                      aria-hidden="true"
+                    />
                   </button>
                   <button
                     type="button"
@@ -1664,7 +1669,8 @@ $panel-border: rgba(255, 255, 255, 0.08);
 .add-task__subtask-edit {
   border: 1px solid $panel-border;
   background: transparent;
-  color: theme.$color-text-muted;
+  color: $input-text;
+  opacity: 0.78;
   width: 2rem;
   height: 2rem;
   border-radius: 0.65rem;
@@ -1680,18 +1686,25 @@ $panel-border: rgba(255, 255, 255, 0.08);
   &:hover {
     border-color: $focus-outline;
     color: $input-text;
+    opacity: 1;
     background: rgba(0, 0, 0, 0.06);
   }
 
   &:focus-visible {
     outline: 2px solid $focus-outline;
     outline-offset: 2px;
+    opacity: 1;
   }
 
   @media (max-width: 768px) {
     width: 2.75rem;
     height: 2.75rem;
   }
+}
+
+.add-task__subtask-edit-icon {
+  display: block;
+  flex-shrink: 0;
 }
 
 .add-task__subtask-handle--disabled {
