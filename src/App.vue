@@ -42,6 +42,8 @@ const isSidebarCollapsed = ref(false);
 const isMobileSidebarOpen = ref(false);
 const isListsSectionCollapsed = ref(false);
 const addTaskButtonRef = ref(null);
+const contentRef = ref(null);
+const showBackToTop = ref(false);
 const DEFAULT_LIST_ID = 'default';
 const DEFAULT_SIDEBAR_WIDTH = 380;
 const MIN_SIDEBAR_WIDTH = 256;
@@ -383,6 +385,19 @@ const handleAddTask = (payload) => {
   }
 };
 
+const updateBackToTopVisibility = () => {
+  const content = contentRef.value;
+  showBackToTop.value = (content?.scrollTop ?? 0) > 320;
+};
+
+const scrollContentToTop = () => {
+  const content = contentRef.value;
+  if (!content) {
+    return;
+  }
+  content.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 const closeCompletionNotesModal = () => {
   showCompletionNotesModal.value = false;
   completionNotesTargetId.value = null;
@@ -508,10 +523,15 @@ watch(
   () => route.path,
   () => {
     closeMobileSidebar();
+    if (contentRef.value) {
+      contentRef.value.scrollTop = 0;
+    }
+    showBackToTop.value = false;
   }
 );
 
 onMounted(() => {
+  updateBackToTopVisibility();
 });
 
 watch(isSidebarCollapsed, (collapsed) => {
@@ -733,9 +753,24 @@ onUnmounted(() => {
         @pointerdown.stop="beginSidebarResize"
       />
     </aside>
-    <main class="layout__content">
+    <main
+      ref="contentRef"
+      class="layout__content"
+      @scroll="updateBackToTopVisibility"
+    >
       <RouterView />
     </main>
+    <Transition name="back-to-top">
+      <button
+        v-if="showBackToTop"
+        type="button"
+        class="layout__back-to-top"
+        aria-label="Back to top"
+        @click="scrollContentToTop"
+      >
+        <IconGlyph name="chevron-up" size="24" aria-hidden="true" />
+      </button>
+    </Transition>
   </div>
   <AddEditTaskModal
     v-model:visible="showForm"
@@ -1219,6 +1254,50 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
+.layout__back-to-top {
+  position: fixed;
+  right: 2rem;
+  bottom: 2rem;
+  z-index: 60;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid theme.$color-border-muted;
+  border-radius: 999px;
+  padding: 0;
+  background: theme.$color-surface-elevated;
+  color: theme.$color-text-heading;
+  box-shadow: 0 18px 34px -18px rgba(0, 0, 0, 0.85);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease,
+    transform 0.2s ease, opacity 0.2s ease;
+
+  &:hover {
+    border-color: theme.$color-accent;
+    background: theme.$color-accent;
+    color: theme.$color-text-inverted;
+    transform: translateY(-2px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid theme.$color-accent;
+    outline-offset: 3px;
+  }
+}
+
+.back-to-top-enter-active,
+.back-to-top-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.back-to-top-enter-from,
+.back-to-top-leave-to {
+  opacity: 0;
+  transform: translateY(0.5rem);
+}
+
 .layout__settings-link {
   margin-top: auto;
   padding-top: 1rem;
@@ -1368,6 +1447,11 @@ onUnmounted(() => {
   /* Adjust content padding */
   .layout__content {
     padding: 1.5rem 1rem;
+  }
+
+  .layout__back-to-top {
+    right: 1rem;
+    bottom: 1rem;
   }
 
   /* Make nav icons always visible on mobile */
