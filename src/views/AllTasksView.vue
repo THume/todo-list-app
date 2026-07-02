@@ -23,6 +23,7 @@ const {
   markTaskWorkedOn,
   markLongTermTaskWorkedOn,
   postponeTasksUntil,
+  skipTaskRecurrence,
   lists,
 } = useTaskStore();
 
@@ -287,6 +288,13 @@ const handleWorkedOnNextDay = (task) => {
 
 const handleLongTermWorkedOn = (task) => {
   markLongTermTaskWorkedOn(task.id);
+};
+
+const handleSkipRecurrence = (task) => {
+  if (!task?.id) {
+    return;
+  }
+  skipTaskRecurrence(task.id);
 };
 
 const handleToggleSubtask = ({ taskId, subtaskId }) => {
@@ -677,6 +685,7 @@ watch(showDuplicateDialog, (isOpen) => {
             @move-to-next-week="handleMoveToNextWeek"
             @worked-on="handleWorkedOnNextDay"
             @long-term-worked-on="handleLongTermWorkedOn"
+            @skip-recurrence="handleSkipRecurrence"
             @toggle-subtask="handleToggleSubtask"
           />
         </li>

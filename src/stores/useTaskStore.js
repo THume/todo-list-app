@@ -1049,11 +1049,14 @@ const skipTaskRecurrence = (taskId) => {
 
   const recurrence = normalizeRecurrence(targetTask.recurrence);
   const recurrenceAnchor = normalizeRecurrenceAnchor(targetTask.recurrenceAnchor);
-  if (!recurrence || !targetTask.due || recurrenceAnchor !== 'due') {
+  if (!recurrence || (recurrenceAnchor === 'due' && !targetTask.due)) {
     return false;
   }
 
-  const nextDue = computeNextDueDate(targetTask.due, recurrence, { anchor: recurrenceAnchor });
+  const nextDue = computeNextDueDate(targetTask.due, recurrence, {
+    anchor: recurrenceAnchor,
+    completedAt: new Date().toISOString(),
+  });
   if (!nextDue) {
     return false;
   }

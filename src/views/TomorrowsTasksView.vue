@@ -21,6 +21,7 @@ const {
   moveTaskToNextWeek,
   markTaskWorkedOn,
   markLongTermTaskWorkedOn,
+  skipTaskRecurrence,
   lists,
 } = useTaskStore();
 
@@ -130,6 +131,13 @@ const handleWorkedOnNextDay = (task) => {
 
 const handleLongTermWorkedOn = (task) => {
   markLongTermTaskWorkedOn(task.id);
+};
+
+const handleSkipRecurrence = (task) => {
+  if (!task?.id) {
+    return;
+  }
+  skipTaskRecurrence(task.id);
 };
 
 const getWorkedOnActionLabel = (task) => {
@@ -308,46 +316,47 @@ watch(showDuplicateDialog, (isOpen) => {
         @drop.prevent="handleDropAtListEnd"
       >
         <template v-for="(task, index) in displayedTomorrowTasks" :key="task.id">
-        <li
-          v-if="sortMode === 'user' && dropIndicatorIndex === index"
-          class="task-panel__drop-indicator"
-        />
-        <li
-          class="task-panel__item"
-          :class="{
-            'task-panel__item--drag-over': dragOverTaskId === task.id,
-            'task-panel__item--dragging': draggedTaskId === task.id,
-          }"
-          :draggable="sortMode === 'user' && !task.completed"
-          @dragstart="handleDragStart(task)"
-          @dragend="handleDragEnd"
-          @dragenter.prevent="handleDragEnter(task)"
-          @dragover.prevent
-          @dragleave="handleDragLeave(task)"
-          @drop.prevent.stop="handleDrop(task)"
-        >
-          <Task
-            :task="task"
-            :list-name="resolveListName(task)"
-            :show-worked-on-action="Boolean(getWorkedOnActionLabel(task))"
-            :worked-on-action-label="getWorkedOnActionLabel(task)"
-            @toggle="handleToggle"
-            @remove="requestDelete"
-            @edit="startEdit"
-            @duplicate="handleDuplicate"
-            @move-to-today="handleMoveToToday"
-            @move-to-tomorrow="handleMoveToTomorrow"
-            @move-to-next-week="handleMoveToNextWeek"
-            @worked-on="handleWorkedOnNextDay"
-            @long-term-worked-on="handleLongTermWorkedOn"
-            @toggle-subtask="handleToggleSubtask"
+          <li
+            v-if="sortMode === 'user' && dropIndicatorIndex === index"
+            class="task-panel__drop-indicator"
           />
-        </li>
-      </template>
-      <li
-        v-if="sortMode === 'user' && dropIndicatorIndex === displayedTomorrowTasks.length"
-        class="task-panel__drop-indicator task-panel__drop-indicator--end"
-      />
+          <li
+            class="task-panel__item"
+            :class="{
+              'task-panel__item--drag-over': dragOverTaskId === task.id,
+              'task-panel__item--dragging': draggedTaskId === task.id,
+            }"
+            :draggable="sortMode === 'user' && !task.completed"
+            @dragstart="handleDragStart(task)"
+            @dragend="handleDragEnd"
+            @dragenter.prevent="handleDragEnter(task)"
+            @dragover.prevent
+            @dragleave="handleDragLeave(task)"
+            @drop.prevent.stop="handleDrop(task)"
+          >
+            <Task
+              :task="task"
+              :list-name="resolveListName(task)"
+              :show-worked-on-action="Boolean(getWorkedOnActionLabel(task))"
+              :worked-on-action-label="getWorkedOnActionLabel(task)"
+              @toggle="handleToggle"
+              @remove="requestDelete"
+              @edit="startEdit"
+              @duplicate="handleDuplicate"
+              @move-to-today="handleMoveToToday"
+              @move-to-tomorrow="handleMoveToTomorrow"
+              @move-to-next-week="handleMoveToNextWeek"
+              @worked-on="handleWorkedOnNextDay"
+              @long-term-worked-on="handleLongTermWorkedOn"
+              @skip-recurrence="handleSkipRecurrence"
+              @toggle-subtask="handleToggleSubtask"
+            />
+          </li>
+        </template>
+        <li
+          v-if="sortMode === 'user' && dropIndicatorIndex === displayedTomorrowTasks.length"
+          class="task-panel__drop-indicator task-panel__drop-indicator--end"
+        />
       </ul>
     </template>
   </section>
