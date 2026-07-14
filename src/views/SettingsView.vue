@@ -531,8 +531,8 @@ onMounted(() => {
 
 .settings-page__title {
   margin: 0 0 2rem 0;
-  font-size: 2.25rem;
-  font-weight: 800;
+  font-size: theme.$font-size-4xl;
+  font-weight: theme.$font-weight-bold;
   color: theme.$color-text-heading;
 }
 
@@ -646,7 +646,7 @@ onMounted(() => {
 
 .settings-page__field-hint {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: theme.$font-size-2xs;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: theme.$color-text-muted;

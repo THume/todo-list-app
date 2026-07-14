@@ -1309,7 +1309,7 @@ $panel-border: theme.$color-surface-ghost-strong;
 }
 
 .add-task__completion-label {
-  font-size: 0.82rem;
+  font-size: theme.$font-size-xs;
   font-weight: 600;
   color: theme.$color-text-muted;
 }
@@ -1660,7 +1660,7 @@ $panel-border: theme.$color-surface-ghost-strong;
   @media (max-width: 768px) {
     width: 2.75rem;
     height: 2.75rem;
-    font-size: 1.15rem;
+    font-size: theme.$font-size-lg;
   }
 }
 
@@ -1722,7 +1722,7 @@ $panel-border: theme.$color-surface-ghost-strong;
   padding: 0.25rem 0.5rem;
   background: $input-bg;
   color: $input-text;
-  font-size: inherit;
+  font-size: theme.$font-size-base;
   font-weight: 600;
 
   &:focus-visible {

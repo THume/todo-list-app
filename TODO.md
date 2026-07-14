@@ -18,3 +18,4 @@
 - Choose what days of the week to repeat
 - Remove Long term task functionality
 - Remove API calls
+- Calendar View

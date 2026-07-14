@@ -1,11 +1,7 @@
 $color-app-background: #0f0f10;
 $color-sidebar-background: #161616;
-$color-surface-base: #111112;
-$color-main-background: $color-surface-base;
-$color-surface-hover: #161617;
+$color-main-background: #111112;
 $color-surface-elevated: #181818;
-$color-surface-disabled: #222222;
-$color-overlay-strong: rgba(8, 8, 9, 0.82);
 
 $color-border-muted: #272727;
 $color-border-strong: #262626;
@@ -20,7 +16,6 @@ $color-text-inverted: #0b0b0c;
 $color-accent: #ef4444;
 $color-accent-hover: #f87171;
 $color-accent-focus-soft: rgba(239, 68, 68, 0.35);
-$color-accent-focus-strong: rgba(239, 68, 68, 0.45);
 $color-accent-hover-focus-soft: rgba(248, 113, 113, 0.35);
 $color-accent-soft: rgba(239, 68, 68, 0.12);
 $color-accent-soft-medium: rgba(239, 68, 68, 0.15);
@@ -36,6 +31,8 @@ $shadow-accent-hover: 0 16px 30px -22px rgba(248, 113, 113, 0.9);
 $shadow-accent-elevated: 0 10px 25px -20px rgba(239, 68, 68, 0.9);
 $shadow-accent-card-hover: 0 18px 32px -28px rgba(239, 68, 68, 0.65);
 $shadow-accent-panel: 0 12px 22px -20px rgba(239, 68, 68, 0.7);
+$shadow-accent-button: 0 4px 8px -4px rgba(239, 68, 68, 0.4);
+$shadow-accent-button-hover: 0 6px 12px -4px rgba(239, 68, 68, 0.5);
 
 $color-surface-ghost-soft: rgba(255, 255, 255, 0.06);
 $color-surface-ghost-strong: rgba(255, 255, 255, 0.08);
@@ -44,6 +41,8 @@ $color-surface-ghost-border: rgba(255, 255, 255, 0.12);
 $color-surface-ghost-disabled: rgba(255, 255, 255, 0.15);
 $color-border-ghost-strong: rgba(255, 255, 255, 0.35);
 $color-text-ghost-disabled: rgba(255, 255, 255, 0.6);
+$color-input-fill: rgba(12, 12, 13, 0.6);
+$color-input-fill-focus: rgba(12, 12, 13, 0.85);
 
 $color-success: #22c55e;
 $color-success-bright: #4ade80;
@@ -53,11 +52,26 @@ $color-success-soft-strong: rgba(34, 197, 94, 0.16);
 $color-success-border: rgba(34, 197, 94, 0.55);
 $color-success-ring: rgba(34, 197, 94, 0.25);
 
+$font-size-2xs: 0.75rem;
+$font-size-xs: 0.8rem;
+$font-size-sm: 0.85rem;
+$font-size-md: 0.9rem;
+$font-size-base: 1rem;
+$font-size-lg: 1.1rem;
+$font-size-xl: 1.25rem;
+$font-size-2xl: 1.5rem;
+$font-size-3xl: 2rem;
+$font-size-4xl: 2.25rem;
+
+$font-weight-regular: 400;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
 @mixin modal-action-button {
   border: none;
   border-radius: 0.75rem;
-  font-weight: 600;
-  font-size: 0.95rem;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-md;
   padding: 0.65rem 1.25rem;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
@@ -72,52 +86,52 @@ $color-success-ring: rgba(34, 197, 94, 0.25);
   }
 
   &--cancel {
-    background: rgba(255, 255, 255, 0.08);
+    background: $color-surface-ghost-strong;
     color: $color-text-primary;
     border: none;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.12);
+      background: $color-surface-ghost-border;
     }
   }
 
   &--danger {
     background: $color-accent;
     color: $color-text-inverted;
-    box-shadow: 0 4px 8px -4px rgba(239, 68, 68, 0.4);
+    box-shadow: $shadow-accent-button;
 
     &:hover {
       background: $color-accent-hover;
-      box-shadow: 0 6px 12px -4px rgba(239, 68, 68, 0.5);
+      box-shadow: $shadow-accent-button-hover;
     }
   }
 
   &--primary {
     background: $color-accent;
     color: $color-text-inverted;
-    box-shadow: 0 4px 8px -4px rgba(239, 68, 68, 0.4);
+    box-shadow: $shadow-accent-button;
 
     &:hover {
       background: $color-accent-hover;
-      box-shadow: 0 6px 12px -4px rgba(239, 68, 68, 0.5);
+      box-shadow: $shadow-accent-button-hover;
     }
   }
 }
 
 @mixin modal-form-input {
   border: 1px solid $color-border-input;
-  background: rgba(12, 12, 13, 0.6);
+  background: $color-input-fill;
   color: $color-text-primary;
   padding: 0.65rem 0.75rem;
   border-radius: 0.5rem;
-  font-size: 0.95rem;
+  font-size: $font-size-md;
   transition: border-color 0.2s ease, background 0.2s ease;
 
   &:focus-visible {
     outline: 2px solid $color-accent;
     outline-offset: 2px;
     border-color: $color-accent;
-    background: rgba(12, 12, 13, 0.85);
+    background: $color-input-fill-focus;
   }
 }
 

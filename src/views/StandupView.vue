@@ -1658,7 +1658,7 @@ onUnmounted(() => {
 
   h2 {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: theme.$font-size-xl;
     font-weight: 700;
   }
 }
@@ -1848,7 +1848,7 @@ onUnmounted(() => {
   border: 1px solid rgba(96, 165, 250, 0.5);
   background: rgba(59, 130, 246, 0.18);
   color: #bfdbfe;
-  font-size: 0.7rem;
+  font-size: theme.$font-size-2xs;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
