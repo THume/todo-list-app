@@ -927,7 +927,7 @@ onUnmounted(() => {
 
 .layout__collapse-toggle {
   border: 1px solid theme.$color-border-muted;
-  background: rgba(255, 255, 255, 0.08);
+  background: theme.$color-surface-ghost-strong;
   color: theme.$color-text-heading;
   border-radius: 999px;
   cursor: pointer;
@@ -941,7 +941,7 @@ onUnmounted(() => {
   flex-shrink: 0;
 
   &:hover {
-    background: rgba(239, 68, 68, 0.2);
+    background: theme.$color-accent-soft-hover;
     border-color: theme.$color-accent;
     color: #1b1b1d;
     transform: translateY(-1px);
@@ -1028,7 +1028,7 @@ onUnmounted(() => {
   &:hover {
     color: theme.$color-text-heading;
     border-color: theme.$color-accent;
-    background: rgba(239, 68, 68, 0.12);
+    background: theme.$color-accent-soft;
     transform: translateY(-1px);
   }
 
@@ -1087,7 +1087,7 @@ onUnmounted(() => {
   border-color: theme.$color-accent;
   background: theme.$color-accent;
   color: #1b1b1d;
-  box-shadow: 0 10px 25px -20px rgba(239, 68, 68, 0.9);
+  box-shadow: theme.$shadow-accent-elevated;
 }
 
 .layout__link--list {
@@ -1135,7 +1135,7 @@ onUnmounted(() => {
   width: 2rem;
   height: 2rem;
   border-radius: 0.85rem;
-  background: rgba(239, 68, 68, 0.12);
+  background: theme.$color-accent-soft;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1192,7 +1192,7 @@ onUnmounted(() => {
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 0.5rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: theme.$color-surface-ghost-strong;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1320,13 +1320,13 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 30;
-  background: rgba(239, 68, 68, 0.92);
+  background: theme.$color-accent-banner;
   color: #1b1b1d;
   padding: 0.75rem 1.5rem;
   font-weight: 700;
   text-align: center;
   letter-spacing: 0.01em;
-  border-bottom: 1px solid rgba(239, 68, 68, 0.7);
+  border-bottom: 1px solid theme.$color-accent-soft-border-strong;
 }
 
 .storage-banner__text {
@@ -1373,7 +1373,7 @@ onUnmounted(() => {
     transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 
     &:hover {
-      background: rgba(239, 68, 68, 0.2);
+      background: theme.$color-accent-soft-hover;
       border-color: theme.$color-accent;
     }
 

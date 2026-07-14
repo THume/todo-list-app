@@ -445,7 +445,7 @@ watch(showDuplicateDialog, (isOpen) => {
 
 .task-panel__action {
   border: 1px solid theme.$color-border-input;
-  background: rgba(239, 68, 68, 0.15);
+  background: theme.$color-accent-soft-medium;
   color: theme.$color-text-primary;
   font-weight: 700;
   font-size: 0.95rem;
@@ -453,10 +453,10 @@ watch(showDuplicateDialog, (isOpen) => {
   border-radius: 0.8rem;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
-  box-shadow: 0 12px 22px -20px rgba(239, 68, 68, 0.7);
+  box-shadow: theme.$shadow-accent-panel;
 
   &:hover:enabled {
-    background: rgba(239, 68, 68, 0.25);
+    background: theme.$color-accent-soft-strong;
     border-color: theme.$color-accent;
     transform: translateY(-1px);
   }

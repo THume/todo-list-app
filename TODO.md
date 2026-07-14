@@ -16,3 +16,5 @@
         - Put Standup setting in this new area
 - For Summary items, make Folder a string so that the value maintains even if Folder is deleted (do the same for Completed tasks?)
 - Choose what days of the week to repeat
+- Remove Long term task functionality
+- Remove API calls

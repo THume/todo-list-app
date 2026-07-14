@@ -40,6 +40,7 @@ const props = defineProps({
 
 const emit = defineEmits(['submit', 'update:visible', 'save', 'cancel']);
 
+// TODO: Implement Typescript types for task and list objects
 const title = ref('');
 const description = ref('');
 const dueDate = ref('');
@@ -1105,24 +1106,21 @@ watch(
 <style scoped lang="scss">
 @use '../styles/theme' as theme;
 
-$input-bg: rgba(255, 255, 255, 0.06);
-$input-bg-focus: rgba(255, 255, 255, 0.1);
-$input-border: rgba(255, 255, 255, 0.12);
+$input-bg: theme.$color-surface-ghost-soft;
+$input-bg-focus: theme.$color-surface-ghost-focus;
+$input-border: theme.$color-surface-ghost-border;
 $input-text: theme.$color-text-primary;
-$button-bg: #ef4444;
-$button-bg-hover: #f87171;
-$disabled-bg: rgba(255, 255, 255, 0.15);
-$disabled-text: rgba(255, 255, 255, 0.6);
-$focus-outline: rgba(248, 113, 113, 0.35);
-$checkbox-border: rgba(255, 255, 255, 0.35);
-$checkbox-bg: rgba(255, 255, 255, 0.08);
-$checkbox-accent: #22c55e;
-$checkbox-checked-bg: rgba(34, 197, 94, 0.12);
-$checkbox-checked-border: rgba(34, 197, 94, 0.55);
-$checkbox-icon: #4ade80;
-$panel-border: rgba(255, 255, 255, 0.08);
-
-
+$button-bg: theme.$color-accent;
+$button-bg-hover: theme.$color-accent-hover;
+$disabled-bg: theme.$color-surface-ghost-disabled;
+$disabled-text: theme.$color-text-ghost-disabled;
+$focus-outline: theme.$color-accent-hover-focus-soft;
+$checkbox-border: theme.$color-border-ghost-strong;
+$checkbox-bg: theme.$color-surface-ghost-strong;
+$checkbox-checked-bg: theme.$color-success-soft;
+$checkbox-checked-border: theme.$color-success-border;
+$checkbox-icon: theme.$color-success-bright;
+$panel-border: theme.$color-surface-ghost-strong;
 
 .add-task__form {
   display: grid;
@@ -1205,7 +1203,7 @@ $panel-border: rgba(255, 255, 255, 0.08);
 }
 
 .add-task__chip {
-  background: rgba(255, 255, 255, 0.12);
+  background: theme.$color-surface-ghost-border;
   border-radius: 999px;
   padding: 0.4rem 0.75rem;
   font-size: 0.85rem;
@@ -1366,7 +1364,7 @@ $panel-border: rgba(255, 255, 255, 0.08);
 .add-task__checkbox-input:checked + .add-task__checkbox-box {
   background: $checkbox-checked-bg;
   border-color: $checkbox-checked-border;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+  box-shadow: 0 0 0 3px theme.$color-success-ring;
 }
 
 .add-task__checkbox-label {
@@ -1545,7 +1543,7 @@ $panel-border: rgba(255, 255, 255, 0.08);
 
 .add-task__subtask-button {
   border: 1px solid $button-bg;
-  background: rgba(239, 68, 68, 0.12);
+  background: theme.$color-accent-soft;
   color: $button-bg;
   font-weight: 700;
   padding: 0.55rem 1rem;
@@ -1554,7 +1552,7 @@ $panel-border: rgba(255, 255, 255, 0.08);
   transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 
   &:hover:not(:disabled) {
-    background: rgba(239, 68, 68, 0.2);
+    background: theme.$color-accent-soft-hover;
     transform: translateY(-1px);
   }
 
@@ -1591,7 +1589,7 @@ $panel-border: rgba(255, 255, 255, 0.08);
 
 .add-task__subtask--drag-over {
   border-color: $button-bg;
-  background: rgba(239, 68, 68, 0.12);
+  background: theme.$color-accent-soft;
 }
 
 .add-task__subtask--dragging {
@@ -1651,7 +1649,7 @@ $panel-border: rgba(255, 255, 255, 0.08);
   &:hover {
     border-color: $button-bg;
     color: $button-bg;
-    background: rgba(239, 68, 68, 0.15);
+    background: theme.$color-accent-soft-medium;
   }
 
   &:focus-visible {
@@ -1734,8 +1732,6 @@ $panel-border: rgba(255, 255, 255, 0.08);
   }
 }
 
-
-
 .add-task__submit-icon {
   margin-right: 0.5rem;
 }
@@ -1751,7 +1747,7 @@ $panel-border: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  box-shadow: 0 12px 20px -18px rgba(239, 68, 68, 0.7);
+  box-shadow: theme.$shadow-accent-soft;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -1765,7 +1761,7 @@ $panel-border: rgba(255, 255, 255, 0.08);
 
   &:not(:disabled):hover {
     transform: translateY(-1px);
-    box-shadow: 0 16px 30px -22px rgba(248, 113, 113, 0.9);
+    box-shadow: theme.$shadow-accent-hover;
     background: $button-bg-hover;
   }
 
@@ -1796,7 +1792,7 @@ $panel-border: rgba(255, 255, 255, 0.08);
   box-shadow: none;
 
   &:not(:disabled):hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: theme.$color-accent-tint-soft;
     color: $button-bg-hover;
     transform: translateY(-1px);
   }

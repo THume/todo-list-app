@@ -798,9 +798,9 @@ $remove-hover: theme.$color-accent-hover;
   transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 
   &:hover {
-    border-color: rgba(239, 68, 68, 0.6);
+    border-color: theme.$color-accent-soft-border-medium;
     transform: translateY(-1px);
-    box-shadow: 0 18px 32px -28px rgba(239, 68, 68, 0.65);
+    box-shadow: theme.$shadow-accent-card-hover;
   }
 }
 
@@ -1004,7 +1004,7 @@ $remove-hover: theme.$color-accent-hover;
   &:hover {
     color: $task-heading;
     border-color: $checkbox-accent;
-    background: rgba(255, 255, 255, 0.08);
+    background: theme.$color-surface-ghost-strong;
     transform: translateY(-1px);
   }
 
@@ -1072,7 +1072,7 @@ $remove-hover: theme.$color-accent-hover;
   color: $remove-hover;
 
   &:hover:not(:disabled) {
-    background: rgba(239, 68, 68, 0.12);
+    background: theme.$color-accent-soft;
     color: $remove-hover;
   }
 }
@@ -1084,13 +1084,13 @@ $remove-hover: theme.$color-accent-hover;
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 999px;
-  background: rgba(34, 197, 94, 0.16);
-  color: #4ade80;
+  background: theme.$color-success-soft-strong;
+  color: theme.$color-success-bright;
   cursor: help;
   transition: background 0.2s ease, transform 0.2s ease;
 
   &:hover {
-    background: rgba(34, 197, 94, 0.24);
+    background: theme.$color-success-soft-hover;
     transform: scale(1.05);
   }
 }
