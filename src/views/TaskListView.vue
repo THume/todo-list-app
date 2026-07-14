@@ -26,6 +26,7 @@ const {
   moveTaskToToday,
   moveTaskToTomorrow,
   moveTaskToNextWeek,
+  skipTaskRecurrence,
   removeList,
   renameList,
   updateListSettings,
@@ -287,6 +288,13 @@ const handleMoveToTomorrow = (task) => {
 
 const handleMoveToNextWeek = (task) => {
   moveTaskToNextWeek(task.id);
+};
+
+const handleSkipRecurrence = (task) => {
+  if (!task?.id) {
+    return;
+  }
+  skipTaskRecurrence(task.id);
 };
 
 const handleToggleSubtask = ({ taskId, subtaskId }) => {
@@ -581,13 +589,14 @@ onBeforeUnmount(() => {
                 :list-name="resolveListName(task)"
                 @toggle="handleToggle"
                 @remove="requestDelete"
-              @edit="startEdit"
-              @duplicate="handleDuplicate"
-              @move-to-today="handleMoveToToday"
-              @move-to-tomorrow="handleMoveToTomorrow"
-              @move-to-next-week="handleMoveToNextWeek"
-              @toggle-subtask="handleToggleSubtask"
-            />
+                @edit="startEdit"
+                @duplicate="handleDuplicate"
+                @move-to-today="handleMoveToToday"
+                @move-to-tomorrow="handleMoveToTomorrow"
+                @move-to-next-week="handleMoveToNextWeek"
+                @skip-recurrence="handleSkipRecurrence"
+                @toggle-subtask="handleToggleSubtask"
+              />
             </li>
           </template>
           <li

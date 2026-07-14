@@ -40,10 +40,6 @@ const props = defineProps({
     type: String,
     default: '',
   },
-  showSkipRecurrenceAction: {
-    type: Boolean,
-    default: false,
-  },
   isCompletedPage: {
     type: Boolean,
     default: false,
@@ -309,10 +305,8 @@ const showLongTermWorkedOn = computed(
 );
 const canSkipRecurrence = computed(
   () => !props.isCompletedPage
-    && props.showSkipRecurrenceAction
     && Boolean(props.task.recurrence)
     && !props.task.completed
-    && props.task?.recurrenceAnchor !== 'completion'
 );
 const showEditAction = computed(() => !props.isCompletedPage);
 const showAdjustCompletionDate = computed(() => props.isCompletedPage);
@@ -582,7 +576,7 @@ watch(descriptionText, () => {
                   role="menuitem"
                   @click="handleMoveToNextWeek"
                 >
-                  Move to Next Week
+                  Move to Monday
                 </button>
               </li>
               <li v-if="showWorkedOnAction" role="none">
@@ -612,7 +606,7 @@ watch(descriptionText, () => {
                   role="menuitem"
                   @click="handleSkipRecurrence"
                 >
-                  Skip Recurrence
+                  Skip recurrence
                 </button>
               </li>
               <li v-if="showAdjustCompletionDate" role="none">
@@ -721,11 +715,15 @@ watch(descriptionText, () => {
       <span v-if="formattedDeadline" class="task__long-term-date">
         • Deadline {{ formattedDeadline }}
       </span>
-      <span v-if="daysRemainingLabel" class="task__days-remaining" :class="{
-        'task__days-remaining--overdue': daysRemaining !== null && daysRemaining < 0,
-        'task__days-remaining--today': daysRemaining === 0,
-        'task__days-remaining--soon': daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 3
-      }">
+      <span
+        v-if="daysRemainingLabel"
+        class="task__days-remaining"
+        :class="{
+          'task__days-remaining--overdue': daysRemaining !== null && daysRemaining < 0,
+          'task__days-remaining--today': daysRemaining === 0,
+          'task__days-remaining--soon': daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 3
+        }"
+      >
         ({{ daysRemainingLabel }})
       </span>
     </div>
