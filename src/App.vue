@@ -2,12 +2,14 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import AddEditTaskModal from './components/AddEditTaskModal.vue';
+import AddEditGoalModal from './components/AddEditGoalModal.vue';
 import AddListModal from './components/AddListModal.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import TaskNotifications from './components/TaskNotifications.vue';
 import CompletionNotesModal from './components/CompletionNotesModal.vue';
 import IconGlyph from './components/IconGlyph.vue';
 import { useTaskStore } from './stores/useTaskStore';
+import { useGoalStore } from './stores/useGoalStore';
 import { useUiSettings } from './stores/useUiSettings';
 import { findListBySlug, getListPath, listNameToSlug } from './utils/listSlug';
 
@@ -37,6 +39,13 @@ const {
   storageStatus,
 } = useTaskStore();
 
+const {
+  activeGoals,
+  goalOutcomes,
+  createGoal,
+  teardown: teardownGoalStore,
+} = useGoalStore();
+
 const showForm = ref(false);
 const isSidebarCollapsed = ref(false);
 const isMobileSidebarOpen = ref(false);
@@ -56,6 +65,7 @@ const pointerStartWidth = ref(DEFAULT_SIDEBAR_WIDTH);
 const showListDeleteDialog = ref(false);
 const listPendingDelete = ref(null);
 const showCreateListModal = ref(false);
+const showGoalForm = ref(false);
 
 const draggedListId = ref(null);
 const dragOverListId = ref(null);
@@ -68,7 +78,7 @@ const layoutStyle = computed(() => {
 const route = useRoute();
 const router = useRouter();
 
-const { isStandupEnabled, isSummaryEnabled, fontSizeSetting } = useUiSettings();
+const { isStandupEnabled, isSummaryEnabled, isGoalsEnabled, fontSizeSetting } = useUiSettings();
 const showCompletionNotesModal = ref(false);
 const completionNotesTargetId = ref(null);
 const completionNotesInitial = ref('');
@@ -153,6 +163,8 @@ const todayDueCount = computed(() => tasksDueTodayPastDue.value?.length ?? 0);
 const tomorrowCount = computed(() => tasksDueTomorrow.value?.length ?? 0);
 const overdueCount = computed(() => tasksOverdue.value?.length ?? 0);
 const allCount = computed(() => activeTasks.value?.length ?? 0);
+const activeGoalsCount = computed(() => activeGoals.value?.length ?? 0);
+const goalOutcomesCount = computed(() => goalOutcomes.value?.length ?? 0);
 
 const todayLabel = computed(() => `Today (${shortDateFormatter.format(new Date())})`);
 const tomorrowLabel = computed(() => {
@@ -217,6 +229,33 @@ const primaryNavLinks = computed(() => {
   }
 
   return links;
+});
+
+const goalNavLinks = computed(() => {
+  if (!isGoalsEnabled.value) {
+    return [];
+  }
+
+  return [
+    {
+      to: '/goals/metrics',
+      label: 'Metrics',
+      icon: 'layers',
+      count: null,
+    },
+    {
+      to: '/goals/active',
+      label: 'Active Goals',
+      icon: 'trophy',
+      count: activeGoalsCount.value,
+    },
+    {
+      to: '/goals/outcomes',
+      label: 'Success/Failure',
+      icon: 'check',
+      count: goalOutcomesCount.value,
+    },
+  ];
 });
 
 const handleCreateList = () => {
@@ -385,6 +424,10 @@ const handleAddTask = (payload) => {
   }
 };
 
+const handleAddGoal = (payload) => {
+  createGoal(payload);
+};
+
 const updateBackToTopVisibility = () => {
   const content = contentRef.value;
   showBackToTop.value = (content?.scrollTop ?? 0) > 320;
@@ -520,6 +563,16 @@ watch(
 );
 
 watch(
+  [isGoalsEnabled, () => route.path],
+  ([enabled, currentPath]) => {
+    if (!enabled && typeof currentPath === 'string' && currentPath.startsWith('/goals')) {
+      router.replace('/today');
+    }
+  },
+  { immediate: true }
+);
+
+watch(
   () => route.path,
   () => {
     closeMobileSidebar();
@@ -546,6 +599,7 @@ watch(isSidebarCollapsed, (collapsed) => {
 onUnmounted(() => {
   stopSidebarResize();
   teardown();
+  teardownGoalStore();
 });
 </script>
 
@@ -730,6 +784,43 @@ onUnmounted(() => {
           />
           <span class="layout__add-task-text">Add a Task</span>
         </button>
+        <section v-if="isGoalsEnabled" class="layout__goals">
+          <header class="layout__goals-header">
+            <p v-show="!isSidebarCollapsed" class="layout__goals-title">Goals</p>
+          </header>
+          <nav class="layout__goals-nav">
+            <RouterLink
+              v-for="link in goalNavLinks"
+              :key="link.to"
+              v-tooltip="isSidebarCollapsed ? link.label : undefined"
+              :to="link.to"
+              class="layout__link"
+              active-class="layout__link--active"
+            >
+              <span class="layout__nav-icon" aria-hidden="true">
+                <IconGlyph :name="link.icon" size="22" />
+              </span>
+              <span class="layout__nav-label">{{ link.label }}</span>
+              <span v-if="link.count !== null" class="layout__list-count layout__nav-count">
+                {{ link.count }}
+              </span>
+            </RouterLink>
+          </nav>
+          <button
+            v-tooltip="isSidebarCollapsed ? 'Add Goal' : undefined"
+            type="button"
+            class="layout__add-goal"
+            @click="showGoalForm = true"
+          >
+            <IconGlyph
+              name="plus"
+              size="16"
+              class="layout__add-goal-icon"
+              aria-hidden="true"
+            />
+            <span class="layout__add-goal-text">Add Goal</span>
+          </button>
+        </section>
       </div>
       <RouterLink
         v-tooltip="isSidebarCollapsed ? 'Settings' : undefined"
@@ -778,6 +869,11 @@ onUnmounted(() => {
     :lists="lists"
     :default-list-id="defaultListIdForForm"
     @submit="handleAddTask"
+  />
+  <AddEditGoalModal
+    v-model:visible="showGoalForm"
+    mode="add"
+    @submit="handleAddGoal"
   />
   <AddListModal
     v-model:visible="showCreateListModal"
@@ -842,7 +938,8 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.layout__add-task {
+.layout__add-task,
+.layout__add-goal {
   border: none;
   border-radius: 1rem;
   padding: 0.9rem 1.25rem;
@@ -872,12 +969,49 @@ onUnmounted(() => {
   }
 }
 
-.layout__add-task-icon {
+.layout__add-task-icon,
+.layout__add-goal-icon {
   color: theme.$color-text-inverted;
 }
 
-.layout--collapsed .layout__add-task-text {
+.layout--collapsed .layout__add-task-text,
+.layout--collapsed .layout__add-goal-text {
   display: none;
+}
+
+.layout__goals {
+  display: grid;
+  gap: 0.7rem;
+  padding-top: 0.4rem;
+}
+
+.layout__goals-header {
+  display: flex;
+  align-items: center;
+}
+
+.layout__goals-title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: theme.$color-text-muted;
+}
+
+.layout__goals-nav {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.layout--collapsed .layout__goals-title {
+  display: none;
+}
+
+.layout--collapsed .layout__add-goal {
+  width: 100%;
+  justify-content: center;
+  padding: 0.75rem;
 }
 
 .layout__sidebar--collapsed {
@@ -1490,9 +1624,22 @@ onUnmounted(() => {
     display: inline;
   }
 
-  .layout--collapsed .layout__add-task {
+  .layout--collapsed .layout__goals-title {
+    display: inline;
+  }
+
+  .layout--collapsed .layout__add-goal {
+    justify-content: center;
+    padding: 0.55rem 0.9rem;
+  }
+
+  .layout--collapsed .layout__add-goal {
     justify-content: center;
     padding: 0.9rem 1.25rem;
+  }
+
+  .layout--collapsed .layout__add-goal-text {
+    display: inline;
   }
 
   .layout--collapsed .layout__add-list {

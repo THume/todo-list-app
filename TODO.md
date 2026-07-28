@@ -1,6 +1,5 @@
 # TODOs
 
-- Goals/habits - tracks how often completed
 - Add Workspaces to create separate collections of tasks/lists
   - Workspace should be the highest level (Example: "Work" or "Home")
   - Lists live under Workspace, Tasks live under Lists

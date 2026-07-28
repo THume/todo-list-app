@@ -18,7 +18,13 @@ const router = useRouter();
 const { lastSavedAt, storageStatus, isOnline, lastSuccessfulSyncAt, refreshFromStorage } = useTaskStore();
 const FORCE_STORAGE_FAILURE_KEY = 'todo-list.force-storage-failure';
 
-const { isStandupEnabled, isSummaryEnabled, isLongTermTasksEnabled, fontSizeSetting } = useUiSettings();
+const {
+  isStandupEnabled,
+  isSummaryEnabled,
+  isGoalsEnabled,
+  isLongTermTasksEnabled,
+  fontSizeSetting,
+} = useUiSettings();
 const showStorageFailureToggle = import.meta.env.DEV;
 const forceStorageFailure = ref(false);
 const duplicateDirectory = ref('');
@@ -339,6 +345,21 @@ onMounted(() => {
           type="checkbox"
           class="settings-page__toggle-input"
           aria-label="Toggle Summary page visibility"
+        />
+        <span class="settings-page__toggle" aria-hidden="true"></span>
+      </label>
+      <label class="settings-page__option">
+        <div class="settings-page__option-text">
+          <span class="settings-page__option-title">Goals</span>
+          <span class="settings-page__option-hint">
+            {{ isGoalsEnabled ? 'Enabled' : 'Hidden' }}
+          </span>
+        </div>
+        <input
+          v-model="isGoalsEnabled"
+          type="checkbox"
+          class="settings-page__toggle-input"
+          aria-label="Toggle Goals page visibility"
         />
         <span class="settings-page__toggle" aria-hidden="true"></span>
       </label>

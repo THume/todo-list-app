@@ -7,6 +7,9 @@ import OverdueTasksView from '../views/OverdueTasksView.vue';
 import CompletedTasksView from '../views/CompletedTasksView.vue';
 import StandupView from '../views/StandupView.vue';
 import SummaryView from '../views/SummaryView.vue';
+import ActiveGoalsView from '../views/ActiveGoalsView.vue';
+import GoalOutcomesView from '../views/GoalOutcomesView.vue';
+import GoalMetricsView from '../views/GoalMetricsView.vue';
 import SettingsView from '../views/SettingsView.vue';
 
 const routes = [
@@ -37,6 +40,22 @@ const routes = [
   {
     path: '/summary',
     component: SummaryView,
+  },
+  {
+    path: '/goals',
+    redirect: '/goals/active',
+  },
+  {
+    path: '/goals/active',
+    component: ActiveGoalsView,
+  },
+  {
+    path: '/goals/metrics',
+    component: GoalMetricsView,
+  },
+  {
+    path: '/goals/outcomes',
+    component: GoalOutcomesView,
   },
   {
     path: '/all',

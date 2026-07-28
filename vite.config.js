@@ -9,7 +9,17 @@ const BACKUP_INTERVAL_MS = 30 * 60 * 1000;
 const BACKUP_WRITE_THRESHOLD = 20;
 const MAX_BACKUP_SNAPSHOTS = 20;
 const SUMMARIES_FILE_NAME = 'summaries.json';
-const BACKUP_FILES = ['tasks.json', 'lists.json', 'completed.json', 'meta.json', SUMMARIES_FILE_NAME];
+const GOALS_FILE_NAME = 'goals.json';
+const GOAL_OUTCOMES_FILE_NAME = 'goal-outcomes.json';
+const BACKUP_FILES = [
+  'tasks.json',
+  'lists.json',
+  'completed.json',
+  'meta.json',
+  SUMMARIES_FILE_NAME,
+  GOALS_FILE_NAME,
+  GOAL_OUTCOMES_FILE_NAME,
+];
 const SETTINGS_FILE_NAME = 'settings.json';
 const BACKUP_SETTINGS_FILES = [SETTINGS_FILE_NAME];
 const DEFAULT_SETTINGS = Object.freeze({
@@ -249,6 +259,8 @@ const readBackupCounts = (snapshotPath) => {
     lists: readCount('lists.json'),
     completed: readCount('completed.json'),
     summaries: readSummariesCount(),
+    goals: readCount(GOALS_FILE_NAME),
+    goalOutcomes: readCount(GOAL_OUTCOMES_FILE_NAME),
   };
 };
 
@@ -436,6 +448,8 @@ const createJsonStorageMiddleware = () => {
       const completedResult = readJsonFromDisk('completed.json');
       const metaResult = readJsonFromDisk('meta.json');
       const summariesResult = readJsonFromDisk(SUMMARIES_FILE_NAME);
+      const goalsResult = readJsonFromDisk(GOALS_FILE_NAME);
+      const goalOutcomesResult = readJsonFromDisk(GOAL_OUTCOMES_FILE_NAME);
       const settingsResult = readJsonFromDisk(SETTINGS_FILE_NAME);
 
       if (
@@ -444,6 +458,8 @@ const createJsonStorageMiddleware = () => {
         || !completedResult.ok
         || !metaResult.ok
         || !summariesResult.ok
+        || !goalsResult.ok
+        || !goalOutcomesResult.ok
         || !settingsResult.ok
       ) {
         res.statusCode = 500;
@@ -460,6 +476,8 @@ const createJsonStorageMiddleware = () => {
         lists: Array.isArray(listsResult.data) ? listsResult.data : [],
         completed: Array.isArray(completedResult.data) ? completedResult.data : [],
         meta: metaResult.data ?? buildDefaultMeta(),
+        goals: Array.isArray(goalsResult.data) ? goalsResult.data : [],
+        goalOutcomes: Array.isArray(goalOutcomesResult.data) ? goalOutcomesResult.data : [],
         summaries:
           summariesResult.data && typeof summariesResult.data === 'object'
             ? summariesResult.data
@@ -507,6 +525,8 @@ const createJsonStorageMiddleware = () => {
           const tasks = Array.isArray(parsed?.tasks) ? parsed.tasks : null;
           const lists = Array.isArray(parsed?.lists) ? parsed.lists : null;
           const completed = Array.isArray(parsed?.completed) ? parsed.completed : null;
+          const goals = Array.isArray(parsed?.goals) ? parsed.goals : [];
+          const goalOutcomes = Array.isArray(parsed?.goalOutcomes) ? parsed.goalOutcomes : [];
           const incomingSummaries =
             parsed?.summaries && typeof parsed.summaries === 'object' && !Array.isArray(parsed.summaries)
               ? parsed.summaries
@@ -530,6 +550,8 @@ const createJsonStorageMiddleware = () => {
           writeJsonToDisk('lists.json', lists);
           writeJsonToDisk('completed.json', completed);
           writeJsonToDisk('meta.json', meta);
+          writeJsonToDisk(GOALS_FILE_NAME, goals);
+          writeJsonToDisk(GOAL_OUTCOMES_FILE_NAME, goalOutcomes);
 
           if (incomingSummaries) {
             writeJsonToDisk(SUMMARIES_FILE_NAME, incomingSummaries);
