@@ -834,18 +834,21 @@ const buildDueIsoForTargetDate = (task, targetDate, ensureFuture = false) => {
 
   let hours = 23;
   let minutes = 59;
+  let hasExistingTime = false;
 
   if (task.due) {
     const existing = new Date(task.due);
     if (!Number.isNaN(existing.valueOf())) {
       hours = existing.getHours();
       minutes = existing.getMinutes();
+      hasExistingTime = true;
     }
   }
 
   base.setHours(hours, minutes, 0, 0);
 
-  if (ensureFuture && base.valueOf() <= currentTime.value) {
+  // Only reset to 23:59 if ensuring future date AND there was no existing time to preserve
+  if (ensureFuture && base.valueOf() <= currentTime.value && !hasExistingTime) {
     base.setHours(23, 59, 0, 0);
   }
 
